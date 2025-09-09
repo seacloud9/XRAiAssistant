@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Babylon.js Playground</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+    <script src="https://cdn.babylonjs.com/postProcessesLibrary/babylonjs.postProcess.min.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <script src="https://cdn.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
+    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+    <script src="https://cdn.babylonjs.com/inspector/babylon.inspector.bundle.js"></script>
+    
+    <!-- Monaco Editor -->
+    <script src="https://unpkg.com/monaco-editor@0.45.0/min/vs/loader.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: #1e1e1e;
+            color: #fff;
+        }
+        
+        .header {
+            background: #2d2d30;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid #3e3e42;
+            min-height: 40px;
+        }
+        
+        .menu-btn {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background-color 0.2s;
+        }
+        
+        .menu-btn:hover {
+            background: #1177bb;
+        }
+        
+        .menu-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        
+        .main-container {
+            flex: 1;
+            display: flex;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .editor-container {
+            width: 50%;
+            background: #1e1e1e;
+            border-right: 1px solid #3e3e42;
+            position: relative;
+        }
+        
+        .canvas-container {
+            width: 50%;
+            background: #252526;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            outline: none;
+            display: block;
+        }
+        
+        .resize-handle {
+            position: absolute;
+            top: 0;
+            right: -2px;
+            width: 4px;
+            height: 100%;
+            background: #3e3e42;
+            cursor: col-resize;
+            z-index: 10;
+        }
+        
+        .resize-handle:hover {
+            background: #007acc;
+        }
+        
+        .footer {
+            background: #007acc;
+            padding: 4px 12px;
+            font-size: 11px;
+            text-align: center;
+            color: white;
+        }
+        
+        .error-display {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #f14c4c;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            max-width: 300px;
+            display: none;
+            z-index: 1000;
+        }
+        
+        .console-display {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            background: rgba(30, 30, 30, 0.95);
+            color: #ccc;
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            max-height: 150px;
+            overflow-y: auto;
+            display: none;
+            z-index: 1000;
+            border: 1px solid #3e3e42;
+        }
+        
+        .console-message {
+            margin: 2px 0;
+            word-wrap: break-word;
+        }
+        
+        .console-error {
+            color: #f14c4c;
+        }
+        
+        .console-warning {
+            color: #ffcc02;
+        }
+        
+        .console-log {
+            color: #ccc;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #cccccc;
+            font-size: 14px;
+        }
+        
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+            }
+            
+            .editor-container {
+                width: 100%;
+                height: 50%;
+                border-right: none;
+                border-bottom: 1px solid #3e3e42;
+            }
+            
+            .canvas-container {
+                width: 100%;
+                height: 50%;
+            }
+            
+            .resize-handle {
+                top: -2px;
+                right: 0;
+                width: 100%;
+                height: 4px;
+                cursor: row-resize;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <button class="menu-btn" onclick="runCode()">▶ Run</button>
+        <button class="menu-btn" onclick="formatCode()">{ } Format</button>
+        <button class="menu-btn" onclick="clearCode()">🗑 Clear</button>
+        <button class="menu-btn" onclick="saveScene()">💾 Save</button>
+        <button class="menu-btn" onclick="downloadScene()">⬇ Download</button>
+        <button class="menu-btn" onclick="newScene()">📄 New</button>
+        <button class="menu-btn" onclick="showExamples()">📚 Examples</button>
+        <button class="menu-btn" onclick="toggleConsole()">🖥 Console</button>
+        <select class="menu-btn" onchange="loadExample(this.value)">
+            <option value="">Select Example...</option>
+            <option value="basic-scene">Basic Scene</option>
+            <option value="rotating-cube">Rotating Cube</option>
+            <option value="lighting">Lighting Demo</option>
+            <option value="materials">Materials Demo</option>
+        </select>
+    </div>
+    
+    <div class="main-container">
+        <div class="editor-container">
+            <div id="monaco-editor" style="width: 100%; height: 100%;"></div>
+            <div class="resize-handle"></div>
+        </div>
+        <div class="canvas-container">
+            <canvas id="renderCanvas"></canvas>
+            <div class="loading" id="loading">Loading Babylon.js...</div>
+        </div>
+    </div>
+    
+    <div class="footer">
+        Babylon.js Playground - Powered by WebGL
+    </div>
+    
+    <div class="error-display" id="errorDisplay"></div>
+    <div class="console-display" id="consoleDisplay"></div>
+
+    <script>
+        let editor;
+        let engine;
+        let scene;
+        let isResizing = false;
+        let consoleMessages = [];
+        
+        // Override console methods to capture logs
+        const originalConsole = {
+            log: console.log,
+            error: console.error,
+            warn: console.warn,
+            info: console.info
+        };
+        
+        console.log = (...args) => {
+            originalConsole.log(...args);
+            addConsoleMessage('log', args.map(arg => String(arg)).join(' '));
+        };
+        
+        console.error = (...args) => {
+            originalConsole.error(...args);
+            addConsoleMessage('error', args.map(arg => String(arg)).join(' '));
+        };
+        
+        console.warn = (...args) => {
+            originalConsole.warn(...args);
+            addConsoleMessage('warning', args.map(arg => String(arg)).join(' '));
+        };
+        
+        console.info = (...args) => {
+            originalConsole.info(...args);
+            addConsoleMessage('log', args.map(arg => String(arg)).join(' '));
+        };
+        
+        // Initialize Monaco Editor
+        console.log('Starting Monaco Editor initialization...');
+        require.config({ paths: { vs: 'https://unpkg.com/monaco-editor@0.45.0/min/vs' } });
+        require(['vs/editor/editor.main'], function () {
+            console.log('Monaco modules loaded, creating editor...');
+            
+            try {
+                editor = monaco.editor.create(document.getElementById('monaco-editor'), {
+                    value: getDefaultCode(),
+                    language: 'typescript',
+                    theme: 'vs-dark',
+                    automaticLayout: true,
+                    minimap: { enabled: true },
+                    fontSize: 14,
+                    wordWrap: 'on',
+                    scrollBeyondLastLine: false,
+                    renderLineHighlight: 'all',
+                    selectionHighlight: false,
+                    lineNumbers: 'on',
+                    glyphMargin: true,
+                    folding: true,
+                    foldingStrategy: 'indentation',
+                    showFoldingControls: 'always',
+                    unfoldOnClickAfterEndOfLine: false,
+                    tabSize: 4
+                });
+                
+                console.log('✅ Monaco editor created successfully:', !!editor);
+                
+                // Auto-save on changes
+                editor.onDidChangeModelContent(() => {
+                    debounce(notifyCodeChange, 500)();
+                });
+                
+                // Make editor globally accessible with multiple references
+                window.editor = editor;
+                window.monacoEditor = editor;
+                window.codeEditor = editor;
+                
+                // Wait for editor to be fully ready before proceeding
+                setTimeout(() => {
+                    console.log('📝 Monaco editor should be fully ready now');
+                    console.log('Editor model ready:', !!editor.getModel());
+                    console.log('Editor setValue available:', typeof editor.setValue === 'function');
+                    console.log('Editor getValue available:', typeof editor.getValue === 'function');
+                    
+                    // Mark editor as ready - IMPORTANT FOR INJECTION
+                    window.editorReady = true;
+                    console.log('🎯 MONACO EDITOR MARKED AS READY FOR INJECTION');
+                    
+                    // Test injection capability immediately
+                    try {
+                        const testContent = editor.getValue();
+                        console.log('✅ Monaco injection test passed - current content length:', testContent.length);
+                    } catch (testError) {
+                        console.error('❌ Monaco injection test failed:', testError);
+                        window.editorReady = false;
+                    }
+                    
+                    initializeBabylon();
+                }, 1000); // Give Monaco more time to fully initialize
+                
+            } catch (error) {
+                console.error('❌ Failed to create Monaco editor:', error);
+                initializeBabylon();
+            }
+            
+        }, function(error) {
+            console.error('❌ Failed to load Monaco modules:', error);
+            // Initialize Babylon anyway
+            initializeBabylon();
+        });
+        
+        // Initialize Babylon.js
+        function initializeBabylon() {
+            console.log('Initializing Babylon.js...');
+            const canvas = document.getElementById('renderCanvas');
+            engine = new BABYLON.Engine(canvas, true, {
+                preserveDrawingBuffer: true,
+                stencil: true,
+                disableWebGL2Support: false
+            });
+            
+            console.log('Babylon.js engine created');
+            
+            // Hide loading
+            document.getElementById('loading').style.display = 'none';
+            
+            // Create default scene
+            createDefaultScene();
+            
+            // Render loop
+            engine.runRenderLoop(() => {
+                if (scene && scene.activeCamera) {
+                    scene.render();
+                }
+            });
+            
+            console.log('Babylon.js render loop started');
+            
+            // Handle resize
+            window.addEventListener('resize', () => {
+                engine.resize();
+            });
+            
+            // Notify Swift that initialization is complete
+            setTimeout(() => {
+                console.log('Checking components before signaling ready...');
+                console.log('Editor available:', typeof editor !== 'undefined' && !!editor);
+                console.log('Editor ready flag:', !!window.editorReady);
+                console.log('Engine available:', !!engine);
+                console.log('BABYLON available:', !!BABYLON);
+                
+                notifySwift('initializationComplete', { 
+                    ready: true,
+                    editorReady: !!(window.editorReady && typeof editor !== 'undefined' && editor),
+                    engineReady: !!engine 
+                });
+                console.log('Playground fully initialized');
+            }, 1500);  // Give even more time for Monaco to be fully ready
+        }
+        
+        function getDefaultCode() {
+            return `// Welcome to Babylon.js Playground!
+// Create your 3D scene using TypeScript/JavaScript
+
+const createScene = () => {
+    // Create scene
+    const scene = new BABYLON.Scene(engine);
+    
+    // Create camera
+    const camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 5, -10), scene);
+    camera.setTarget(BABYLON.Vector3.Zero());
+    
+    // Attach camera controls - modern API
+    if (camera.attachControls) {
+        camera.attachControls(canvas, true);
+    } else if (scene.actionManager) {
+        scene.actionManager = new BABYLON.ActionManager(scene);
+    }
+    
+    // Create light
+    const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+    light.intensity = 0.7;
+    
+    // Create sphere
+    const sphere = BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 2}, scene);
+    sphere.position.y = 1;
+    
+    // Create ground
+    const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 6, height: 6}, scene);
+    
+    console.log("Scene created with camera:", !!camera, "light:", !!light);
+    
+    return scene;
+};
+
+// Execute the scene creation
+const scene = createScene();`;
+        }
+        
+        function createDefaultScene() {
+            try {
+                // Clear existing scene
+                if (scene) {
+                    scene.dispose();
+                }
+                
+                // Execute user code
+                const userCode = editor ? editor.getValue() : getDefaultCode();
+                executeUserCode(userCode);
+                
+                hideError();
+            } catch (error) {
+                showError('Scene Creation Error: ' + error.message);
+                console.error('Scene creation error:', error);
+            }
+        }
+        
+        function executeUserCode(code) {
+            try {
+                console.log('=== EXECUTING USER CODE ===');
+                console.log('Code to execute:', code);
+                
+                // Clear previous console messages for new execution
+                clearConsole();
+                
+                // Dispose existing scene if any
+                if (scene) {
+                    console.log('Disposing existing scene');
+                    scene.dispose();
+                    scene = null;
+                }
+                
+                // Make sure canvas is available globally
+                const canvasElement = document.getElementById('renderCanvas');
+                if (!canvasElement) {
+                    throw new Error('Canvas element not found');
+                }
+                
+                // Make variables available globally for user code
+                window.canvas = canvasElement;
+                window.engine = engine;
+                window.BABYLON = BABYLON;
+                
+                console.log('Canvas available:', !!window.canvas);
+                console.log('Engine available:', !!window.engine);
+                console.log('BABYLON available:', !!window.BABYLON);
+                
+                // Execute the code in the global context with proper error handling
+                try {
+                    // Create a safer execution context
+                    const executeCode = new Function('canvas', 'engine', 'BABYLON', 
+                        `
+                        try {
+                            ${code}
+                            if (typeof scene !== 'undefined') {
+                                console.log('Scene variable found:', !!scene);
+                                return scene;
+                            } else {
+                                console.error('No scene variable found in executed code');
+                                return null;
+                            }
+                        } catch (execError) {
+                            console.error('Code execution error:', execError);
+                            throw execError;
+                        }
+                        `
+                    );
+                    
+                    // Execute with proper context
+                    scene = executeCode(canvasElement, engine, BABYLON);
+                    
+                } catch (execError) {
+                    console.error('Function execution failed:', execError);
+                    throw execError;
+                }
+                
+                if (!scene) {
+                    throw new Error('Scene creation failed - no scene object returned');
+                }
+                
+                console.log('✅ Scene created successfully:', scene);
+                console.log('Scene cameras:', scene.cameras?.length || 0);
+                console.log('Scene meshes:', scene.meshes?.length || 0);
+                console.log('Scene lights:', scene.lights?.length || 0);
+                
+                // Force a render update
+                if (engine && scene) {
+                    console.log('Forcing scene render...');
+                    scene.render();
+                    engine.resize();
+                }
+                
+                // Hide any error displays
+                hideError();
+                
+                // Clear console and show success
+                setTimeout(() => {
+                    console.log('🎉 NEW SCENE LOADED SUCCESSFULLY!');
+                    addConsoleMessage('log', '🎉 Scene loaded with ' + (scene.meshes?.length || 0) + ' objects');
+                    
+                    // Ensure the scene is actively rendering
+                    if (scene.activeCamera) {
+                        console.log('Active camera found, scene should be rendering');
+                    } else {
+                        console.warn('No active camera found!');
+                    }
+                }, 100);
+                
+                // Notify Swift about successful scene creation
+                notifySwift('sceneCreated', { success: true });
+                
+            } catch (error) {
+                const errorMsg = 'Execution Error: ' + error.message;
+                console.error('❌ executeUserCode failed:', errorMsg);
+                console.error('Error stack:', error.stack);
+                showError(errorMsg);
+                notifySwift('sceneError', { error: error.message });
+                
+                // Fall back to default scene on error
+                console.log('Falling back to default scene...');
+                try {
+                    scene = createDefaultBabylonScene();
+                } catch (fallbackError) {
+                    console.error('Even fallback failed:', fallbackError);
+                }
+            }
+        }
+        
+        // Create a simple fallback scene
+        function createDefaultBabylonScene() {
+            console.log('Creating fallback default scene');
+            const fallbackScene = new BABYLON.Scene(engine);
+            
+            const camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 5, -10), fallbackScene);
+            camera.setTarget(BABYLON.Vector3.Zero());
+            if (camera.attachControls) {
+                camera.attachControls(canvas, true);
+            }
+            
+            const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), fallbackScene);
+            light.intensity = 0.7;
+            
+            const sphere = BABYLON.MeshBuilder.CreateSphere("fallback", {diameter: 2}, fallbackScene);
+            sphere.position.y = 1;
+            
+            console.log('Fallback scene created');
+            return fallbackScene;
+        }
+        
+        // Playground functions exposed to Swift
+        function runCode() {
+            console.log('Run code button pressed');
+            createDefaultScene();
+            notifySwift('codeRun', {});
+        }
+        
+        function formatCode() {
+            if (editor) {
+                editor.getAction('editor.action.formatDocument').run();
+                notifySwift('codeFormatted', {});
+            }
+        }
+        
+        function clearCode() {
+            if (editor) {
+                editor.setValue(getDefaultCode());
+                notifySwift('codeCleared', {});
+            }
+        }
+        
+        function saveScene() {
+            const code = editor ? editor.getValue() : '';
+            notifySwift('saveRequested', { code: code });
+        }
+        
+        function downloadScene() {
+            const code = editor ? editor.getValue() : '';
+            notifySwift('downloadRequested', { code: code });
+        }
+        
+        function newScene() {
+            clearCode();
+            runCode();
+        }
+        
+        function showExamples() {
+            notifySwift('showExamples', {});
+        }
+        
+        function toggleConsole() {
+            const consoleDisplay = document.getElementById('consoleDisplay');
+            if (consoleDisplay.style.display === 'none' || !consoleDisplay.style.display) {
+                updateConsoleDisplay(); // Ensure it's up to date
+                if (consoleMessages.length === 0) {
+                    console.log('Console opened - no messages yet');
+                }
+            } else {
+                consoleDisplay.style.display = 'none';
+            }
+        }
+        
+        function loadExample(exampleId) {
+            if (!exampleId) return;
+            
+            const examples = {
+                'basic-scene': getDefaultCode(),
+                'rotating-cube': getRotatingCubeCode(),
+                'lighting': getLightingDemoCode(),
+                'materials': getMaterialsDemoCode()
+            };
+            
+            if (examples[exampleId] && editor) {
+                editor.setValue(examples[exampleId]);
+                runCode();
+            }
+        }
+        
+        // Code insertion function for AI assistance
+        function insertCodeAtCursor(codeString) {
+            console.log('🎯 insertCodeAtCursor called with code length:', codeString.length);
+            if (editor && window.editorReady) {
+                console.log('✅ Editor ready, inserting at cursor');
+                const position = editor.getPosition();
+                editor.executeEdits('ai-insertion', [{
+                    range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+                    text: codeString
+                }]);
+                editor.setPosition(position);
+                editor.focus();
+                console.log('✅ Code inserted at cursor position');
+                notifySwift('codeInserted', { code: codeString });
+            } else {
+                console.error('❌ Editor not ready for insertion');
+            }
+        }
+        
+        // Enhanced function to completely replace editor content
+        function setFullEditorContent(codeString) {
+            console.log('🎯 setFullEditorContent called with code length:', codeString.length);
+            console.log('Editor ready status:', !!window.editorReady);
+            console.log('Editor exists:', !!editor);
+            
+            try {
+                if (editor && window.editorReady) {
+                    console.log('✅ Setting full editor content...');
+                    
+                    // Replace all content
+                    editor.setValue(codeString);
+                    
+                    // Focus and position cursor at start
+                    editor.focus();
+                    editor.setPosition({lineNumber: 1, column: 1});
+                    
+                    // Force layout refresh
+                    editor.layout();
+                    
+                    // Verify the content was set
+                    const currentContent = editor.getValue();
+                    console.log('✅ Content set successfully! Length:', currentContent.length);
+                    console.log('📝 Content preview:', currentContent.substring(0, 100) + '...');
+                    
+                    // Run the code automatically
+                    setTimeout(() => {
+                        console.log('🚀 Auto-running the injected code...');
+                        runCode();
+                    }, 500);
+                    
+                    return true;
+                } else {
+                    console.error('❌ Editor not ready for content setting');
+                    return false;
+                }
+            } catch (error) {
+                console.error('❌ Failed to set editor content:', error);
+                return false;
+            }
+        }
+        
+        // Utility functions
+        function showError(message) {
+            const errorDisplay = document.getElementById('errorDisplay');
+            errorDisplay.textContent = message;
+            errorDisplay.style.display = 'block';
+            setTimeout(() => {
+                errorDisplay.style.display = 'none';
+            }, 5000);
+        }
+        
+        function hideError() {
+            document.getElementById('errorDisplay').style.display = 'none';
+        }
+        
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+        
+        function notifySwift(action, data) {
+            if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.playgroundHandler) {
+                window.webkit.messageHandlers.playgroundHandler.postMessage({
+                    action: action,
+                    data: data
+                });
+            }
+        }
+        
+        function notifyCodeChange() {
+            const code = editor ? editor.getValue() : '';
+            notifySwift('codeChanged', { code: code });
+        }
+        
+        // Console management functions
+        function addConsoleMessage(type, message) {
+            consoleMessages.push({ type, message, timestamp: Date.now() });
+            if (consoleMessages.length > 50) {
+                consoleMessages = consoleMessages.slice(-50); // Keep last 50 messages
+            }
+            updateConsoleDisplay();
+        }
+        
+        function updateConsoleDisplay() {
+            const consoleDisplay = document.getElementById('consoleDisplay');
+            if (consoleMessages.length > 0) {
+                consoleDisplay.innerHTML = consoleMessages.map(msg => 
+                    `<div class="console-message console-${msg.type}">${escapeHtml(msg.message)}</div>`
+                ).join('');
+                consoleDisplay.style.display = 'block';
+                consoleDisplay.scrollTop = consoleDisplay.scrollHeight;
+            } else {
+                consoleDisplay.style.display = 'none';
+            }
+        }
+        
+        function clearConsole() {
+            consoleMessages = [];
+            updateConsoleDisplay();
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Example code templates
+        function getRotatingCubeCode() {
+            return `const createScene = () => {
+    const scene = new BABYLON.Scene(engine);
+    
+    // Camera
+    const camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 5, -10), scene);
+    camera.setTarget(BABYLON.Vector3.Zero());
+    
+    // Attach camera controls safely
+    if (camera.attachControls) {
+        camera.attachControls(canvas, true);
+    }
+    
+    // Light
+    const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+    
+    // Create box
+    const box = BABYLON.MeshBuilder.CreateBox("box", {size: 2}, scene);
+    box.position.y = 1;
+    
+    // Animation
+    scene.registerBeforeRender(() => {
+        box.rotation.x += 0.01;
+        box.rotation.y += 0.01;
+    });
+    
+    console.log("Rotating cube scene created");
+    
+    return scene;
+};
+
+const scene = createScene();`;
+        }
+        
+        function getLightingDemoCode() {
+            return `const createScene = () => {
+    const scene = new BABYLON.Scene(engine);
+    
+    // Camera
+    const camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 5, -10), scene);
+    camera.setTarget(BABYLON.Vector3.Zero());
+    camera.attachControls(canvas, true);
+    
+    // Lights
+    const hemisphericLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
+    hemisphericLight.intensity = 0.3;
+    
+    const directionalLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -1, -1), scene);
+    directionalLight.position = new BABYLON.Vector3(10, 10, 10);
+    directionalLight.intensity = 0.7;
+    
+    // Objects
+    const sphere = BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 2}, scene);
+    sphere.position = new BABYLON.Vector3(-2, 1, 0);
+    
+    const box = BABYLON.MeshBuilder.CreateBox("box", {size: 2}, scene);
+    box.position = new BABYLON.Vector3(2, 1, 0);
+    
+    const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 10, height: 10}, scene);
+    
+    return scene;
+};
+
+const scene = createScene();`;
+        }
+        
+        function getMaterialsDemoCode() {
+            return `const createScene = () => {
+    const scene = new BABYLON.Scene(engine);
+    
+    // Camera
+    const camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 5, -10), scene);
+    camera.setTarget(BABYLON.Vector3.Zero());
+    camera.attachControls(canvas, true);
+    
+    // Light
+    const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+    
+    // Materials
+    const redMaterial = new BABYLON.StandardMaterial("redMaterial", scene);
+    redMaterial.diffuseColor = new BABYLON.Color3(1, 0, 0);
+    
+    const blueMaterial = new BABYLON.StandardMaterial("blueMaterial", scene);
+    blueMaterial.diffuseColor = new BABYLON.Color3(0, 0, 1);
+    blueMaterial.specularColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+    
+    const greenMaterial = new BABYLON.StandardMaterial("greenMaterial", scene);
+    greenMaterial.diffuseColor = new BABYLON.Color3(0, 1, 0);
+    greenMaterial.emissiveColor = new BABYLON.Color3(0.2, 0.2, 0);
+    
+    // Objects with materials
+    const sphere1 = BABYLON.MeshBuilder.CreateSphere("sphere1", {diameter: 2}, scene);
+    sphere1.position = new BABYLON.Vector3(-3, 1, 0);
+    sphere1.material = redMaterial;
+    
+    const sphere2 = BABYLON.MeshBuilder.CreateSphere("sphere2", {diameter: 2}, scene);
+    sphere2.position = new BABYLON.Vector3(0, 1, 0);
+    sphere2.material = blueMaterial;
+    
+    const sphere3 = BABYLON.MeshBuilder.CreateSphere("sphere3", {diameter: 2}, scene);
+    sphere3.position = new BABYLON.Vector3(3, 1, 0);
+    sphere3.material = greenMaterial;
+    
+    const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 10, height: 10}, scene);
+    
+    return scene;
+};
+
+const scene = createScene();`;
+        }
+    </script>
+</body>
+</html>
