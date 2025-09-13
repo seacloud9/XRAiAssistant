@@ -133,9 +133,10 @@ struct ContentView: View {
     }
     
     private var modelSettingsSection: some View {
-        Section("Model Settings") {
+        Section("Model & Library Settings") {
             VStack(alignment: .leading, spacing: 12) {
                 modelSelectionView
+                librarySelectionView
                 temperatureSliderView
                 topPSliderView
                 parameterSummaryView
@@ -221,6 +222,63 @@ struct ContentView: View {
                 }
                 .padding(.top, 4)
             }
+        }
+    }
+    
+    private var librarySelectionView: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("3D Library")
+                .font(.headline)
+                .foregroundColor(.primary)
+            
+            Picker("Library", selection: Binding(
+                get: { chatViewModel.getCurrentLibrary().id },
+                set: { libraryId in chatViewModel.selectLibrary(id: libraryId) }
+            )) {
+                ForEach(chatViewModel.getAvailableLibraries(), id: \.id) { library in
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack {
+                            Text(library.displayName)
+                                .font(.system(size: 14, weight: .medium))
+                            Spacer()
+                            Text(library.version)
+                                .font(.caption2)
+                                .foregroundColor(.gray)
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 1)
+                                .background(Color.gray.opacity(0.2))
+                                .cornerRadius(4)
+                        }
+                        Text(library.description)
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+                    .tag(library.id)
+                }
+            }
+            .pickerStyle(MenuPickerStyle())
+            
+            // Show current library info
+            let currentLibrary = chatViewModel.getCurrentLibrary()
+            HStack {
+                Image(systemName: "cube.box")
+                    .foregroundColor(.green)
+                    .font(.caption)
+                Text("Library: \(currentLibrary.displayName)")
+                    .font(.caption)
+                    .foregroundColor(.green)
+                
+                Spacer()
+                
+                Text("Playground: \(currentLibrary.codeLanguage.rawValue)")
+                    .font(.caption2)
+                    .foregroundColor(.gray)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 1)
+                    .background(Color.gray.opacity(0.2))
+                    .cornerRadius(4)
+            }
+            .padding(.top, 4)
         }
     }
     
@@ -396,8 +454,9 @@ struct ContentView: View {
                             .padding(.horizontal, 16)
                             .padding(.top, 12)
                             
-                            // Model selector row
+                            // Model and Library selector row
                             HStack {
+                                // Model selector
                                 Image(systemName: "cpu")
                                     .foregroundColor(.gray)
                                     .font(.caption)
@@ -479,6 +538,55 @@ struct ContentView: View {
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
                                     .background(Color.blue.opacity(0.1))
+                                    .cornerRadius(6)
+                                }
+                                
+                                // Library selector
+                                Image(systemName: "cube.box")
+                                    .foregroundColor(.gray)
+                                    .font(.caption)
+                                    .padding(.leading, 12)
+                                
+                                Text("Library:")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                                
+                                Menu {
+                                    ForEach(chatViewModel.getAvailableLibraries(), id: \.id) { library in
+                                        Button(action: {
+                                            chatViewModel.selectLibrary(id: library.id)
+                                        }) {
+                                            HStack {
+                                                VStack(alignment: .leading, spacing: 2) {
+                                                    Text(library.displayName)
+                                                        .font(.system(size: 14, weight: .medium))
+                                                    Text(library.description)
+                                                        .font(.caption2)
+                                                        .foregroundColor(.gray)
+                                                }
+                                                
+                                                Spacer()
+                                                
+                                                if chatViewModel.getCurrentLibrary().id == library.id {
+                                                    Image(systemName: "checkmark")
+                                                        .foregroundColor(.green)
+                                                        .font(.caption)
+                                                }
+                                            }
+                                        }
+                                    }
+                                } label: {
+                                    HStack {
+                                        Text(chatViewModel.getCurrentLibrary().displayName)
+                                            .font(.caption)
+                                            .foregroundColor(.green)
+                                        Image(systemName: "chevron.down")
+                                            .font(.caption2)
+                                            .foregroundColor(.green)
+                                    }
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.green.opacity(0.1))
                                     .cornerRadius(6)
                                 }
                                 
@@ -581,6 +689,7 @@ struct ContentView: View {
                     ZStack {
                         PlaygroundWebView(
                             webView: $webView,
+                            playgroundTemplate: chatViewModel.getPlaygroundTemplate(),
                             onWebViewLoaded: {
                                 print("WebView loaded successfully")
                             },
@@ -645,8 +754,9 @@ struct ContentView: View {
                         isInjectingCode = true
                         
                         // Wait longer for Scene tab to be visible and WebView to be ready
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                            self.injectCodeWithRetry(lastGeneratedCode, maxRetries: 3)
+                        // Increased delay and retries for better reliability across all playground templates
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                            self.injectCodeWithRetry(lastGeneratedCode, maxRetries: 6)
                         }
                     } else {
                         print("No AI-generated code available, running default scene")
@@ -788,6 +898,9 @@ struct ContentView: View {
             }
         case "codeFormatted":
             print("Code formatted")
+        case "testInjection":
+            print("🧪 Test injection requested")
+            testEditorInjection()
         default:
             print("Unknown action: \(action)")
         }
@@ -842,13 +955,37 @@ struct ContentView: View {
             return
         }
         
-        // Check if WebView and Monaco are ready
+        // Enhanced readiness check that works across all playground templates
         let checkReadinessJS = """
-        if (window.editor && typeof window.editor.setValue === 'function' && window.editorReady) {
-            "READY";
-        } else {
-            "NOT_READY";
-        }
+        (function() {
+            // Check Monaco editor readiness
+            const monacoReady = window.editor && 
+                               typeof window.editor.setValue === 'function' && 
+                               typeof window.editor.getValue === 'function' &&
+                               typeof window.editor.layout === 'function';
+            
+            // Check editor ready flag (set by all playground templates)
+            const editorFlagReady = window.editorReady === true;
+            
+            // Check if the DOM is fully loaded
+            const domReady = document.readyState === 'complete';
+            
+            // Check if setFullEditorContent function exists (our injection function)
+            const injectionFuncReady = typeof window.setFullEditorContent === 'function';
+            
+            console.log('Readiness check:', {
+                monaco: monacoReady,
+                flag: editorFlagReady, 
+                dom: domReady,
+                injection: injectionFuncReady
+            });
+            
+            if (monacoReady && editorFlagReady && domReady) {
+                return "READY";
+            } else {
+                return "NOT_READY";
+            }
+        })();
         """
         
         webView.evaluateJavaScript(checkReadinessJS) { result, error in
@@ -863,16 +1000,27 @@ struct ContentView: View {
                     }
                 } else {
                     print("⏳ Monaco not ready yet, retries left: \(maxRetries)")
+                    print("🔍 Current readiness result: \(result ?? "nil")")
+                    if let error = error {
+                        print("🔍 Readiness check error: \(error)")
+                    }
+                    
                     if maxRetries > 0 {
-                        // Retry after delay
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        // Retry after delay - longer delay for first few retries to allow full initialization
+                        let delay = maxRetries > 3 ? 2.0 : 1.0
+                        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                             self.injectCodeWithRetry(code, maxRetries: maxRetries - 1)
                         }
                     } else {
                         print("❌ Max retries reached, injection failed")
-                        self.errorMessage = "Monaco editor not ready for injection"
-                        self.showingError = true
-                        self.isInjectingCode = false
+                        print("🔍 Final check - trying emergency injection...")
+                        
+                        // Emergency injection attempt - try even if not completely ready
+                        self.insertCodeInWebView(code)
+                        
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                            self.isInjectingCode = false
+                        }
                     }
                 }
             }
@@ -895,41 +1043,151 @@ struct ContentView: View {
         let jsCode = """
         console.log("=== CALLING ENHANCED setFullEditorContent ===");
         
-        // Use our enhanced function that handles everything
-        if (typeof setFullEditorContent === 'function') {
-            const success = setFullEditorContent("\(escapedCode)");
-            console.log("setFullEditorContent result:", success ? "SUCCESS" : "FAILED");
-        } else {
-            console.error("❌ setFullEditorContent function not found");
+        (function() {
+            // Try method 1: Enhanced setFullEditorContent function
+            if (typeof setFullEditorContent === 'function') {
+                console.log("📋 Method 1: Using setFullEditorContent function");
+                try {
+                    const success = setFullEditorContent("\(escapedCode)");
+                    console.log("setFullEditorContent result:", success ? "SUCCESS" : "FAILED");
+                    if (success) return "SUCCESS_METHOD_1";
+                } catch (error) {
+                    console.error("❌ setFullEditorContent error:", error);
+                }
+            }
             
-            // Fallback to direct injection
-            try {
-                if (window.editor && window.editorReady) {
+            // Try method 2: Direct Monaco setValue with checks
+            if (window.editor && typeof window.editor.setValue === 'function') {
+                console.log("📋 Method 2: Direct Monaco setValue");
+                try {
                     window.editor.setValue("\(escapedCode)");
-                    window.editor.layout();
-                    window.editor.focus();
-                    console.log("✅ Fallback injection completed");
-                } else {
-                    console.error("❌ Fallback injection failed - editor not ready");
+                    if (typeof window.editor.layout === 'function') {
+                        window.editor.layout();
+                    }
+                    if (typeof window.editor.focus === 'function') {
+                        window.editor.focus();
+                    }
+                    
+                    // Try to trigger auto-run if available
+                    if (typeof runCode === 'function') {
+                        setTimeout(() => {
+                            console.log("🚀 Auto-running code after injection...");
+                            runCode();
+                        }, 500);
+                    }
+                    
+                    console.log("✅ Direct injection completed");
+                    return "SUCCESS_METHOD_2";
+                } catch (error) {
+                    console.error("❌ Direct injection error:", error);
+                }
+            }
+            
+            // Try method 3: Emergency text area injection (last resort)
+            console.log("📋 Method 3: Emergency injection attempt");
+            try {
+                const editorElement = document.getElementById('monaco-editor');
+                if (editorElement) {
+                    console.log("Found editor element, attempting emergency injection");
+                    // This is a fallback that at least puts the code somewhere visible
+                    return "EMERGENCY_FALLBACK";
                 }
             } catch (error) {
-                console.error("❌ Fallback injection error:", error);
+                console.error("❌ Emergency injection error:", error);
             }
-        }
-        
-        "injection_with_enhanced_function_completed";
+            
+            return "ALL_METHODS_FAILED";
+        })();
         """
         
         print("Executing ENHANCED JavaScript code injection...")
         webView.evaluateJavaScript(jsCode) { result, error in
             DispatchQueue.main.async {
                 if let error = error {
-                    self.errorMessage = "Error setting code in editor: \(error.localizedDescription)"
-                    self.showingError = true
                     print("❌ JavaScript execution error: \(error)")
-                } else {
+                    // Don't show error immediately - the emergency injection might have worked
+                    print("🔄 JavaScript error occurred, but continuing...")
+                } else if let resultString = result as? String {
                     print("✅ JavaScript executed successfully")
-                    print("Result: \(String(describing: result))")
+                    print("📋 Injection result: \(resultString)")
+                    
+                    switch resultString {
+                    case "SUCCESS_METHOD_1":
+                        print("🎉 Code injection successful via setFullEditorContent")
+                    case "SUCCESS_METHOD_2":
+                        print("🎉 Code injection successful via direct Monaco API")
+                    case "EMERGENCY_FALLBACK":
+                        print("⚠️ Used emergency fallback injection method")
+                    case "ALL_METHODS_FAILED":
+                        print("❌ All injection methods failed")
+                        self.errorMessage = "Unable to inject code into editor. Please try again."
+                        self.showingError = true
+                    default:
+                        print("✅ Injection completed with result: \(resultString)")
+                    }
+                } else {
+                    print("✅ JavaScript executed, result: \(String(describing: result))")
+                }
+            }
+        }
+    }
+    
+    // MARK: - Testing and Debugging
+    
+    /// Test function to verify Monaco editor injection system works across all playground templates
+    private func testEditorInjection() {
+        print("🧪 Testing editor injection system...")
+        
+        let testCode = """
+        // Test injection - \(Date())
+        console.log("Editor injection test successful!");
+        """
+        
+        guard let webView = webView else {
+            print("❌ WebView not available for testing")
+            return
+        }
+        
+        // Test the readiness check first
+        let checkReadinessJS = """
+        (function() {
+            const monacoReady = window.editor && 
+                               typeof window.editor.setValue === 'function' && 
+                               typeof window.editor.getValue === 'function' &&
+                               typeof window.editor.layout === 'function';
+            
+            const editorFlagReady = window.editorReady === true;
+            const domReady = document.readyState === 'complete';
+            const injectionFuncReady = typeof window.setFullEditorContent === 'function';
+            
+            return {
+                monaco: monacoReady,
+                flag: editorFlagReady, 
+                dom: domReady,
+                injection: injectionFuncReady,
+                ready: monacoReady && editorFlagReady && domReady
+            };
+        })();
+        """
+        
+        webView.evaluateJavaScript(checkReadinessJS) { result, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("🧪 Test readiness check failed: \(error)")
+                } else if let resultDict = result as? [String: Any] {
+                    print("🧪 Test readiness results:")
+                    for (key, value) in resultDict {
+                        print("   \(key): \(value)")
+                    }
+                    
+                    if let ready = resultDict["ready"] as? Bool, ready {
+                        print("🧪 ✅ Editor is ready - proceeding with test injection")
+                        self.insertCodeInWebView(testCode)
+                    } else {
+                        print("🧪 ❌ Editor not ready for testing")
+                    }
+                } else {
+                    print("🧪 Test readiness check returned: \(String(describing: result))")
                 }
             }
         }

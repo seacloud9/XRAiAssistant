@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Babylon.js Playground</title>
-    <script src="https://cdn.babylonjs.com/babylon.js"></script>
-    <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
-    <script src="https://cdn.babylonjs.com/postProcessesLibrary/babylonjs.postProcess.min.js"></script>
-    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
-    <script src="https://cdn.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
-    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
-    <script src="https://cdn.babylonjs.com/inspector/babylon.inspector.bundle.js"></script>
+    <title>Three.js Playground</title>
+    
+    <!-- Three.js Core -->
+    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+    
+    <!-- Three.js Controls -->
+    <script src="https://unpkg.com/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
     
     <!-- Monaco Editor -->
     <script src="https://unpkg.com/monaco-editor@0.45.0/min/vs/loader.js"></script>
@@ -42,7 +41,7 @@
         }
         
         .menu-btn {
-            background: #0e639c;
+            background: #ff6b35;
             color: white;
             border: none;
             padding: 6px 12px;
@@ -53,7 +52,7 @@
         }
         
         .menu-btn:hover {
-            background: #1177bb;
+            background: #ff8c1a;
         }
         
         .menu-btn:disabled {
@@ -103,11 +102,11 @@
         }
         
         .resize-handle:hover {
-            background: #007acc;
+            background: #ff6b35;
         }
         
         .footer {
-            background: #007acc;
+            background: #ff6b35;
             padding: 4px 12px;
             font-size: 11px;
             text-align: center;
@@ -225,12 +224,12 @@
         </div>
         <div class="canvas-container">
             <canvas id="renderCanvas"></canvas>
-            <div class="loading" id="loading">Loading Babylon.js...</div>
+            <div class="loading" id="loading">Loading Three.js...</div>
         </div>
     </div>
     
     <div class="footer">
-        Babylon.js Playground - Powered by WebGL
+        Three.js Playground - Powered by WebGL
     </div>
     
     <div class="error-display" id="errorDisplay"></div>
@@ -238,8 +237,12 @@
 
     <script>
         let editor;
-        let engine;
+        let renderer;
         let scene;
+        let camera;
+        let controls;
+        let canvas;
+        let animationId;
         let isResizing = false;
         let consoleMessages = [];
         
@@ -280,7 +283,7 @@
             try {
                 editor = monaco.editor.create(document.getElementById('monaco-editor'), {
                     value: getDefaultCode(),
-                    language: 'typescript',
+                    language: 'javascript',
                     theme: 'vs-dark',
                     automaticLayout: true,
                     minimap: { enabled: true },
@@ -305,56 +308,64 @@
                     debounce(notifyCodeChange, 500)();
                 });
                 
-                // Make editor globally accessible with multiple references
+                // Make editor globally accessible
                 window.editor = editor;
                 window.monacoEditor = editor;
                 window.codeEditor = editor;
                 
-                // Wait for editor to be fully ready before proceeding
                 setTimeout(() => {
-                    console.log('📝 Monaco editor should be fully ready now');
-                    console.log('Editor model ready:', !!editor.getModel());
-                    console.log('Editor setValue available:', typeof editor.setValue === 'function');
-                    console.log('Editor getValue available:', typeof editor.getValue === 'function');
-                    
-                    // Mark editor as ready - IMPORTANT FOR INJECTION
+                    console.log('📝 Monaco editor ready for Three.js');
                     window.editorReady = true;
                     console.log('🎯 MONACO EDITOR MARKED AS READY FOR INJECTION');
                     
-                    // Test injection capability immediately
-                    try {
-                        const testContent = editor.getValue();
-                        console.log('✅ Monaco injection test passed - current content length:', testContent.length);
-                    } catch (testError) {
-                        console.error('❌ Monaco injection test failed:', testError);
-                        window.editorReady = false;
-                    }
-                    
-                    initializeBabylon();
-                }, 1000); // Give Monaco more time to fully initialize
+                    initializeThreeJS();
+                }, 1000);
                 
             } catch (error) {
                 console.error('❌ Failed to create Monaco editor:', error);
-                initializeBabylon();
+                initializeThreeJS();
             }
             
         }, function(error) {
             console.error('❌ Failed to load Monaco modules:', error);
-            // Initialize Babylon anyway
-            initializeBabylon();
+            initializeThreeJS();
         });
         
-        // Initialize Babylon.js
-        function initializeBabylon() {
-            console.log('Initializing Babylon.js...');
-            const canvas = document.getElementById('renderCanvas');
-            engine = new BABYLON.Engine(canvas, true, {
-                preserveDrawingBuffer: true,
-                stencil: true,
-                disableWebGL2Support: false
-            });
+        // Initialize Three.js
+        function initializeThreeJS() {
+            console.log('Initializing Three.js...');
             
-            console.log('Babylon.js engine created');
+            canvas = document.getElementById('renderCanvas');
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ 
+                canvas: canvas,
+                antialias: true,
+                preserveDrawingBuffer: true
+            });
+            renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            
+            console.log('Three.js renderer created');
+            
+            // Create default scene and camera
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+            
+            // Create controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            
+            // Make globals available
+            window.canvas = canvas;
+            window.renderer = renderer;
+            window.scene = scene;
+            window.camera = camera;
+            window.controls = controls;
+            window.THREE = THREE;
             
             // Hide loading
             document.getElementById('loading').style.display = 'none';
@@ -362,82 +373,98 @@
             // Create default scene
             createDefaultScene();
             
-            // Render loop
-            engine.runRenderLoop(() => {
-                if (scene && scene.activeCamera) {
-                    scene.render();
-                }
-            });
+            // Start render loop
+            startRenderLoop();
             
-            console.log('Babylon.js render loop started');
+            console.log('Three.js initialization complete');
             
             // Handle resize
-            window.addEventListener('resize', () => {
-                engine.resize();
-            });
+            window.addEventListener('resize', onWindowResize);
             
             // Notify Swift that initialization is complete
             setTimeout(() => {
-                console.log('Checking components before signaling ready...');
-                console.log('Editor available:', typeof editor !== 'undefined' && !!editor);
-                console.log('Editor ready flag:', !!window.editorReady);
-                console.log('Engine available:', !!engine);
-                console.log('BABYLON available:', !!BABYLON);
-                
+                console.log('Three.js playground fully initialized');
                 notifySwift('initializationComplete', { 
                     ready: true,
                     editorReady: !!(window.editorReady && typeof editor !== 'undefined' && editor),
-                    engineReady: !!engine 
+                    engineReady: !!renderer 
                 });
-                console.log('Playground fully initialized');
-            }, 1500);  // Give even more time for Monaco to be fully ready
+            }, 1500);
+        }
+        
+        function startRenderLoop() {
+            function animate() {
+                animationId = requestAnimationFrame(animate);
+                
+                controls.update();
+                
+                if (scene && camera && renderer) {
+                    renderer.render(scene, camera);
+                }
+            }
+            animate();
+        }
+        
+        function onWindowResize() {
+            if (camera && renderer && canvas) {
+                camera.aspect = canvas.clientWidth / canvas.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+            }
         }
         
         function getDefaultCode() {
-            return `// Welcome to Babylon.js Playground!
-// Create your 3D scene using TypeScript/JavaScript
+            return `// Welcome to Three.js Playground!
+// Create your 3D scene using Three.js r160+
 
 const createScene = () => {
     // Create scene
-    const scene = new BABYLON.Scene(engine);
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x333333);
     
     // Create camera
-    const camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 5, -10), scene);
-    camera.setTarget(BABYLON.Vector3.Zero());
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 5, 10);
     
-    // Attach camera controls - modern API
-    if (camera.attachControls) {
-        camera.attachControls(canvas, true);
-    } else if (scene.actionManager) {
-        scene.actionManager = new BABYLON.ActionManager(scene);
-    }
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+    scene.add(ambientLight);
     
-    // Create light
-    const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
-    light.intensity = 0.7;
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(10, 10, 5);
+    scene.add(directionalLight);
     
-    // Create sphere
-    const sphere = BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 2}, scene);
+    // Create geometry and material
+    const geometry = new THREE.SphereGeometry(1, 32, 32);
+    const material = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
+    const sphere = new THREE.Mesh(geometry, material);
     sphere.position.y = 1;
+    scene.add(sphere);
     
     // Create ground
-    const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 6, height: 6}, scene);
+    const groundGeometry = new THREE.PlaneGeometry(10, 10);
+    const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
     
-    console.log("Scene created with camera:", !!camera, "light:", !!light);
+    // Set up controls
+    controls.target.set(0, 0, 0);
+    controls.update();
     
-    return scene;
+    console.log("Scene created with camera:", !!camera, "objects:", scene.children.length);
+    
+    return { scene, camera };
 };
 
 // Execute the scene creation
-const scene = createScene();`;
+const { scene, camera } = createScene();`;
         }
         
         function createDefaultScene() {
             try {
                 // Clear existing scene
-                if (scene) {
-                    scene.dispose();
-                }
+                clearScene();
                 
                 // Execute user code
                 const userCode = editor ? editor.getValue() : getDefaultCode();
@@ -450,139 +477,92 @@ const scene = createScene();`;
             }
         }
         
+        function clearScene() {
+            if (scene) {
+                // Remove all objects from scene
+                while(scene.children.length > 0) {
+                    const object = scene.children[0];
+                    if (object.geometry) object.geometry.dispose();
+                    if (object.material) {
+                        if (object.material.map) object.material.map.dispose();
+                        object.material.dispose();
+                    }
+                    scene.remove(object);
+                }
+            }
+        }
+        
         function executeUserCode(code) {
             try {
-                console.log('=== EXECUTING USER CODE ===');
-                console.log('Code to execute:', code);
+                console.log('=== EXECUTING THREE.JS USER CODE ===');
                 
-                // Clear previous console messages for new execution
                 clearConsole();
+                clearScene();
                 
-                // Dispose existing scene if any
-                if (scene) {
-                    console.log('Disposing existing scene');
-                    scene.dispose();
-                    scene = null;
+                // Execute the code in global context
+                const executeCode = new Function('THREE', 'scene', 'camera', 'renderer', 'controls', 'canvas',
+                    \`try {
+                        \${code}
+                        return { scene: window.scene || scene, camera: window.camera || camera };
+                    } catch (execError) {
+                        console.error('Code execution error:', execError);
+                        throw execError;
+                    }\`
+                );
+                
+                const result = executeCode(THREE, scene, camera, renderer, controls, canvas);
+                
+                if (result && result.scene) {
+                    window.scene = result.scene;
+                    scene = result.scene;
+                }
+                if (result && result.camera) {
+                    window.camera = result.camera;
+                    camera = result.camera;
                 }
                 
-                // Make sure canvas is available globally
-                const canvasElement = document.getElementById('renderCanvas');
-                if (!canvasElement) {
-                    throw new Error('Canvas element not found');
-                }
-                
-                // Make variables available globally for user code
-                window.canvas = canvasElement;
-                window.engine = engine;
-                window.BABYLON = BABYLON;
-                
-                console.log('Canvas available:', !!window.canvas);
-                console.log('Engine available:', !!window.engine);
-                console.log('BABYLON available:', !!window.BABYLON);
-                
-                // Execute the code in the global context with proper error handling
-                try {
-                    // Create a safer execution context
-                    const executeCode = new Function('canvas', 'engine', 'BABYLON', 
-                        `
-                        try {
-                            ${code}
-                            if (typeof scene !== 'undefined') {
-                                console.log('Scene variable found:', !!scene);
-                                return scene;
-                            } else {
-                                console.error('No scene variable found in executed code');
-                                return null;
-                            }
-                        } catch (execError) {
-                            console.error('Code execution error:', execError);
-                            throw execError;
-                        }
-                        `
-                    );
-                    
-                    // Execute with proper context
-                    scene = executeCode(canvasElement, engine, BABYLON);
-                    
-                } catch (execError) {
-                    console.error('Function execution failed:', execError);
-                    throw execError;
-                }
-                
-                if (!scene) {
-                    throw new Error('Scene creation failed - no scene object returned');
-                }
-                
-                console.log('✅ Scene created successfully:', scene);
-                console.log('Scene cameras:', scene.cameras?.length || 0);
-                console.log('Scene meshes:', scene.meshes?.length || 0);
-                console.log('Scene lights:', scene.lights?.length || 0);
-                
-                // Force a render update
-                if (engine && scene) {
-                    console.log('Forcing scene render...');
-                    scene.render();
-                    engine.resize();
-                }
-                
-                // Hide any error displays
+                console.log('✅ Three.js scene created successfully');
                 hideError();
                 
-                // Clear console and show success
-                setTimeout(() => {
-                    console.log('🎉 NEW SCENE LOADED SUCCESSFULLY!');
-                    addConsoleMessage('log', '🎉 Scene loaded with ' + (scene.meshes?.length || 0) + ' objects');
-                    
-                    // Ensure the scene is actively rendering
-                    if (scene.activeCamera) {
-                        console.log('Active camera found, scene should be rendering');
-                    } else {
-                        console.warn('No active camera found!');
-                    }
-                }, 100);
-                
-                // Notify Swift about successful scene creation
                 notifySwift('sceneCreated', { success: true });
                 
             } catch (error) {
                 const errorMsg = 'Execution Error: ' + error.message;
                 console.error('❌ executeUserCode failed:', errorMsg);
-                console.error('Error stack:', error.stack);
                 showError(errorMsg);
                 notifySwift('sceneError', { error: error.message });
                 
-                // Fall back to default scene on error
-                console.log('Falling back to default scene...');
-                try {
-                    scene = createDefaultBabylonScene();
-                } catch (fallbackError) {
-                    console.error('Even fallback failed:', fallbackError);
-                }
+                // Create fallback scene
+                createFallbackScene();
             }
         }
         
-        // Create a simple fallback scene
-        function createDefaultBabylonScene() {
-            console.log('Creating fallback default scene');
-            const fallbackScene = new BABYLON.Scene(engine);
+        function createFallbackScene() {
+            console.log('Creating Three.js fallback scene');
+            clearScene();
             
-            const camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 5, -10), fallbackScene);
-            camera.setTarget(BABYLON.Vector3.Zero());
-            if (camera.attachControls) {
-                camera.attachControls(canvas, true);
-            }
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x333333);
             
-            const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), fallbackScene);
-            light.intensity = 0.7;
+            camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+            camera.position.set(0, 5, 10);
             
-            const sphere = BABYLON.MeshBuilder.CreateSphere("fallback", {diameter: 2}, fallbackScene);
-            sphere.position.y = 1;
+            const light = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(light);
             
-            console.log('Fallback scene created');
-            return fallbackScene;
+            const geometry = new THREE.BoxGeometry();
+            const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+            const cube = new THREE.Mesh(geometry, material);
+            scene.add(cube);
+            
+            controls.target.set(0, 0, 0);
+            controls.update();
+            
+            window.scene = scene;
+            window.camera = camera;
         }
         
-        // Playground functions exposed to Swift
+        // Playground functions
         function runCode() {
             console.log('Run code button pressed');
             createDefaultScene();
@@ -625,7 +605,7 @@ const scene = createScene();`;
         function toggleConsole() {
             const consoleDisplay = document.getElementById('consoleDisplay');
             if (consoleDisplay.style.display === 'none' || !consoleDisplay.style.display) {
-                updateConsoleDisplay(); // Ensure it's up to date
+                updateConsoleDisplay();
                 if (consoleMessages.length === 0) {
                     console.log('Console opened - no messages yet');
                 }
@@ -650,10 +630,10 @@ const scene = createScene();`;
             }
         }
         
-        // Enhanced code insertion function for AI assistance with multi-level fallback
+        // Enhanced code insertion functions with multi-level fallback
         function insertCodeAtCursor(codeString) {
             console.log('🎯 insertCodeAtCursor called with code length:', codeString.length);
-            console.log('🔍 Current editor readiness:', {
+            console.log('🔍 Three.js editor readiness:', {
                 editor: !!editor,
                 editorReady: !!window.editorReady,
                 monacoLoaded: typeof monaco !== 'undefined'
@@ -683,22 +663,21 @@ const scene = createScene();`;
             }
         }
         
-        // Enhanced function to completely replace editor content with multi-level retry
         function setFullEditorContent(codeString) {
-            console.log('🎯 setFullEditorContent called with code length:', codeString.length);
-            console.log('🔍 Editor state check:', {
+            console.log('🎯 Three.js setFullEditorContent called with code length:', codeString.length);
+            console.log('🔍 Three.js editor state check:', {
                 editorExists: !!editor,
                 editorReady: !!window.editorReady,
                 domReady: document.readyState,
                 monacoGlobal: typeof monaco !== 'undefined'
             });
             
-            // Multi-level injection strategy
+            // Multi-level injection strategy for Three.js
             const strategies = [
                 // Strategy 1: Standard Monaco API
                 () => {
                     if (editor && window.editorReady && typeof editor.setValue === 'function') {
-                        console.log('📝 Strategy 1: Using standard Monaco setValue');
+                        console.log('📝 Three.js Strategy 1: Using standard Monaco setValue');
                         editor.setValue(codeString);
                         editor.focus();
                         editor.setPosition({lineNumber: 1, column: 1});
@@ -707,10 +686,10 @@ const scene = createScene();`;
                         // Verify content was set
                         const verification = editor.getValue();
                         if (verification === codeString) {
-                            console.log('✅ Strategy 1 successful - content verified');
+                            console.log('✅ Three.js Strategy 1 successful - content verified');
                             return true;
                         } else {
-                            console.warn('⚠️ Strategy 1 verification failed');
+                            console.warn('⚠️ Three.js Strategy 1 verification failed');
                             return false;
                         }
                     }
@@ -720,12 +699,12 @@ const scene = createScene();`;
                 // Strategy 2: Direct model manipulation
                 () => {
                     if (editor && editor.getModel && typeof editor.getModel === 'function') {
-                        console.log('📝 Strategy 2: Using Monaco model setValue');
+                        console.log('📝 Three.js Strategy 2: Using Monaco model setValue');
                         const model = editor.getModel();
                         if (model && typeof model.setValue === 'function') {
                             model.setValue(codeString);
                             editor.focus();
-                            console.log('✅ Strategy 2 successful - model setValue');
+                            console.log('✅ Three.js Strategy 2 successful - model setValue');
                             return true;
                         }
                     }
@@ -735,15 +714,15 @@ const scene = createScene();`;
                 // Strategy 3: Emergency retry with delay
                 () => {
                     return new Promise((resolve) => {
-                        console.log('📝 Strategy 3: Emergency retry with delay');
+                        console.log('📝 Three.js Strategy 3: Emergency retry with delay');
                         setTimeout(() => {
                             if (editor && typeof editor.setValue === 'function') {
                                 try {
                                     editor.setValue(codeString);
-                                    console.log('✅ Strategy 3 successful - delayed retry');
+                                    console.log('✅ Three.js Strategy 3 successful - delayed retry');
                                     resolve(true);
                                 } catch (e) {
-                                    console.error('❌ Strategy 3 failed:', e);
+                                    console.error('❌ Three.js Strategy 3 failed:', e);
                                     resolve(false);
                                 }
                             } else {
@@ -760,31 +739,33 @@ const scene = createScene();`;
                     try {
                         const result = await strategies[i]();
                         if (result) {
-                            console.log(`🎉 Content injection successful using strategy ${i + 1}`);
+                            console.log(`🎉 Three.js content injection successful using strategy ${i + 1}`);
                             
                             // Auto-run the code after successful injection
                             setTimeout(() => {
-                                console.log('🚀 Auto-running the injected code...');
+                                console.log('🚀 Auto-running the injected Three.js code...');
                                 runCode();
                             }, 500);
                             
                             notifySwift('codeInserted', { 
                                 code: codeString,
                                 strategy: i + 1,
-                                success: true 
+                                success: true,
+                                library: 'threejs'
                             });
                             return true;
                         }
                     } catch (error) {
-                        console.error(`❌ Strategy ${i + 1} failed:`, error);
+                        console.error(`❌ Three.js Strategy ${i + 1} failed:`, error);
                     }
                 }
                 
-                console.error('❌ All injection strategies failed');
+                console.error('❌ All Three.js injection strategies failed');
                 notifySwift('codeInserted', { 
                     code: codeString,
                     success: false,
-                    error: 'All injection strategies failed'
+                    error: 'All Three.js injection strategies failed',
+                    library: 'threejs'
                 });
                 return false;
             };
@@ -832,11 +813,11 @@ const scene = createScene();`;
             notifySwift('codeChanged', { code: code });
         }
         
-        // Console management functions
+        // Console management
         function addConsoleMessage(type, message) {
             consoleMessages.push({ type, message, timestamp: Date.now() });
             if (consoleMessages.length > 50) {
-                consoleMessages = consoleMessages.slice(-50); // Keep last 50 messages
+                consoleMessages = consoleMessages.slice(-50);
             }
             updateConsoleDisplay();
         }
@@ -845,7 +826,7 @@ const scene = createScene();`;
             const consoleDisplay = document.getElementById('consoleDisplay');
             if (consoleMessages.length > 0) {
                 consoleDisplay.innerHTML = consoleMessages.map(msg => 
-                    `<div class="console-message console-${msg.type}">${escapeHtml(msg.message)}</div>`
+                    \`<div class="console-message console-\${msg.type}">\${escapeHtml(msg.message)}</div>\`
                 ).join('');
                 consoleDisplay.style.display = 'block';
                 consoleDisplay.scrollTop = consoleDisplay.scrollHeight;
@@ -867,152 +848,152 @@ const scene = createScene();`;
         
         // Example code templates
         function getRotatingCubeCode() {
-            return `const createScene = () => {
-    const scene = new BABYLON.Scene(engine);
+            return \`const createScene = () => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x333333);
     
-    // Camera
-    const camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 5, -10), scene);
-    camera.setTarget(BABYLON.Vector3.Zero());
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 5, 10);
     
-    // Attach camera controls safely
-    if (camera.attachControls) {
-        camera.attachControls(canvas, true);
-    }
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+    scene.add(ambientLight);
     
-    // Light
-    const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(10, 10, 5);
+    scene.add(directionalLight);
     
-    // Create box
-    const box = BABYLON.MeshBuilder.CreateBox("box", {size: 2}, scene);
-    box.position.y = 1;
+    // Create rotating cube
+    const geometry = new THREE.BoxGeometry(2, 2, 2);
+    const material = new THREE.MeshPhongMaterial({ color: 0xff6b35 });
+    const cube = new THREE.Mesh(geometry, material);
+    cube.position.y = 1;
+    scene.add(cube);
     
     // Animation
-    scene.registerBeforeRender(() => {
-        box.rotation.x += 0.01;
-        box.rotation.y += 0.01;
-    });
+    function animate() {
+        cube.rotation.x += 0.01;
+        cube.rotation.y += 0.01;
+    }
     
-    console.log("Rotating cube scene created");
+    // Register animation
+    scene.userData.animate = animate;
     
-    return scene;
+    controls.target.set(0, 0, 0);
+    controls.update();
+    
+    return { scene, camera };
 };
 
-const scene = createScene();`;
+const { scene, camera } = createScene();\`;
         }
         
         function getLightingDemoCode() {
-            return `const createScene = () => {
-    const scene = new BABYLON.Scene(engine);
+            return \`const createScene = () => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x222222);
     
-    // Camera
-    const camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 5, -10), scene);
-    camera.setTarget(BABYLON.Vector3.Zero());
-    camera.attachControls(canvas, true);
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 5, 10);
     
-    // Lights
-    const hemisphericLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
-    hemisphericLight.intensity = 0.3;
+    // Multiple lights
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+    scene.add(ambientLight);
     
-    const directionalLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -1, -1), scene);
-    directionalLight.position = new BABYLON.Vector3(10, 10, 10);
-    directionalLight.intensity = 0.7;
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(10, 10, 5);
+    scene.add(directionalLight);
+    
+    const pointLight = new THREE.PointLight(0xff6b35, 1, 100);
+    pointLight.position.set(-5, 5, 5);
+    scene.add(pointLight);
     
     // Objects
-    const sphere = BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 2}, scene);
-    sphere.position = new BABYLON.Vector3(-2, 1, 0);
+    const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
+    const sphereMaterial = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
+    const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+    sphere.position.set(-2, 1, 0);
+    scene.add(sphere);
     
-    const box = BABYLON.MeshBuilder.CreateBox("box", {size: 2}, scene);
-    box.position = new BABYLON.Vector3(2, 1, 0);
+    const boxGeometry = new THREE.BoxGeometry(2, 2, 2);
+    const boxMaterial = new THREE.MeshPhongMaterial({ color: 0xff6b35 });
+    const box = new THREE.Mesh(boxGeometry, boxMaterial);
+    box.position.set(2, 1, 0);
+    scene.add(box);
     
-    const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 10, height: 10}, scene);
+    const groundGeometry = new THREE.PlaneGeometry(20, 20);
+    const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
     
-    return scene;
+    controls.target.set(0, 0, 0);
+    controls.update();
+    
+    return { scene, camera };
 };
 
-const scene = createScene();`;
+const { scene, camera } = createScene();\`;
         }
         
         function getMaterialsDemoCode() {
-            return `const createScene = () => {
-    const scene = new BABYLON.Scene(engine);
+            return \`const createScene = () => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x333333);
     
-    // Camera
-    const camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 5, -10), scene);
-    camera.setTarget(BABYLON.Vector3.Zero());
-    camera.attachControls(canvas, true);
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 5, 10);
     
-    // Light
-    const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+    scene.add(ambientLight);
     
-    // Materials
-    const redMaterial = new BABYLON.StandardMaterial("redMaterial", scene);
-    redMaterial.diffuseColor = new BABYLON.Color3(1, 0, 0);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(10, 10, 5);
+    scene.add(directionalLight);
     
-    const blueMaterial = new BABYLON.StandardMaterial("blueMaterial", scene);
-    blueMaterial.diffuseColor = new BABYLON.Color3(0, 0, 1);
-    blueMaterial.specularColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+    // Different materials
+    const geometry = new THREE.SphereGeometry(1, 32, 32);
     
-    const greenMaterial = new BABYLON.StandardMaterial("greenMaterial", scene);
-    greenMaterial.diffuseColor = new BABYLON.Color3(0, 1, 0);
-    greenMaterial.emissiveColor = new BABYLON.Color3(0.2, 0.2, 0);
+    // Basic material
+    const basicMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const basicSphere = new THREE.Mesh(geometry, basicMaterial);
+    basicSphere.position.set(-3, 1, 0);
+    scene.add(basicSphere);
     
-    // Objects with materials
-    const sphere1 = BABYLON.MeshBuilder.CreateSphere("sphere1", {diameter: 2}, scene);
-    sphere1.position = new BABYLON.Vector3(-3, 1, 0);
-    sphere1.material = redMaterial;
+    // Phong material
+    const phongMaterial = new THREE.MeshPhongMaterial({ 
+        color: 0x00ff00,
+        shininess: 100
+    });
+    const phongSphere = new THREE.Mesh(geometry, phongMaterial);
+    phongSphere.position.set(0, 1, 0);
+    scene.add(phongSphere);
     
-    const sphere2 = BABYLON.MeshBuilder.CreateSphere("sphere2", {diameter: 2}, scene);
-    sphere2.position = new BABYLON.Vector3(0, 1, 0);
-    sphere2.material = blueMaterial;
+    // Standard material
+    const standardMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x0000ff,
+        metalness: 0.5,
+        roughness: 0.1
+    });
+    const standardSphere = new THREE.Mesh(geometry, standardMaterial);
+    standardSphere.position.set(3, 1, 0);
+    scene.add(standardSphere);
     
-    const sphere3 = BABYLON.MeshBuilder.CreateSphere("sphere3", {diameter: 2}, scene);
-    sphere3.position = new BABYLON.Vector3(3, 1, 0);
-    sphere3.material = greenMaterial;
+    const groundGeometry = new THREE.PlaneGeometry(20, 20);
+    const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
     
-    const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 10, height: 10}, scene);
+    controls.target.set(0, 0, 0);
+    controls.update();
     
-    return scene;
+    return { scene, camera };
 };
 
-const scene = createScene();`;
+const { scene, camera } = createScene();\`;
         }
-        
-        // MARK: - Testing and Debugging Functions
-        
-        /// Test injection system - can be called from browser console
-        function testInjection() {
-            console.log('🧪 Testing injection system from playground...');
-            notifySwift('testInjection', {});
-        }
-        
-        /// Check editor readiness - can be called from browser console  
-        function checkEditorReadiness() {
-            const monacoReady = window.editor && 
-                               typeof window.editor.setValue === 'function' && 
-                               typeof window.editor.getValue === 'function' &&
-                               typeof window.editor.layout === 'function';
-            
-            const editorFlagReady = window.editorReady === true;
-            const domReady = document.readyState === 'complete';
-            const injectionFuncReady = typeof window.setFullEditorContent === 'function';
-            
-            const result = {
-                monaco: monacoReady,
-                flag: editorFlagReady, 
-                dom: domReady,
-                injection: injectionFuncReady,
-                ready: monacoReady && editorFlagReady && domReady
-            };
-            
-            console.log('🧪 Editor readiness check:', result);
-            return result;
-        }
-        
-        // Make test functions globally available
-        window.testInjection = testInjection;
-        window.checkEditorReadiness = checkEditorReadiness;
-        
-        console.log('🧪 Test functions available: testInjection(), checkEditorReadiness()');
     </script>
 </body>
 </html>

@@ -39,6 +39,7 @@ class WebViewCoordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler
 
 struct PlaygroundWebView: UIViewRepresentable {
     @Binding var webView: WKWebView?
+    var playgroundTemplate: String = "playground"
     var onWebViewLoaded: (() -> Void)?
     var onWebViewError: ((Error) -> Void)?
     var onJavaScriptMessage: ((String, [String: Any]) -> Void)?
@@ -65,50 +66,95 @@ struct PlaygroundWebView: UIViewRepresentable {
         webView.navigationDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = false
         
-        // Load local HTML file - try multiple approaches
+        // Load local HTML file - enhanced template loading with multiple fallback strategies
         var htmlLoaded = false
         
-        // First try: look in Resources subdirectory
-        if let htmlPath = Bundle.main.path(forResource: "playground", ofType: "html", inDirectory: "Resources"),
-           let htmlContent = try? String(contentsOfFile: htmlPath),
-           let baseURL = Bundle.main.resourceURL?.appendingPathComponent("Resources") {
-            print("Loading HTML from Resources directory: \(htmlPath)")
-            print("Base URL: \(baseURL)")
-            webView.loadHTMLString(htmlContent, baseURL: baseURL)
-            htmlLoaded = true
+        print("🔍 Attempting to load playground template: \(playgroundTemplate)")
+        
+        // Strategy 1: Try direct bundle path with specific resource lookup
+        if let htmlPath = Bundle.main.path(forResource: playgroundTemplate, ofType: "html") {
+            do {
+                let htmlContent = try String(contentsOfFile: htmlPath)
+                if let baseURL = Bundle.main.resourceURL {
+                    print("✅ Loading HTML from main bundle: \(htmlPath)")
+                    print("🔗 Base URL: \(baseURL)")
+                    webView.loadHTMLString(htmlContent, baseURL: baseURL)
+                    htmlLoaded = true
+                } else {
+                    // Fallback to file URL if no base URL
+                    let fileURL = URL(fileURLWithPath: htmlPath)
+                    print("✅ Loading HTML with file URL: \(fileURL)")
+                    webView.loadFileURL(fileURL, allowingReadAccessTo: fileURL.deletingLastPathComponent())
+                    htmlLoaded = true
+                }
+            } catch {
+                print("❌ Failed to read HTML content from \(htmlPath): \(error)")
+            }
         }
         
-        // Second try: look in main bundle
-        if !htmlLoaded, let htmlPath = Bundle.main.path(forResource: "playground", ofType: "html"),
-           let htmlContent = try? String(contentsOfFile: htmlPath),
-           let baseURL = Bundle.main.resourceURL {
-            print("Loading HTML from main bundle: \(htmlPath)")
-            print("Base URL: \(baseURL)")
-            webView.loadHTMLString(htmlContent, baseURL: baseURL)
-            htmlLoaded = true
+        // Strategy 2: Try looking in Resources subdirectory specifically
+        else if let resourcePath = Bundle.main.resourcePath {
+            let resourcesHtmlPath = (resourcePath as NSString).appendingPathComponent("Resources/\(playgroundTemplate).html")
+            if FileManager.default.fileExists(atPath: resourcesHtmlPath) {
+                do {
+                    let htmlContent = try String(contentsOfFile: resourcesHtmlPath)
+                    if let baseURL = Bundle.main.resourceURL {
+                        print("✅ Loading HTML from Resources subdirectory: \(resourcesHtmlPath)")
+                        webView.loadHTMLString(htmlContent, baseURL: baseURL)
+                        htmlLoaded = true
+                    }
+                } catch {
+                    print("❌ Failed to read HTML from Resources: \(error)")
+                }
+            }
         }
         
-        // Third try: load with file URL
-        if !htmlLoaded, let htmlPath = Bundle.main.path(forResource: "playground", ofType: "html", inDirectory: "Resources") {
-            let fileURL = URL(fileURLWithPath: htmlPath)
-            print("Loading HTML with file URL: \(fileURL)")
-            webView.loadFileURL(fileURL, allowingReadAccessTo: fileURL.deletingLastPathComponent())
-            htmlLoaded = true
+        // Strategy 3: Fallback to default playground if specific template failed
+        if !htmlLoaded && playgroundTemplate != "playground" {
+            print("⚠️ Template \(playgroundTemplate) not found, falling back to default playground")
+            if let htmlPath = Bundle.main.path(forResource: "playground", ofType: "html") {
+                do {
+                    let htmlContent = try String(contentsOfFile: htmlPath)
+                    if let baseURL = Bundle.main.resourceURL {
+                        print("✅ Loading fallback HTML: \(htmlPath)")
+                        webView.loadHTMLString(htmlContent, baseURL: baseURL)
+                        htmlLoaded = true
+                    }
+                } catch {
+                    print("❌ Failed to load fallback HTML: \(error)")
+                }
+            }
         }
         
+        // Strategy 4: Emergency fallback - create minimal HTML
         if !htmlLoaded {
-            print("Failed to load HTML file - debugging bundle contents")
+            print("❌ All template loading strategies failed - creating emergency fallback")
+            let emergencyHTML = """
+            <!DOCTYPE html>
+            <html><head><title>Template Loading Error</title></head>
+            <body style="background:#1e1e1e;color:#fff;padding:20px;font-family:system-ui;">
+            <h1>Template Loading Error</h1>
+            <p>Failed to load playground template: \(playgroundTemplate)</p>
+            <p>Please check that the template file exists in the app bundle.</p>
+            </body></html>
+            """
+            webView.loadHTMLString(emergencyHTML, baseURL: nil)
+            htmlLoaded = true
+            
+            // Debug bundle contents for troubleshooting
             if let resourcePath = Bundle.main.resourcePath {
-                print("Resource path: \(resourcePath)")
-                let resourcesPath = (resourcePath as NSString).appendingPathComponent("Resources")
-                print("Resources directory exists: \(FileManager.default.fileExists(atPath: resourcesPath))")
-                
-                // List bundle contents
+                print("🔍 Bundle resource path: \(resourcePath)")
                 do {
                     let bundleContents = try FileManager.default.contentsOfDirectory(atPath: resourcePath)
-                    print("Bundle contents: \(bundleContents)")
+                    print("📁 Bundle contents: \(bundleContents)")
+                    
+                    let resourcesPath = (resourcePath as NSString).appendingPathComponent("Resources")
+                    if FileManager.default.fileExists(atPath: resourcesPath) {
+                        let resourcesContents = try FileManager.default.contentsOfDirectory(atPath: resourcesPath)
+                        print("📁 Resources directory contents: \(resourcesContents)")
+                    }
                 } catch {
-                    print("Error listing bundle contents: \(error)")
+                    print("❌ Error listing bundle contents: \(error)")
                 }
             }
         }
