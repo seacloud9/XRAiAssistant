@@ -195,11 +195,11 @@ class ChatViewModel: ObservableObject {
         print("🎯 Switched to \(library3DManager.selectedLibrary.displayName)")
     }
     
-    func getCurrentLibrary() -> any Library3D {
+    func getCurrentLibrary() -> Library3DManager.AnyLibrary3D {
         return library3DManager.selectedLibrary
     }
     
-    func getAvailableLibraries() -> [any Library3D] {
+    func getAvailableLibraries() -> [Library3DManager.AnyLibrary3D] {
         return library3DManager.availableLibraries
     }
     

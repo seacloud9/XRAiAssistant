@@ -10,7 +10,9 @@
       "Bash(cp:*)",
       "Bash(python3:*)",
       "Bash(rm:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(git commit:*)",
+      "Bash(true)"
     ],
     "deny": []
   }

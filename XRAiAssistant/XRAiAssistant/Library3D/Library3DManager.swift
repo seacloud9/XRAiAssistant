@@ -2,15 +2,15 @@ import Foundation
 import SwiftUI
 
 class Library3DManager: ObservableObject {
-    @Published var availableLibraries: [any Library3D] = []
-    @Published var selectedLibrary: any Library3D = BabylonJSLibrary() {
+    @Published var availableLibraries: [AnyLibrary3D] = []
+    @Published var selectedLibrary: AnyLibrary3D = AnyLibrary3D(BabylonJSLibrary()) {
         didSet {
             saveSelectedLibrary()
         }
     }
     
     // Type-erased wrapper for library storage
-    private struct AnyLibrary3D: Library3D {
+    struct AnyLibrary3D: Library3D {
         private let _library: any Library3D
         
         init(_ library: any Library3D) {
@@ -36,7 +36,8 @@ class Library3DManager: ObservableObject {
     }
     
     private func setupAvailableLibraries() {
-        availableLibraries = Library3DFactory.createAllLibraries()
+        let rawLibraries = Library3DFactory.createAllLibraries()
+        availableLibraries = rawLibraries.map { AnyLibrary3D($0) }
         print("📚 Initialized \(availableLibraries.count) 3D libraries")
         
         // Log available libraries
@@ -57,10 +58,10 @@ class Library3DManager: ObservableObject {
     
     func selectLibrary(_ library: any Library3D) {
         print("🎯 Switching to library: \(library.displayName)")
-        selectedLibrary = library
+        selectedLibrary = AnyLibrary3D(library)
     }
     
-    func getLibrary(id: String) -> (any Library3D)? {
+    func getLibrary(id: String) -> AnyLibrary3D? {
         return availableLibraries.first { $0.id == id }
     }
     
@@ -94,18 +95,18 @@ class Library3DManager: ObservableObject {
             selectedLibrary = library
             print("📂 Loaded saved 3D library: \(library.displayName)")
         } else {
-            selectedLibrary = Library3DFactory.getDefaultLibrary()
+            selectedLibrary = AnyLibrary3D(Library3DFactory.getDefaultLibrary())
             print("📂 Using default 3D library: \(selectedLibrary.displayName)")
         }
     }
     
     // MARK: - Library Information
     
-    func getLibraryFeatures(_ library: any Library3D) -> [Library3DFeature] {
+    func getLibraryFeatures(_ library: AnyLibrary3D) -> [Library3DFeature] {
         return Array(library.supportedFeatures).sorted { $0.displayName < $1.displayName }
     }
     
-    func isFeatureSupported(_ feature: Library3DFeature, in library: any Library3D) -> Bool {
+    func isFeatureSupported(_ feature: Library3DFeature, in library: AnyLibrary3D) -> Bool {
         return library.supportedFeatures.contains(feature)
     }
     
