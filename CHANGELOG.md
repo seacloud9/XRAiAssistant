@@ -114,6 +114,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Interactive VR examples (basic scene, interactive objects, animations, VR controls)
   - WebXR-ready interface with hand tracking and controller support
 
+### Fixed - API Key Configuration & User Experience 🔧
+- **Enhanced Error Messages** ✅
+  - Clear, actionable error messages for API key configuration issues
+  - User-friendly guidance pointing to Settings panel (gear icon)
+  - Direct links to Together.ai API key generation page
+  - Specific error handling for 401 authentication failures
+
+- **Proactive API Key Validation** ✅
+  - Welcome message includes setup instructions when API key is not configured
+  - Real-time validation in welcome screen for immediate user feedback
+  - Clear distinction between "changeMe" default and actual configuration errors
+
 ### Fixed - Monaco Editor Injection Reliability & WebView Template Loading 🔧
 - **Enhanced Editor Readiness Detection** ✅
   - Improved readiness check across all playground templates (Babylon.js, Three.js, A-Frame)

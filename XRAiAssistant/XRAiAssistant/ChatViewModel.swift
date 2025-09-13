@@ -119,9 +119,17 @@ class ChatViewModel: ObservableObject {
     }
     
     private func setupInitialMessage() {
+        var welcomeContent = library3DManager.getWelcomeMessage()
+        
+        // Check if API key is configured
+        let currentAPIKey = aiProviderManager.getAPIKey(for: "Together.ai")
+        if currentAPIKey == "changeMe" {
+            welcomeContent += "\n\n⚠️ **Setup Required**: Please configure your Together.ai API key in Settings (gear icon) to start chatting. Get your free API key at https://api.together.ai/settings/api-keys"
+        }
+        
         let welcomeMessage = ChatMessage(
             id: UUID().uuidString,
-            content: library3DManager.getWelcomeMessage(),
+            content: welcomeContent,
             isUser: false,
             timestamp: Date()
         )
@@ -273,7 +281,25 @@ class ChatViewModel: ObservableObject {
             messages.append(assistantMessage)
             
         } catch {
-            errorMessage = "Failed to get response: \(error.localizedDescription)"
+            // Provide user-friendly error messages for common issues
+            if let providerError = error as? AIProviderError {
+                switch providerError {
+                case .configurationError(let message):
+                    if message.contains("API key not configured") {
+                        errorMessage = "⚠️ API Key Required: Please configure your Together.ai API key in Settings (gear icon). Get your free API key at https://api.together.ai/settings/api-keys"
+                    } else {
+                        errorMessage = "Configuration Error: \(message)"
+                    }
+                default:
+                    errorMessage = "Provider Error: \(providerError.localizedDescription)"
+                }
+            } else if error.localizedDescription.contains("Invalid API key") {
+                errorMessage = "⚠️ Invalid API Key: Please check your Together.ai API key in Settings (gear icon). Get your API key at https://api.together.ai/settings/api-keys"
+            } else if error.localizedDescription.contains("401") {
+                errorMessage = "⚠️ Authentication Failed: Please verify your API key in Settings (gear icon). Make sure you're using a valid Together.ai API key."
+            } else {
+                errorMessage = "Failed to get response: \(error.localizedDescription)"
+            }
             print("Chat error: \(error)")
         }
         
