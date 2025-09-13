@@ -102,6 +102,8 @@ class ChatViewModel: ObservableObject {
     var onDescribeScene: ((String) -> Void)?
     
     init() {
+        print("🚀 ChatViewModel initialization starting...")
+        
         // Initialize LlamaStackClient for meta-llama models
         self.inference = RemoteInference(
             url: URL(string: "https://llama-stack.together.ai")!,
@@ -113,9 +115,13 @@ class ChatViewModel: ObservableObject {
             unprotectedAPIKey: DEFAULT_API_KEY
         )
         
+        print("📚 Setting up library manager and AI providers...")
         setupInitialMessage()
         setupDefaultSystemPrompt()
         loadSettings()
+        
+        print("✅ ChatViewModel initialization complete")
+        print("🔑 Current Together.ai API key status: \(aiProviderManager.getAPIKey(for: "Together.ai") == "changeMe" ? "NOT_CONFIGURED" : "CONFIGURED")")
     }
     
     private func setupInitialMessage() {
@@ -320,14 +326,23 @@ class ChatViewModel: ObservableObject {
     private func callLlamaInference(userMessage: String, systemPrompt: String) async throws -> String {
         print("🎯 Using selected model: \(selectedModel)")
         
-        // Try new provider system first
-        if let provider = aiProviderManager.getProvider(for: selectedModel),
-           aiProviderManager.isProviderConfigured(provider.name) {
+        // Always try new provider system first (it has better error handling)
+        if let provider = aiProviderManager.getProvider(for: selectedModel) {
             print("📍 Routing to: New Provider System (\(provider.name))")
-            return try await callNewProviderSystem(userMessage: userMessage, systemPrompt: systemPrompt)
+            do {
+                return try await callNewProviderSystem(userMessage: userMessage, systemPrompt: systemPrompt)
+            } catch {
+                // If it's a configuration error, don't fall back - show helpful error
+                if let providerError = error as? AIProviderError,
+                   case .configurationError = providerError {
+                    throw error // Re-throw to show user-friendly message
+                }
+                // For other errors, we can fall back to legacy system
+                print("⚠️ New provider system failed, trying legacy: \(error)")
+            }
         }
         
-        // Fallback to legacy system
+        // Fallback to legacy system only for non-configuration errors
         print("🔧 LlamaStack toggle: \(useLlamaStackForLlamaModels ? "ENABLED" : "DISABLED (using Together.ai for all)")")
         
         // Route to appropriate service based on configuration toggle
@@ -343,11 +358,15 @@ class ChatViewModel: ObservableObject {
     }
     
     private func callNewProviderSystem(userMessage: String, systemPrompt: String) async throws -> String {
+        print("🔧 New Provider System called with model: \(selectedModel)")
+        print("🔑 Current API key status: \(aiProviderManager.getAPIKey(for: "Together.ai") == "changeMe" ? "NOT_CONFIGURED (changeMe)" : "CONFIGURED")")
+        
         let messages = [
             AIMessage(content: systemPrompt, role: .system),
             AIMessage(content: userMessage, role: .user)
         ]
         
+        print("📤 Sending request to AIProviderManager...")
         let stream = try await aiProviderManager.generateResponse(
             messages: messages,
             modelId: selectedModel,
@@ -356,11 +375,13 @@ class ChatViewModel: ObservableObject {
         )
         
         var fullResponse = ""
+        print("📥 Receiving streaming response...")
         
         for try await chunk in stream {
             fullResponse += chunk
         }
         
+        print("✅ New provider system response complete, length: \(fullResponse.count)")
         return fullResponse
     }
     
@@ -1011,7 +1032,21 @@ class ChatViewModel: ObservableObject {
         let savedAPIKey = UserDefaults.standard.string(forKey: "XRAiAssistant_APIKey") ?? DEFAULT_API_KEY
         if savedAPIKey != DEFAULT_API_KEY {
             apiKey = savedAPIKey
-            print("🔑 Loaded saved API key: \(String(savedAPIKey.prefix(10)))...")
+            // Migrate legacy API key to new provider system
+            aiProviderManager.setAPIKey(for: "Together.ai", key: savedAPIKey)
+            print("🔑 Loaded and migrated saved API key: \(String(savedAPIKey.prefix(10)))...")
+        } else {
+            // Check if the new provider system has a key
+            let newProviderKey = aiProviderManager.getAPIKey(for: "Together.ai")
+            if newProviderKey != "changeMe" {
+                // Use key from new provider system
+                apiKey = newProviderKey
+                print("🔑 Using API key from new provider system: \(String(newProviderKey.prefix(10)))...")
+            } else {
+                // Make sure the new provider system knows about the default key
+                aiProviderManager.setAPIKey(for: "Together.ai", key: DEFAULT_API_KEY)
+                print("🔑 Using default API key")
+            }
         }
         
         // Load system prompt (keep default if not found)
