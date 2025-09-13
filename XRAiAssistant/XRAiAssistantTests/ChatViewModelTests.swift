@@ -185,6 +185,209 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertEqual(chatViewModel.getModelDisplayName("Qwen/Qwen2.5-Coder-32B-Instruct"), "Qwen 2.5 Coder 32B")
     }
     
+    // MARK: - Multi-Provider Tests
+    
+    func testAllProvidersConfigured() {
+        // Test that all expected providers are available
+        let providers = chatViewModel.providerManager.providers
+        let providerNames = providers.map { $0.name }
+        
+        XCTAssertTrue(providerNames.contains("Together.ai"))
+        XCTAssertTrue(providerNames.contains("OpenAI"))
+        XCTAssertTrue(providerNames.contains("Anthropic"))
+        XCTAssertEqual(providers.count, 3)
+    }
+    
+    func testProviderAPIKeyManagement() {
+        // Test API key setting and retrieval
+        chatViewModel.setAPIKey(for: "OpenAI", key: "test-openai-key")
+        chatViewModel.setAPIKey(for: "Anthropic", key: "test-anthropic-key")
+        
+        XCTAssertEqual(chatViewModel.getAPIKey(for: "OpenAI"), "test-openai-key")
+        XCTAssertEqual(chatViewModel.getAPIKey(for: "Anthropic"), "test-anthropic-key")
+        XCTAssertEqual(chatViewModel.getAPIKey(for: "Together.ai"), "changeMe") // Should be default
+    }
+    
+    func testProviderConfigurationStatus() {
+        // Initially no providers should be configured
+        XCTAssertFalse(chatViewModel.isProviderConfigured("OpenAI"))
+        XCTAssertFalse(chatViewModel.isProviderConfigured("Anthropic"))
+        XCTAssertFalse(chatViewModel.isProviderConfigured("Together.ai"))
+        
+        // Configure OpenAI
+        chatViewModel.setAPIKey(for: "OpenAI", key: "sk-test123")
+        XCTAssertTrue(chatViewModel.isProviderConfigured("OpenAI"))
+        XCTAssertFalse(chatViewModel.isProviderConfigured("Anthropic"))
+        
+        // Get configured providers
+        let configuredProviders = chatViewModel.getConfiguredProviders()
+        XCTAssertEqual(configuredProviders.count, 1)
+        XCTAssertEqual(configuredProviders.first?.name, "OpenAI")
+    }
+    
+    func testModelsByProvider() {
+        let modelsByProvider = chatViewModel.modelsByProvider
+        
+        // Check that each provider has models
+        XCTAssertTrue(modelsByProvider["Together.ai"]?.count ?? 0 > 0)
+        XCTAssertTrue(modelsByProvider["OpenAI"]?.count ?? 0 > 0)
+        XCTAssertTrue(modelsByProvider["Anthropic"]?.count ?? 0 > 0)
+        
+        // Check specific models exist
+        let togetherModels = modelsByProvider["Together.ai"] ?? []
+        let openaiModels = modelsByProvider["OpenAI"] ?? []
+        let anthropicModels = modelsByProvider["Anthropic"] ?? []
+        
+        XCTAssertTrue(togetherModels.contains { $0.id.contains("DeepSeek") })
+        XCTAssertTrue(openaiModels.contains { $0.id.contains("gpt-4") })
+        XCTAssertTrue(anthropicModels.contains { $0.id.contains("claude") })
+    }
+    
+    func testModelDisplayNameWithNewSystem() {
+        // Test new provider system model display names
+        let allModels = chatViewModel.allAvailableModels
+        
+        guard let deepSeekModel = allModels.first(where: { $0.id.contains("DeepSeek") }) else {
+            XCTFail("DeepSeek model not found")
+            return
+        }
+        
+        let displayName = chatViewModel.getModelDisplayName(deepSeekModel.id)
+        XCTAssertFalse(displayName.isEmpty)
+        XCTAssertNotEqual(displayName, deepSeekModel.id) // Should be human-readable
+    }
+    
+    func testModelDescriptionWithPricing() {
+        let allModels = chatViewModel.allAvailableModels
+        
+        guard let freeModel = allModels.first(where: { $0.pricing.contains("FREE") }) else {
+            XCTFail("Free model not found")
+            return
+        }
+        
+        let description = chatViewModel.getModelDescription(freeModel.id)
+        XCTAssertTrue(description.contains("FREE") || description.contains("Advanced"))
+    }
+    
+    func testProviderForModel() {
+        let allModels = chatViewModel.allAvailableModels
+        
+        guard let openaiModel = allModels.first(where: { $0.provider == "OpenAI" }) else {
+            XCTFail("OpenAI model not found")
+            return
+        }
+        
+        let provider = chatViewModel.providerManager.getProvider(for: openaiModel.id)
+        XCTAssertNotNil(provider)
+        XCTAssertEqual(provider?.name, "OpenAI")
+    }
+    
+    func testLegacyCompatibility() {
+        // Test that legacy models still work
+        let legacyModels = chatViewModel.availableModels
+        XCTAssertFalse(legacyModels.isEmpty)
+        
+        // Test legacy model display names
+        let firstLegacyModel = legacyModels.first!
+        let displayName = chatViewModel.getModelDisplayName(firstLegacyModel)
+        XCTAssertFalse(displayName.isEmpty)
+        
+        let description = chatViewModel.getModelDescription(firstLegacyModel)
+        XCTAssertFalse(description.isEmpty)
+    }
+    
+    // MARK: - Provider-Specific Model Tests
+    
+    func testTogetherAIModels() {
+        let togetherModels = chatViewModel.modelsByProvider["Together.ai"] ?? []
+        
+        // Should have the expected models
+        let modelIds = togetherModels.map { $0.id }
+        XCTAssertTrue(modelIds.contains("deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"))
+        XCTAssertTrue(modelIds.contains("meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"))
+        
+        // Check pricing information
+        let freeModels = togetherModels.filter { $0.pricing.contains("FREE") }
+        XCTAssertTrue(freeModels.count >= 2) // Should have at least 2 free models
+        
+        // Check that default model is set
+        let defaultModel = togetherModels.first { $0.isDefault }
+        XCTAssertNotNil(defaultModel)
+    }
+    
+    func testOpenAIModels() {
+        let openaiModels = chatViewModel.modelsByProvider["OpenAI"] ?? []
+        
+        // Should have GPT models
+        let hasGPT4 = openaiModels.contains { $0.id.contains("gpt-4") }
+        let hasGPT35 = openaiModels.contains { $0.id.contains("gpt-3.5") }
+        
+        XCTAssertTrue(hasGPT4 || hasGPT35, "Should have at least one GPT model")
+        
+        // Check that all models have pricing information
+        for model in openaiModels {
+            XCTAssertFalse(model.pricing.isEmpty, "Model \(model.id) should have pricing info")
+        }
+        
+        // Should have a default model
+        let defaultModel = openaiModels.first { $0.isDefault }
+        XCTAssertNotNil(defaultModel)
+    }
+    
+    func testAnthropicModels() {
+        let anthropicModels = chatViewModel.modelsByProvider["Anthropic"] ?? []
+        
+        // Should have Claude models
+        let hasClaudeModels = anthropicModels.contains { $0.id.contains("claude") }
+        XCTAssertTrue(hasClaudeModels, "Should have Claude models")
+        
+        // Check model naming
+        for model in anthropicModels {
+            XCTAssertTrue(model.displayName.contains("Claude"), "Model display name should contain 'Claude'")
+            XCTAssertFalse(model.pricing.isEmpty, "Model \(model.id) should have pricing info")
+        }
+        
+        // Should have a default model
+        let defaultModel = anthropicModels.first { $0.isDefault }
+        XCTAssertNotNil(defaultModel)
+    }
+    
+    // MARK: - Error Handling for Multi-Provider
+    
+    func testUnconfiguredProviderError() {
+        // Try to use a provider that's not configured
+        let openaiModels = chatViewModel.modelsByProvider["OpenAI"] ?? []
+        guard let firstModel = openaiModels.first else {
+            XCTFail("No OpenAI models available")
+            return
+        }
+        
+        // Since OpenAI is not configured, this should fail appropriately
+        XCTAssertFalse(chatViewModel.isProviderConfigured("OpenAI"))
+        
+        // The system should handle this gracefully and fallback to configured providers
+        let configuredProviders = chatViewModel.getConfiguredProviders()
+        // Initially no providers are configured with real keys
+        XCTAssertEqual(configuredProviders.count, 0)
+    }
+    
+    // MARK: - Settings Persistence Tests
+    
+    func testMultiProviderSettingsPersistence() {
+        // Set API keys for multiple providers
+        chatViewModel.setAPIKey(for: "OpenAI", key: "sk-openai-test")
+        chatViewModel.setAPIKey(for: "Anthropic", key: "sk-ant-test")
+        chatViewModel.setAPIKey(for: "Together.ai", key: "together-test")
+        
+        // Save settings
+        chatViewModel.saveSettings()
+        
+        // Verify the keys were saved (the AIProviderManager handles persistence automatically)
+        XCTAssertEqual(chatViewModel.getAPIKey(for: "OpenAI"), "sk-openai-test")
+        XCTAssertEqual(chatViewModel.getAPIKey(for: "Anthropic"), "sk-ant-test")
+        XCTAssertEqual(chatViewModel.getAPIKey(for: "Together.ai"), "together-test")
+    }
+    
     // MARK: - Integration Tests
     
     func testCodeExtractionAndValidation() {

@@ -20,9 +20,18 @@ class ChatViewModel: ObservableObject {
     @Published var selectedModel: String = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
     @Published var temperature: Double = 0.7
     @Published var topP: Double = 0.9
-    @Published var apiKey: String = DEFAULT_API_KEY
+    @Published var apiKey: String = DEFAULT_API_KEY // Legacy - for backwards compatibility
     @Published var systemPrompt: String = ""
     
+    // New AI Provider System
+    private let aiProviderManager = AIProviderManager()
+    
+    // Expose provider manager for UI and tests
+    var providerManager: AIProviderManager {
+        return aiProviderManager
+    }
+    
+    // Legacy providers - maintained for compatibility
     private var inference: RemoteInference
     private var togetherAIService: TogetherAIService
     private var cancellables = Set<AnyCancellable>()
@@ -57,7 +66,7 @@ class ChatViewModel: ObservableObject {
     private let maxRetryAttempts: Int = 1
     private let minimumResponseLength: Int = 50 // Chars below this trigger retry
     
-    // Available models (ordered by cost - cheapest first)
+    // Available models (ordered by cost - cheapest first) - Legacy, now using aiProviderManager.getAllModels()
     let availableModels = [
         "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free", // FREE - DeepSeek R1 reasoning model
         "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free", // FREE - Latest Llama 3.3 70B
@@ -66,6 +75,19 @@ class ChatViewModel: ObservableObject {
         "Qwen/Qwen2.5-7B-Instruct-Turbo",               // $0.30/1M - Fastest Qwen
         "Qwen/Qwen2.5-Coder-32B-Instruct"               // $0.80/1M - Advanced coding
     ]
+    
+    // MARK: - New Provider System Properties
+    var allAvailableModels: [AIModel] {
+        return aiProviderManager.getAllModels()
+    }
+    
+    var modelsByProvider: [String: [AIModel]] {
+        return aiProviderManager.getModelsByProvider()
+    }
+    
+    var currentProvider: AIProvider? {
+        return aiProviderManager.currentProvider
+    }
     
     // Callbacks for WebView interaction
     var onInsertCode: ((String) -> Void)?
@@ -153,7 +175,7 @@ class ChatViewModel: ObservableObject {
     
     func updateAPIKey(_ newKey: String) {
         apiKey = newKey
-        // Reinitialize both services with new API key
+        // Reinitialize both legacy services with new API key
         togetherAIService = AIProxy.togetherAIDirectService(
             unprotectedAPIKey: apiKey
         )
@@ -162,6 +184,35 @@ class ChatViewModel: ObservableObject {
             url: URL(string: "https://llama-stack.together.ai")!,
             apiKey: apiKey
         )
+        
+        // Also update Together.ai provider in the new system (backwards compatibility)
+        aiProviderManager.setAPIKey(for: "Together.ai", key: newKey)
+    }
+    
+    // MARK: - New Provider System Methods
+    
+    func setAPIKey(for provider: String, key: String) {
+        aiProviderManager.setAPIKey(for: provider, key: key)
+    }
+    
+    func getAPIKey(for provider: String) -> String {
+        return aiProviderManager.getAPIKey(for: provider)
+    }
+    
+    func getCurrentProvider() -> AIProvider? {
+        return aiProviderManager.currentProvider
+    }
+    
+    func setCurrentProvider(_ provider: AIProvider) {
+        aiProviderManager.setCurrentProvider(provider)
+    }
+    
+    func isProviderConfigured(_ provider: String) -> Bool {
+        return aiProviderManager.isProviderConfigured(provider)
+    }
+    
+    func getConfiguredProviders() -> [AIProvider] {
+        return aiProviderManager.getConfiguredProviders()
     }
     
     func sendMessage(_ text: String, currentCode: String? = nil) {
@@ -297,6 +348,15 @@ class ChatViewModel: ObservableObject {
     
     private func callLlamaInference(userMessage: String, systemPrompt: String) async throws -> String {
         print("🎯 Using selected model: \(selectedModel)")
+        
+        // Try new provider system first
+        if let provider = aiProviderManager.getProvider(for: selectedModel),
+           aiProviderManager.isProviderConfigured(provider.name) {
+            print("📍 Routing to: New Provider System (\(provider.name))")
+            return try await callNewProviderSystem(userMessage: userMessage, systemPrompt: systemPrompt)
+        }
+        
+        // Fallback to legacy system
         print("🔧 LlamaStack toggle: \(useLlamaStackForLlamaModels ? "ENABLED" : "DISABLED (using Together.ai for all)")")
         
         // Route to appropriate service based on configuration toggle
@@ -311,7 +371,35 @@ class ChatViewModel: ObservableObject {
         }
     }
     
+    private func callNewProviderSystem(userMessage: String, systemPrompt: String) async throws -> String {
+        let messages = [
+            AIMessage(content: systemPrompt, role: .system),
+            AIMessage(content: userMessage, role: .user)
+        ]
+        
+        let stream = try await aiProviderManager.generateResponse(
+            messages: messages,
+            modelId: selectedModel,
+            temperature: temperature,
+            topP: topP
+        )
+        
+        var fullResponse = ""
+        
+        for try await chunk in stream {
+            fullResponse += chunk
+        }
+        
+        return fullResponse
+    }
+    
     func getModelDisplayName(_ modelId: String) -> String {
+        // Try new provider system first
+        if let model = aiProviderManager.getModel(id: modelId) {
+            return model.displayName
+        }
+        
+        // Fallback to legacy system
         switch modelId {
         case "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free":
             return "DeepSeek R1 70B (Free)"
@@ -331,6 +419,13 @@ class ChatViewModel: ObservableObject {
     }
     
     func getModelDescription(_ modelId: String) -> String {
+        // Try new provider system first
+        if let model = aiProviderManager.getModel(id: modelId) {
+            let pricing = model.pricing.isEmpty ? "" : " - \(model.pricing)"
+            return "\(model.description)\(pricing)"
+        }
+        
+        // Fallback to legacy system
         switch modelId {
         case "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free":
             return "FREE - Advanced reasoning & coding"
@@ -919,7 +1014,11 @@ class ChatViewModel: ObservableObject {
     /// Save current settings to UserDefaults
     func saveSettings() {
         print("💾 Saving settings to UserDefaults...")
+        
+        // Save legacy API key for backwards compatibility
         UserDefaults.standard.set(apiKey, forKey: "XRAiAssistant_APIKey")
+        
+        // Save general settings
         UserDefaults.standard.set(systemPrompt, forKey: "XRAiAssistant_SystemPrompt")
         UserDefaults.standard.set(selectedModel, forKey: "XRAiAssistant_SelectedModel")
         UserDefaults.standard.set(temperature, forKey: "XRAiAssistant_Temperature")
@@ -927,6 +1026,8 @@ class ChatViewModel: ObservableObject {
         
         // Update AI services with new API key if it changed
         updateAPIKey(apiKey)
+        
+        // The AIProviderManager handles its own persistence automatically
         
         print("✅ Settings saved successfully")
     }

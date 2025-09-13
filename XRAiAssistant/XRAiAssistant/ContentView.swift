@@ -61,43 +61,75 @@ struct ContentView: View {
     }
     
     private var apiConfigurationSection: some View {
-        Section("API Configuration") {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Together.ai API Key")
-                    .font(.headline)
-                    .foregroundColor(.primary)
+        Section("AI Provider API Keys") {
+            VStack(spacing: 16) {
+                // Together.ai API Key
+                providerAPIKeyView(
+                    provider: "Together.ai",
+                    description: "Get your API key from together.ai",
+                    color: .blue
+                )
                 
-                SecureField("Enter your Together.ai API key", text: $chatViewModel.apiKey)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                // OpenAI API Key
+                providerAPIKeyView(
+                    provider: "OpenAI",
+                    description: "Get your API key from platform.openai.com",
+                    color: .green
+                )
                 
-                HStack {
-                    Text("Get your API key from Together.ai dashboard")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                    
-                    Spacer()
-                    
-                    if chatViewModel.apiKey != "changeMe" && !chatViewModel.apiKey.isEmpty {
-                        HStack {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                            Text("Key entered")
-                                .font(.caption)
-                                .foregroundColor(.green)
-                        }
-                    } else {
-                        HStack {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(.orange)
-                            Text("API key required")
-                                .font(.caption)
-                                .foregroundColor(.orange)
-                        }
-                    }
-                }
+                // Anthropic API Key
+                providerAPIKeyView(
+                    provider: "Anthropic",
+                    description: "Get your API key from console.anthropic.com",
+                    color: .purple
+                )
             }
             .padding(.vertical, 4)
         }
+    }
+    
+    private func providerAPIKeyView(provider: String, description: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("\(provider) API Key")
+                .font(.headline)
+                .foregroundColor(.primary)
+            
+            SecureField("Enter your \(provider) API key", text: Binding(
+                get: { chatViewModel.getAPIKey(for: provider) },
+                set: { chatViewModel.setAPIKey(for: provider, key: $0) }
+            ))
+            .textFieldStyle(RoundedBorderTextFieldStyle())
+            
+            HStack {
+                Text(description)
+                    .font(.caption)
+                    .foregroundColor(.gray)
+                
+                Spacer()
+                
+                if chatViewModel.isProviderConfigured(provider) {
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(color)
+                        Text("Configured")
+                            .font(.caption)
+                            .foregroundColor(color)
+                    }
+                } else {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                        Text("API key required")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 8)
+        .background(color.opacity(0.05))
+        .cornerRadius(8)
     }
     
     private var modelSettingsSection: some View {
@@ -119,18 +151,76 @@ struct ContentView: View {
                 .foregroundColor(.primary)
             
             Picker("Model", selection: $chatViewModel.selectedModel) {
-                ForEach(chatViewModel.availableModels, id: \.self) { model in
-                    VStack(alignment: .leading) {
-                        Text(chatViewModel.getModelDisplayName(model))
-                            .font(.system(size: 14, weight: .medium))
-                        Text(chatViewModel.getModelDescription(model))
-                            .font(.caption)
-                            .foregroundColor(.gray)
+                // Show models organized by provider
+                ForEach(Array(chatViewModel.modelsByProvider.keys.sorted()), id: \.self) { provider in
+                    Section(provider) {
+                        ForEach(chatViewModel.modelsByProvider[provider] ?? [], id: \.id) { model in
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack {
+                                    Text(model.displayName)
+                                        .font(.system(size: 14, weight: .medium))
+                                    Spacer()
+                                    if !model.pricing.isEmpty {
+                                        Text(model.pricing)
+                                            .font(.caption2)
+                                            .foregroundColor(.gray)
+                                            .padding(.horizontal, 4)
+                                            .padding(.vertical, 1)
+                                            .background(Color.gray.opacity(0.2))
+                                            .cornerRadius(4)
+                                    }
+                                }
+                                Text(model.description)
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                            }
+                            .tag(model.id)
+                        }
                     }
-                    .tag(model)
+                }
+                
+                // Legacy models for backwards compatibility
+                if !chatViewModel.availableModels.isEmpty {
+                    Section("Legacy (Together.ai)") {
+                        ForEach(chatViewModel.availableModels, id: \.self) { model in
+                            VStack(alignment: .leading) {
+                                Text(chatViewModel.getModelDisplayName(model))
+                                    .font(.system(size: 14, weight: .medium))
+                                Text(chatViewModel.getModelDescription(model))
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                            }
+                            .tag(model)
+                        }
+                    }
                 }
             }
             .pickerStyle(MenuPickerStyle())
+            
+            // Show current provider info
+            if let currentModel = chatViewModel.allAvailableModels.first(where: { $0.id == chatViewModel.selectedModel }) {
+                HStack {
+                    Image(systemName: "building.2")
+                        .foregroundColor(.blue)
+                        .font(.caption)
+                    Text("Provider: \(currentModel.provider)")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                    
+                    Spacer()
+                    
+                    if chatViewModel.isProviderConfigured(currentModel.provider) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                            .font(.caption)
+                    } else {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                            .font(.caption)
+                    }
+                }
+                .padding(.top, 4)
+            }
         }
     }
     
@@ -317,23 +407,63 @@ struct ContentView: View {
                                     .foregroundColor(.gray)
                                 
                                 Menu {
-                                    ForEach(chatViewModel.availableModels, id: \.self) { model in
-                                        Button(action: {
-                                            chatViewModel.selectedModel = model
-                                        }) {
-                                            VStack(alignment: .leading, spacing: 2) {
-                                                HStack {
-                                                    Text(chatViewModel.getModelDisplayName(model))
-                                                        .font(.system(size: 14, weight: .medium))
-                                                    if chatViewModel.selectedModel == model {
-                                                        Image(systemName: "checkmark")
-                                                            .foregroundColor(.blue)
-                                                            .font(.caption)
+                                    // Show models organized by provider
+                                    ForEach(Array(chatViewModel.modelsByProvider.keys.sorted()), id: \.self) { provider in
+                                        Section(provider) {
+                                            ForEach(chatViewModel.modelsByProvider[provider] ?? [], id: \.id) { model in
+                                                Button(action: {
+                                                    chatViewModel.selectedModel = model.id
+                                                }) {
+                                                    HStack {
+                                                        VStack(alignment: .leading, spacing: 2) {
+                                                            Text(model.displayName)
+                                                                .font(.system(size: 14, weight: .medium))
+                                                            Text("\(model.description) - \(model.pricing)")
+                                                                .font(.caption2)
+                                                                .foregroundColor(.gray)
+                                                        }
+                                                        
+                                                        Spacer()
+                                                        
+                                                        if chatViewModel.selectedModel == model.id {
+                                                            Image(systemName: "checkmark")
+                                                                .foregroundColor(.blue)
+                                                                .font(.caption)
+                                                        }
+                                                        
+                                                        if !chatViewModel.isProviderConfigured(provider) {
+                                                            Image(systemName: "exclamationmark.triangle")
+                                                                .foregroundColor(.orange)
+                                                                .font(.caption2)
+                                                        }
                                                     }
                                                 }
-                                                Text(chatViewModel.getModelDescription(model))
-                                                    .font(.caption2)
-                                                    .foregroundColor(.gray)
+                                            }
+                                        }
+                                    }
+                                    
+                                    // Legacy models
+                                    if !chatViewModel.availableModels.isEmpty {
+                                        Section("Legacy") {
+                                            ForEach(chatViewModel.availableModels, id: \.self) { model in
+                                                Button(action: {
+                                                    chatViewModel.selectedModel = model
+                                                }) {
+                                                    VStack(alignment: .leading, spacing: 2) {
+                                                        HStack {
+                                                            Text(chatViewModel.getModelDisplayName(model))
+                                                                .font(.system(size: 14, weight: .medium))
+                                                            if chatViewModel.selectedModel == model {
+                                                                Image(systemName: "checkmark")
+                                                                    .foregroundColor(.blue)
+                                                                    .font(.caption)
+                                                            }
+                                                        }
+                                                        Text(chatViewModel.getModelDescription(model))
+                                                            .font(.caption2)
+                                                            .foregroundColor(.gray)
+                                                    }
+                                                }
                                             }
                                         }
                                     }
