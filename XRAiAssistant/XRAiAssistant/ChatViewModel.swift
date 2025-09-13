@@ -334,7 +334,7 @@ class ChatViewModel: ObservableObject {
             } catch {
                 // If it's a configuration error, don't fall back - show helpful error
                 if let providerError = error as? AIProviderError,
-                   case .configurationError = providerError {
+                   case .configurationError(_) = providerError {
                     throw error // Re-throw to show user-friendly message
                 }
                 // For other errors, we can fall back to legacy system
