@@ -12,7 +12,8 @@
       "Bash(rm:*)",
       "Bash(find:*)",
       "Bash(git commit:*)",
-      "Bash(true)"
+      "Bash(true)",
+      "Bash(sudo rm:*)"
     ],
     "deny": []
   }

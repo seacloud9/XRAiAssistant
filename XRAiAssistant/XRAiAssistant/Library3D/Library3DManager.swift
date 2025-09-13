@@ -28,6 +28,16 @@ class Library3DManager: ObservableObject {
         var iconName: String { _library.iconName }
         var supportedFeatures: Set<Library3DFeature> { _library.supportedFeatures }
         var documentationURL: String { _library.documentationURL }
+        
+        // Manual Hashable implementation
+        func hash(into hasher: inout Hasher) {
+            hasher.combine(id)
+        }
+        
+        // Manual Equatable implementation
+        static func == (lhs: AnyLibrary3D, rhs: AnyLibrary3D) -> Bool {
+            return lhs.id == rhs.id
+        }
     }
     
     init() {
