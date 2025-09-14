@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - Three.js Template Canvas Layout & Monaco Integration 🔧
+- **Canvas Layout Issues** ✅
+  - Fixed Three.js canvas overlapping with Monaco editor in split-view layout
+  - Enhanced CSS with proper flexbox constraints (flex: 0 0 50%, overflow: hidden)
+  - Added box-sizing: border-box to prevent layout expansion beyond container bounds
+  - Improved canvas containment with max-width/max-height constraints and object-fit: contain
+
+- **Monaco Editor Language Configuration** ✅
+  - Corrected Monaco language setting from 'typescript' to 'javascript' for Three.js template
+  - Fixed language mismatch causing potential editor and syntax highlighting issues
+  - Aligned with actual JavaScript code being generated and executed
+
+- **Console Positioning & Error Visibility** ✅
+  - Relocated console display from overlapping editor (left: 10px) to canvas area only (left: 50%)
+  - Auto-show console for critical errors and warnings to prevent hidden failures
+  - Added global error handlers for uncaught JavaScript errors and promise rejections
+  - Enhanced error messages with stack traces and source location information
+
+- **Three.js Scene Lighting & Visibility** ✅
+  - Enhanced default scene template with improved lighting system:
+    - Increased ambient light intensity from 0.6 to 0.8
+    - Added point light source for better depth perception
+    - Upgraded directional light to full 1.0 intensity
+  - Fixed fallback scene lighting with proper MeshPhongMaterial instead of MeshBasicMaterial
+  - Improved scene backgrounds from dark (0x333333) to lighter gray (0x606060) for better contrast
+
+- **Comprehensive Three.js Debugging** ✅
+  - Added detailed initialization logging with THREE.js version detection
+  - Enhanced render loop monitoring with frame counting and scene state validation
+  - Added WebGL context verification and capabilities testing
+  - Implemented comprehensive error handling with immediate visual feedback
+  - Auto-opening console for debugging visibility with render loop status monitoring
+
+### Technical Improvements ✅
+- **Error Detection System**
+  - Global window.addEventListener('error') for uncaught JavaScript errors
+  - Unhandled promise rejection monitoring
+  - Critical error auto-display in console overlay
+  - Comprehensive Three.js initialization validation
+
+- **Layout System Enhancements**
+  - CSS flexbox improvements for reliable 50/50 editor/canvas split
+  - Container overflow control to prevent visual bleeding
+  - Canvas scaling constraints to maintain aspect ratio within bounds
+  - Responsive design considerations for mobile layout support
+
+- **Monaco Integration Reliability**
+  - Language configuration alignment with actual code content
+  - Enhanced editor readiness detection for Three.js template
+  - Improved code injection reliability with proper language context
+
 ### Added - Multi-3D Library Support (Phase 1: Core Architecture)
 - **Core Architecture** ✅
   - Library3D protocol for extensible 3D library support

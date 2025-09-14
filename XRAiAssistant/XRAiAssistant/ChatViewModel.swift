@@ -24,7 +24,7 @@ class ChatViewModel: ObservableObject {
     @Published var systemPrompt: String = ""
     
     // New AI Provider System
-    private let aiProviderManager = AIProviderManager()
+    private(set) var aiProviderManager = AIProviderManager()
     
     // 3D Library Management System
     private let library3DManager = Library3DManager()
@@ -167,6 +167,11 @@ class ChatViewModel: ObservableObject {
     
     func setAPIKey(for provider: String, key: String) {
         aiProviderManager.setAPIKey(for: provider, key: key)
+        
+        // Keep legacy apiKey in sync for Together.ai
+        if provider == "Together.ai" {
+            apiKey = key
+        }
     }
     
     // MARK: - 3D Library System Methods
@@ -208,6 +213,7 @@ class ChatViewModel: ObservableObject {
         
         print("🎯 Switched to \(library3DManager.selectedLibrary.displayName)")
     }
+    
     
     func getCurrentLibrary() -> Library3DManager.AnyLibrary3D {
         return library3DManager.selectedLibrary

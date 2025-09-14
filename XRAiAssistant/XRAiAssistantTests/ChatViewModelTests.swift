@@ -189,7 +189,7 @@ final class ChatViewModelTests: XCTestCase {
     
     func testAllProvidersConfigured() {
         // Test that all expected providers are available
-        let providers = chatViewModel.providerManager.providers
+        let providers = chatViewModel.aiProviderManager.providers
         let providerNames = providers.map { $0.name }
         
         XCTAssertTrue(providerNames.contains("Together.ai"))
@@ -277,7 +277,7 @@ final class ChatViewModelTests: XCTestCase {
             return
         }
         
-        let provider = chatViewModel.providerManager.getProvider(for: openaiModel.id)
+        let provider = chatViewModel.aiProviderManager.getProvider(for: openaiModel.id)
         XCTAssertNotNil(provider)
         XCTAssertEqual(provider?.name, "OpenAI")
     }
@@ -386,6 +386,368 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertEqual(chatViewModel.getAPIKey(for: "OpenAI"), "sk-openai-test")
         XCTAssertEqual(chatViewModel.getAPIKey(for: "Anthropic"), "sk-ant-test")
         XCTAssertEqual(chatViewModel.getAPIKey(for: "Together.ai"), "together-test")
+    }
+    
+    // MARK: - 3D Library System Tests
+    
+    func testLibraryTemplateSystem() {
+        // Test that all libraries have correct template names
+        let availableLibraries = chatViewModel.getAvailableLibraries()
+        
+        XCTAssertEqual(availableLibraries.count, 3, "Should have 3 libraries: Babylon.js, Three.js, A-Frame")
+        
+        // Check each library has correct template
+        let babylonLib = availableLibraries.first { $0.id == "babylonjs" }
+        let threeLib = availableLibraries.first { $0.id == "threejs" }
+        let aframeLib = availableLibraries.first { $0.id == "aframe" }
+        
+        XCTAssertNotNil(babylonLib, "Babylon.js library should exist")
+        XCTAssertNotNil(threeLib, "Three.js library should exist")
+        XCTAssertNotNil(aframeLib, "A-Frame library should exist")
+        
+        // Test template names match expected files
+        XCTAssertEqual(babylonLib?.playgroundTemplate, "playground-babylonjs.html")
+        XCTAssertEqual(threeLib?.playgroundTemplate, "playground-threejs.html")
+        XCTAssertEqual(aframeLib?.playgroundTemplate, "playground-aframe.html")
+    }
+    
+    func testLibrarySwitching() {
+        let availableLibraries = chatViewModel.getAvailableLibraries()
+        
+        // Initially should be Babylon.js
+        let initialLibrary = chatViewModel.getCurrentLibrary()
+        XCTAssertEqual(initialLibrary.id, "babylonjs")
+        XCTAssertEqual(chatViewModel.getPlaygroundTemplate(), "playground-babylonjs.html")
+        XCTAssertEqual(chatViewModel.getCodeLanguage(), .javascript)
+        
+        // Switch to Three.js
+        if let threeLib = availableLibraries.first(where: { $0.id == "threejs" }) {
+            chatViewModel.selectLibrary(threeLib)
+            XCTAssertEqual(chatViewModel.getCurrentLibrary().id, "threejs")
+            XCTAssertEqual(chatViewModel.getPlaygroundTemplate(), "playground-threejs.html")
+            XCTAssertEqual(chatViewModel.getCodeLanguage(), .javascript)
+        }
+        
+        // Switch to A-Frame
+        if let aframeLib = availableLibraries.first(where: { $0.id == "aframe" }) {
+            chatViewModel.selectLibrary(aframeLib)
+            XCTAssertEqual(chatViewModel.getCurrentLibrary().id, "aframe")
+            XCTAssertEqual(chatViewModel.getPlaygroundTemplate(), "playground-aframe.html")
+            XCTAssertEqual(chatViewModel.getCodeLanguage(), .html)
+        }
+    }
+    
+    func testLibraryDefaultSceneCode() {
+        let availableLibraries = chatViewModel.getAvailableLibraries()
+        
+        // Test Babylon.js default code
+        if let babylonLib = availableLibraries.first(where: { $0.id == "babylonjs" }) {
+            chatViewModel.selectLibrary(babylonLib)
+            let babylonCode = chatViewModel.getDefaultSceneCode()
+            XCTAssertTrue(babylonCode.contains("BABYLON.Scene"))
+            XCTAssertTrue(babylonCode.contains("createScene"))
+            XCTAssertTrue(babylonCode.contains("FreeCamera"))
+        }
+        
+        // Test Three.js default code
+        if let threeLib = availableLibraries.first(where: { $0.id == "threejs" }) {
+            chatViewModel.selectLibrary(threeLib)
+            let threeCode = chatViewModel.getDefaultSceneCode()
+            XCTAssertTrue(threeCode.contains("THREE.Scene"))
+            XCTAssertTrue(threeCode.contains("createScene"))
+            XCTAssertTrue(threeCode.contains("PerspectiveCamera"))
+        }
+        
+        // Test A-Frame default code
+        if let aframeLib = availableLibraries.first(where: { $0.id == "aframe" }) {
+            chatViewModel.selectLibrary(aframeLib)
+            let aframeCode = chatViewModel.getDefaultSceneCode()
+            XCTAssertTrue(aframeCode.contains("<a-scene"))
+            XCTAssertTrue(aframeCode.contains("<a-camera"))
+            XCTAssertTrue(aframeCode.contains("<a-light"))
+        }
+    }
+    
+    func testLibrarySystemPrompts() {
+        let availableLibraries = chatViewModel.getAvailableLibraries()
+        
+        for library in availableLibraries {
+            chatViewModel.selectLibrary(library)
+            let systemPrompt = chatViewModel.systemPrompt
+            
+            // Each library should have a non-empty system prompt
+            XCTAssertFalse(systemPrompt.isEmpty, "Library \(library.displayName) should have system prompt")
+            
+            // System prompts should contain library-specific content
+            switch library.id {
+            case "babylonjs":
+                XCTAssertTrue(systemPrompt.contains("Babylon.js"))
+                XCTAssertTrue(systemPrompt.contains("BABYLON.Scene"))
+            case "threejs":
+                XCTAssertTrue(systemPrompt.contains("Three.js"))
+                XCTAssertTrue(systemPrompt.contains("THREE.Scene"))
+            case "aframe":
+                XCTAssertTrue(systemPrompt.contains("A-Frame"))
+                XCTAssertTrue(systemPrompt.contains("<a-scene"))
+            default:
+                XCTFail("Unknown library: \(library.id)")
+            }
+        }
+    }
+    
+    // MARK: - Multi-Library Code Validation Tests
+    
+    func testThreeJSCodeValidation() {
+        let threeJSResponse = """
+        I'll create a Three.js cube scene!
+        
+        [INSERT_CODE]
+        ```javascript
+        const createScene = () => {
+            const scene = new THREE.Scene();
+            
+            // Camera
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 5, 10);
+            
+            // Lighting
+            const light = new THREE.DirectionalLight(0xffffff, 0.8);
+            scene.add(light);
+            
+            // Cube
+            const geometry = new THREE.BoxGeometry();
+            const material = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
+            const cube = new THREE.Mesh(geometry, material);
+            scene.add(cube);
+            
+            return { scene, camera };
+        };
+        
+        const { scene, camera } = createScene();
+        ```
+        [/INSERT_CODE]
+        
+        [RUN_SCENE]
+        """
+        
+        let validation = validateThreeJSResponse(threeJSResponse)
+        XCTAssertTrue(validation.isComplete)
+        XCTAssertFalse(validation.shouldRetry)
+        XCTAssertTrue(validation.issues.isEmpty)
+    }
+    
+    func testAFrameCodeValidation() {
+        let aframeResponse = """
+        I'll create an A-Frame VR scene!
+        
+        [INSERT_CODE]
+        ```html
+        <a-scene embedded vr-mode-ui="enabled: true" background="color: #212">
+            <a-light type="ambient" color="#404040" intensity="0.6"></a-light>
+            <a-light type="directional" position="10 10 5" color="#ffffff"></a-light>
+            
+            <a-box position="0 1.5 -3" color="#4CC3D9"></a-box>
+            <a-sphere position="2 1.25 -5" radius="1.25" color="#EF2D5E"></a-sphere>
+            <a-plane position="0 0 -4" rotation="-90 0 0" width="10" height="10" color="#7BC8A4"></a-plane>
+            
+            <a-camera look-controls wasd-controls position="0 1.6 0">
+                <a-cursor color="#fff"></a-cursor>
+            </a-camera>
+        </a-scene>
+        ```
+        [/INSERT_CODE]
+        
+        [RUN_SCENE]
+        """
+        
+        let validation = validateAFrameResponse(aframeResponse)
+        XCTAssertTrue(validation.isComplete)
+        XCTAssertFalse(validation.shouldRetry)
+        XCTAssertTrue(validation.issues.isEmpty)
+    }
+    
+    // MARK: - Template Loading Tests
+    
+    func testTemplateFilesExist() {
+        // Test that all template files exist in the bundle
+        let templateNames = ["playground-babylonjs", "playground-threejs", "playground-aframe"]
+        
+        for templateName in templateNames {
+            let templatePath = Bundle.main.path(forResource: templateName, ofType: "html")
+            XCTAssertNotNil(templatePath, "Template \(templateName).html should exist in bundle")
+            
+            if let path = templatePath {
+                do {
+                    let content = try String(contentsOfFile: path)
+                    XCTAssertFalse(content.isEmpty, "Template \(templateName) should not be empty")
+                    
+                    // Check for essential elements
+                    XCTAssertTrue(content.contains("monaco-editor"), "Template should contain monaco-editor div")
+                    XCTAssertTrue(content.contains("renderCanvas"), "Template should contain renderCanvas")
+                    XCTAssertTrue(content.contains("window.editorReady"), "Template should set editorReady flag")
+                    
+                } catch {
+                    XCTFail("Failed to read template \(templateName): \(error)")
+                }
+            }
+        }
+    }
+    
+    func testTemplateSpecificContent() {
+        // Test Babylon.js template
+        if let babylonPath = Bundle.main.path(forResource: "playground-babylonjs", ofType: "html") {
+            do {
+                let content = try String(contentsOfFile: babylonPath)
+                XCTAssertTrue(content.contains("BABYLON.Engine"), "Babylon template should reference BABYLON.Engine")
+                XCTAssertTrue(content.contains("language: 'typescript'"), "Babylon template should use TypeScript")
+            } catch {
+                XCTFail("Failed to read Babylon template: \(error)")
+            }
+        }
+        
+        // Test Three.js template
+        if let threePath = Bundle.main.path(forResource: "playground-threejs", ofType: "html") {
+            do {
+                let content = try String(contentsOfFile: threePath)
+                XCTAssertTrue(content.contains("THREE."), "Three.js template should reference THREE")
+                XCTAssertTrue(content.contains("language: 'javascript'"), "Three.js template should use JavaScript")
+            } catch {
+                XCTFail("Failed to read Three.js template: \(error)")
+            }
+        }
+        
+        // Test A-Frame template
+        if let aframePath = Bundle.main.path(forResource: "playground-aframe", ofType: "html") {
+            do {
+                let content = try String(contentsOfFile: aframePath)
+                XCTAssertTrue(content.contains("<a-scene"), "A-Frame template should contain a-scene")
+            } catch {
+                XCTFail("Failed to read A-Frame template: \(error)")
+            }
+        }
+    }
+    
+    func testTemplateLoadingLogic() {
+        // Test the template loading strategies from WebViewCoordinator
+        
+        // Strategy 1: Direct bundle lookup
+        let babylonTemplate = "playground-babylonjs"
+        let templatePath = Bundle.main.path(forResource: babylonTemplate, ofType: "html")
+        XCTAssertNotNil(templatePath, "Direct bundle lookup should find template")
+        
+        // Strategy 2: Template name with .html extension
+        let threeTemplate = "playground-threejs.html"
+        let threePathWithExt = Bundle.main.path(forResource: threeTemplate, ofType: nil)
+        XCTAssertNotNil(threePathWithExt, "Template lookup with .html extension should work")
+        
+        // Strategy 3: Bundle contents search
+        if let resourcePath = Bundle.main.resourcePath {
+            do {
+                let bundleContents = try FileManager.default.contentsOfDirectory(atPath: resourcePath)
+                XCTAssertTrue(bundleContents.contains("playground-babylonjs.html"), "Bundle should contain Babylon template")
+                XCTAssertTrue(bundleContents.contains("playground-threejs.html"), "Bundle should contain Three.js template")  
+                XCTAssertTrue(bundleContents.contains("playground-aframe.html"), "Bundle should contain A-Frame template")
+            } catch {
+                XCTFail("Failed to read bundle contents: \(error)")
+            }
+        }
+    }
+    
+    func testMonacoEditorFallback() {
+        // Test that all templates contain fallback editor logic
+        let templates = ["playground-babylonjs", "playground-threejs", "playground-aframe"]
+        
+        for templateName in templates {
+            if let templatePath = Bundle.main.path(forResource: templateName, ofType: "html") {
+                do {
+                    let content = try String(contentsOfFile: templatePath)
+                    XCTAssertTrue(content.contains("createFallbackEditor"), "\(templateName) should have fallback editor function")
+                    XCTAssertTrue(content.contains("monacoTimeout"), "\(templateName) should have Monaco timeout logic")
+                    XCTAssertTrue(content.contains("waitSeconds: 30"), "\(templateName) should have longer CDN timeout")
+                    XCTAssertTrue(content.contains("window.editorReady"), "\(templateName) should set editor ready flag")
+                } catch {
+                    XCTFail("Failed to read \(templateName) template for fallback test: \(error)")
+                }
+            }
+        }
+    }
+    
+    func testThreeJSSpecificFeatures() {
+        // Test Three.js template has proper error handling
+        if let threePath = Bundle.main.path(forResource: "playground-threejs", ofType: "html") {
+            do {
+                let content = try String(contentsOfFile: threePath)
+                XCTAssertTrue(content.contains("OrbitControls"), "Three.js template should reference OrbitControls")
+                XCTAssertTrue(content.contains("rendererError"), "Three.js template should have renderer error handling")
+                XCTAssertTrue(content.contains("comprehensive error handling"), "Three.js template should have error handling")
+                XCTAssertTrue(content.contains("Monaco injection test passed"), "Three.js template should test Monaco injection")
+            } catch {
+                XCTFail("Failed to read Three.js template for specific test: \(error)")
+            }
+        }
+    }
+    
+    func testThreeJSJavaScriptSyntax() {
+        // Test that Three.js template has proper JavaScript function ordering
+        // This specifically tests the fix for the addConsoleMessage() function being called before definition
+        if let threePath = Bundle.main.path(forResource: "playground-threejs", ofType: "html") {
+            do {
+                let content = try String(contentsOfFile: threePath)
+                
+                // Find where addConsoleMessage is first defined
+                let lines = content.components(separatedBy: .newlines)
+                var firstDefinitionLine = -1
+                var firstUsageLine = -1
+                
+                for (index, line) in lines.enumerated() {
+                    if line.contains("function addConsoleMessage(") && firstDefinitionLine == -1 {
+                        firstDefinitionLine = index
+                    }
+                    if line.contains("addConsoleMessage(") && !line.contains("function addConsoleMessage(") && firstUsageLine == -1 {
+                        firstUsageLine = index
+                    }
+                }
+                
+                XCTAssertGreaterThan(firstDefinitionLine, -1, "addConsoleMessage function should be defined")
+                XCTAssertGreaterThan(firstUsageLine, -1, "addConsoleMessage function should be used")
+                XCTAssertLessThan(firstDefinitionLine, firstUsageLine, "addConsoleMessage function should be defined before it's used")
+                
+                // Ensure console management functions are defined before console overrides
+                var consoleMgmtLine = -1
+                var consoleOverrideLine = -1
+                
+                for (index, line) in lines.enumerated() {
+                    if line.contains("Console management functions") && consoleMgmtLine == -1 {
+                        consoleMgmtLine = index
+                    }
+                    if line.contains("Override console methods") && consoleOverrideLine == -1 {
+                        consoleOverrideLine = index
+                    }
+                }
+                
+                XCTAssertLessThan(consoleMgmtLine, consoleOverrideLine, "Console management functions should be defined before console overrides")
+                
+                // Ensure setFullEditorContent is defined before editorReady is set
+                var setFullEditorContentLine = -1
+                var editorReadyLine = -1
+                
+                for (index, line) in lines.enumerated() {
+                    if line.contains("function setFullEditorContent(") && setFullEditorContentLine == -1 {
+                        setFullEditorContentLine = index
+                    }
+                    if line.contains("window.editorReady = true") && editorReadyLine == -1 {
+                        editorReadyLine = index
+                    }
+                }
+                
+                XCTAssertGreaterThan(setFullEditorContentLine, -1, "setFullEditorContent function should be defined")
+                XCTAssertGreaterThan(editorReadyLine, -1, "editorReady should be set")
+                XCTAssertLessThan(setFullEditorContentLine, editorReadyLine, "setFullEditorContent function should be defined before editorReady is set")
+                
+            } catch {
+                XCTFail("Failed to read Three.js template for JavaScript syntax test: \(error)")
+            }
+        }
     }
     
     // MARK: - Integration Tests
@@ -511,6 +873,88 @@ final class ChatViewModelTests: XCTestCase {
         ]
         
         return retryableErrors.contains { errorString.contains($0) }
+    }
+    
+    // MARK: - Multi-Library Validation Helpers
+    
+    func validateThreeJSResponse(_ response: String) -> ResponseValidation {
+        var issues: [String] = []
+        var isComplete = true
+        var shouldRetry = false
+        
+        // Basic completeness checks
+        if response.isEmpty {
+            issues.append("Empty response")
+            return ResponseValidation(isComplete: false, shouldRetry: true, issues: issues)
+        }
+        
+        // Check for minimum expected length
+        if response.count < 100 {
+            issues.append("Response too short (\(response.count) chars)")
+            isComplete = false
+            shouldRetry = true
+        }
+        
+        // Check for expected Three.js patterns
+        let hasThreeJSCode = response.contains("THREE") || 
+                            response.contains("createScene") ||
+                            response.contains("```javascript") ||
+                            response.contains("[INSERT_CODE]")
+        
+        if !hasThreeJSCode {
+            issues.append("Missing expected Three.js code patterns")
+            isComplete = false
+            shouldRetry = true
+        }
+        
+        // Check for proper closure of code blocks
+        if response.contains("[INSERT_CODE]") && !response.contains("[/INSERT_CODE]") {
+            issues.append("Incomplete INSERT_CODE block")
+            isComplete = false
+            shouldRetry = true
+        }
+        
+        return ResponseValidation(isComplete: isComplete, shouldRetry: shouldRetry, issues: issues)
+    }
+    
+    func validateAFrameResponse(_ response: String) -> ResponseValidation {
+        var issues: [String] = []
+        var isComplete = true
+        var shouldRetry = false
+        
+        // Basic completeness checks
+        if response.isEmpty {
+            issues.append("Empty response")
+            return ResponseValidation(isComplete: false, shouldRetry: true, issues: issues)
+        }
+        
+        // Check for minimum expected length
+        if response.count < 100 {
+            issues.append("Response too short (\(response.count) chars)")
+            isComplete = false
+            shouldRetry = true
+        }
+        
+        // Check for expected A-Frame patterns
+        let hasAFrameCode = response.contains("<a-scene") || 
+                           response.contains("<a-camera") ||
+                           response.contains("```html") ||
+                           response.contains("[INSERT_CODE]")
+        
+        if !hasAFrameCode {
+            issues.append("Missing expected A-Frame code patterns")
+            isComplete = false
+            shouldRetry = true
+        }
+        
+        // Check for proper closure of code blocks
+        if response.contains("[INSERT_CODE]") && !response.contains("[/INSERT_CODE]") {
+            issues.append("Incomplete INSERT_CODE block")
+            isComplete = false
+            shouldRetry = true
+        }
+        
+        return ResponseValidation(isComplete: isComplete, shouldRetry: shouldRetry, issues: issues)
     }
 }
 

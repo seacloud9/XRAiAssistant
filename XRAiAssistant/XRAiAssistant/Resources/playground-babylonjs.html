@@ -271,14 +271,31 @@
             addConsoleMessage('log', args.map(arg => String(arg)).join(' '));
         };
         
-        // Initialize Monaco Editor
+        // Initialize Monaco Editor with enhanced error handling and fallback
         console.log('Starting Monaco Editor initialization...');
-        require.config({ paths: { vs: 'https://unpkg.com/monaco-editor@0.45.0/min/vs' } });
+        
+        // Set longer timeout for CDN loading
+        let monacoTimeout = setTimeout(() => {
+            console.error('❌ Monaco Editor CDN loading timeout - creating fallback editor');
+            createFallbackEditor();
+        }, 10000); // 10 second timeout
+        
+        require.config({ 
+            paths: { vs: 'https://unpkg.com/monaco-editor@0.45.0/min/vs' },
+            waitSeconds: 30 // Increase wait time for CDN
+        });
+        
         require(['vs/editor/editor.main'], function () {
-            console.log('Monaco modules loaded, creating editor...');
+            clearTimeout(monacoTimeout); // Cancel timeout since loading succeeded
+            console.log('✅ Monaco modules loaded successfully, creating editor...');
             
             try {
-                editor = monaco.editor.create(document.getElementById('monaco-editor'), {
+                const editorContainer = document.getElementById('monaco-editor');
+                if (!editorContainer) {
+                    throw new Error('Monaco editor container not found');
+                }
+                
+                editor = monaco.editor.create(editorContainer, {
                     value: getDefaultCode(),
                     language: 'typescript',
                     theme: 'vs-dark',
@@ -310,39 +327,102 @@
                 window.monacoEditor = editor;
                 window.codeEditor = editor;
                 
-                // Wait for editor to be fully ready before proceeding
-                setTimeout(() => {
-                    console.log('📝 Monaco editor should be fully ready now');
-                    console.log('Editor model ready:', !!editor.getModel());
-                    console.log('Editor setValue available:', typeof editor.setValue === 'function');
-                    console.log('Editor getValue available:', typeof editor.getValue === 'function');
+                // Enhanced readiness check with multiple verification steps
+                function verifyAndMarkReady() {
+                    console.log('🔍 Verifying Monaco editor readiness...');
+                    console.log('- Editor instance:', !!editor);
+                    console.log('- Editor model:', !!editor.getModel());
+                    console.log('- setValue function:', typeof editor.setValue === 'function');
+                    console.log('- getValue function:', typeof editor.getValue === 'function');
+                    console.log('- DOM ready:', document.readyState);
                     
-                    // Mark editor as ready - IMPORTANT FOR INJECTION
-                    window.editorReady = true;
-                    console.log('🎯 MONACO EDITOR MARKED AS READY FOR INJECTION');
-                    
-                    // Test injection capability immediately
-                    try {
-                        const testContent = editor.getValue();
-                        console.log('✅ Monaco injection test passed - current content length:', testContent.length);
-                    } catch (testError) {
-                        console.error('❌ Monaco injection test failed:', testError);
-                        window.editorReady = false;
+                    if (editor && editor.getModel && 
+                        typeof editor.setValue === 'function' && 
+                        typeof editor.getValue === 'function') {
+                        
+                        // Final functional test
+                        try {
+                            const testContent = editor.getValue();
+                            editor.layout(); // Trigger layout calculation
+                            console.log('✅ Monaco functional test passed - content length:', testContent.length);
+                            
+                            // Mark as ready
+                            window.editorReady = true;
+                            console.log('🎯 MONACO EDITOR MARKED AS READY FOR INJECTION');
+                            
+                            // Initialize Babylon after Monaco is confirmed ready
+                            initializeBabylon();
+                            
+                        } catch (testError) {
+                            console.error('❌ Monaco functional test failed:', testError);
+                            setTimeout(verifyAndMarkReady, 500); // Retry
+                        }
+                    } else {
+                        console.warn('⚠️ Monaco not fully ready yet, retrying...');
+                        setTimeout(verifyAndMarkReady, 500); // Retry
                     }
-                    
-                    initializeBabylon();
-                }, 1000); // Give Monaco more time to fully initialize
+                }
                 
-            } catch (error) {
-                console.error('❌ Failed to create Monaco editor:', error);
-                initializeBabylon();
+                // Start verification process with initial delay
+                setTimeout(verifyAndMarkReady, 1000);
+                
+            } catch (editorError) {
+                console.error('❌ Failed to create Monaco editor:', editorError);
+                createFallbackEditor();
+            }
+        }, function(error) {
+            clearTimeout(monacoTimeout);
+            console.error('❌ Failed to load Monaco from CDN:', error);
+            createFallbackEditor();
+        });
+        
+        // Fallback editor function
+        function createFallbackEditor() {
+            console.log('🔧 Creating fallback textarea editor...');
+            
+            const editorContainer = document.getElementById('monaco-editor');
+            if (!editorContainer) {
+                console.error('❌ Editor container not found');
+                return;
             }
             
-        }, function(error) {
-            console.error('❌ Failed to load Monaco modules:', error);
-            // Initialize Babylon anyway
-            initializeBabylon();
-        });
+            // Create a textarea fallback
+            editorContainer.innerHTML = '<textarea id="fallback-editor" style="width: 100%; height: 100%; background: #1e1e1e; color: #fff; font-family: \'Monaco\', \'Consolas\', monospace; font-size: 14px; border: none; outline: none; padding: 10px;"></textarea>';
+            
+            const textarea = document.getElementById('fallback-editor');
+            if (textarea) {
+                textarea.value = getDefaultCode();
+                
+                // Create minimal editor interface
+                window.editor = {
+                    setValue: (code) => { textarea.value = code; },
+                    getValue: () => textarea.value,
+                    getModel: () => ({ setValue: (code) => textarea.value = code }),
+                    layout: () => {},
+                    focus: () => textarea.focus(),
+                    setPosition: () => {},
+                    onDidChangeModelContent: (callback) => {
+                        textarea.addEventListener('input', callback);
+                        return { dispose: () => {} };
+                    }
+                };
+                
+                window.monacoEditor = window.editor;
+                window.codeEditor = window.editor;
+                
+                // Auto-save on changes
+                textarea.addEventListener('input', () => {
+                    debounce(notifyCodeChange, 500)();
+                });
+                
+                // Mark as ready
+                window.editorReady = true;
+                console.log('✅ Fallback editor ready for injection');
+                
+                // Initialize Babylon
+                initializeBabylon();
+            }
+        }
         
         // Initialize Babylon.js
         function initializeBabylon() {

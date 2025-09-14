@@ -71,7 +71,7 @@ struct PlaygroundWebView: UIViewRepresentable {
         
         print("🔍 Attempting to load playground template: \(playgroundTemplate)")
         
-        // Strategy 1: Try direct bundle path with specific resource lookup
+        // Strategy 1: Try direct bundle resource lookup (templates are in main bundle root)
         if let htmlPath = Bundle.main.path(forResource: playgroundTemplate, ofType: "html") {
             do {
                 let htmlContent = try String(contentsOfFile: htmlPath)
@@ -92,27 +92,55 @@ struct PlaygroundWebView: UIViewRepresentable {
             }
         }
         
-        // Strategy 2: Try looking in Resources subdirectory specifically
-        else if let resourcePath = Bundle.main.resourcePath {
-            let resourcesHtmlPath = (resourcePath as NSString).appendingPathComponent("Resources/\(playgroundTemplate).html")
-            if FileManager.default.fileExists(atPath: resourcesHtmlPath) {
-                do {
-                    let htmlContent = try String(contentsOfFile: resourcesHtmlPath)
-                    if let baseURL = Bundle.main.resourceURL {
-                        print("✅ Loading HTML from Resources subdirectory: \(resourcesHtmlPath)")
-                        webView.loadHTMLString(htmlContent, baseURL: baseURL)
-                        htmlLoaded = true
-                    }
-                } catch {
-                    print("❌ Failed to read HTML from Resources: \(error)")
+        // Strategy 2: Try with template name including .html extension (in case it's missing)
+        else if !playgroundTemplate.hasSuffix(".html"),
+                let htmlPath = Bundle.main.path(forResource: "\(playgroundTemplate).html", ofType: nil) {
+            do {
+                let htmlContent = try String(contentsOfFile: htmlPath)
+                if let baseURL = Bundle.main.resourceURL {
+                    print("✅ Loading HTML with .html extension: \(htmlPath)")
+                    webView.loadHTMLString(htmlContent, baseURL: baseURL)
+                    htmlLoaded = true
                 }
+            } catch {
+                print("❌ Failed to read HTML with .html extension: \(error)")
             }
         }
         
-        // Strategy 3: Fallback to default playground if specific template failed
-        if !htmlLoaded && playgroundTemplate != "playground" {
-            print("⚠️ Template \(playgroundTemplate) not found, falling back to default playground")
-            if let htmlPath = Bundle.main.path(forResource: "playground", ofType: "html") {
+        // Strategy 3: Search directly in bundle for template files
+        else if let resourcePath = Bundle.main.resourcePath {
+            // Try to find the exact file by searching bundle contents
+            do {
+                let bundleContents = try FileManager.default.contentsOfDirectory(atPath: resourcePath)
+                print("🔍 Bundle contents: \(bundleContents)")
+                
+                // Look for exact template name or with .html extension
+                let possibleNames = [playgroundTemplate, "\(playgroundTemplate).html"]
+                for fileName in possibleNames {
+                    if bundleContents.contains(fileName) {
+                        let fullPath = (resourcePath as NSString).appendingPathComponent(fileName)
+                        do {
+                            let htmlContent = try String(contentsOfFile: fullPath)
+                            if let baseURL = Bundle.main.resourceURL {
+                                print("✅ Loading HTML from bundle search: \(fullPath)")
+                                webView.loadHTMLString(htmlContent, baseURL: baseURL)
+                                htmlLoaded = true
+                                break
+                            }
+                        } catch {
+                            print("❌ Failed to read found template \(fullPath): \(error)")
+                        }
+                    }
+                }
+            } catch {
+                print("❌ Failed to search bundle contents: \(error)")
+            }
+        }
+        
+        // Strategy 4: Fallback to playground-babylonjs.html as default (since playground.html was renamed)
+        if !htmlLoaded && playgroundTemplate != "playground-babylonjs" {
+            print("⚠️ Template \(playgroundTemplate) not found, falling back to playground-babylonjs")
+            if let htmlPath = Bundle.main.path(forResource: "playground-babylonjs", ofType: "html") {
                 do {
                     let htmlContent = try String(contentsOfFile: htmlPath)
                     if let baseURL = Bundle.main.resourceURL {
