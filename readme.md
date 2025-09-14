@@ -9,6 +9,8 @@
 [![Together AI](https://img.shields.io/badge/Together%20AI-Integrated-purple.svg)](https://together.ai)
 [![XR Ready](https://img.shields.io/badge/XR-Ready-brightgreen.svg)](https://www.babylonjs.com/community/)
 
+[View it here](https://youtube.com/shorts/CJPmFxm9HE0?feature=share)
+
 ## 🌟 **What Makes XRAiAssistant Special**
 
 This isn't just another 3D playground—it's a **paradigm shift** toward AI-assisted Extended Reality development:
