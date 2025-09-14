@@ -380,6 +380,12 @@
                             setTimeout(() => {
                                 console.log('🚀 Auto-running the injected Three.js code...');
                                 runCode();
+                                
+                                // Force immediate render after code injection
+                                if (scene && camera && renderer) {
+                                    renderer.render(scene, camera);
+                                    console.log('🎯 Forced immediate render after code injection');
+                                }
                             }, 500);
                             
                             notifySwift('codeInserted', { 
@@ -675,11 +681,12 @@
             // Hide loading
             document.getElementById('loading').style.display = 'none';
             
-            // Create default scene
-            createDefaultScene();
-            
-            // Start render loop
+            // Start render loop BEFORE creating default scene
             startRenderLoop();
+            
+            // Create default scene AND run it automatically
+            console.log('🎯 Auto-running default scene on initialization...');
+            createDefaultScene();
             
             console.log('Three.js initialization complete');
             
@@ -711,6 +718,11 @@
                 }
                 
                 controls.update();
+                
+                // Execute any scene animations
+                if (scene && scene.userData && scene.userData.animate) {
+                    scene.userData.animate();
+                }
                 
                 if (scene && camera && renderer) {
                     renderer.render(scene, camera);
@@ -778,38 +790,81 @@ const createScene = () => {
     return { scene, camera };
 };
 
-// Execute the scene creation
-const { scene, camera } = createScene();`;
+// Execute the scene creation and update global references
+const sceneResult = createScene();
+if (sceneResult && sceneResult.scene) {
+    window.scene = sceneResult.scene;
+    scene = sceneResult.scene;
+}
+if (sceneResult && sceneResult.camera) {
+    window.camera = sceneResult.camera;
+    camera = sceneResult.camera;
+}
+
+console.log("✅ Default scene creation complete!");`;
         }
         
         function createDefaultScene() {
             try {
-                // Clear existing scene
-                clearScene();
+                console.log('🎯 createDefaultScene called...');
                 
-                // Execute user code
-                const userCode = editor ? editor.getValue() : getDefaultCode();
-                executeUserCode(userCode);
+                // Get current editor code or fall back to default
+                const codeToRun = editor ? editor.getValue() : getDefaultCode();
+                const isDefaultCode = !editor || editor.getValue() === getDefaultCode();
+                
+                console.log('🎯 Running code:', isDefaultCode ? 'DEFAULT CODE' : 'EDITOR CONTENT');
+                console.log('🎯 Code length:', codeToRun.length);
+                
+                // Execute the code (this handles scene replacement)
+                executeUserCode(codeToRun);
                 
                 hideError();
             } catch (error) {
+                console.error('❌ createDefaultScene failed:', error);
                 showError('Scene Creation Error: ' + error.message);
-                console.error('Scene creation error:', error);
+                
+                // Create emergency fallback scene
+                createFallbackScene();
             }
         }
         
         function clearScene() {
             if (scene) {
-                // Remove all objects from scene
-                while(scene.children.length > 0) {
-                    const object = scene.children[0];
+                console.log('🧹 Clearing scene objects (preserving lighting)...');
+                
+                // Only remove non-light objects to preserve lighting
+                const objectsToRemove = [];
+                
+                // Collect non-light objects
+                scene.children.forEach(child => {
+                    if (!(child instanceof THREE.Light) && 
+                        !child.isAmbientLight && 
+                        !child.isDirectionalLight && 
+                        !child.isPointLight && 
+                        !child.isSpotLight && 
+                        !child.isHemisphereLight) {
+                        objectsToRemove.push(child);
+                    }
+                });
+                
+                // Remove and dispose non-light objects
+                objectsToRemove.forEach(object => {
                     if (object.geometry) object.geometry.dispose();
                     if (object.material) {
-                        if (object.material.map) object.material.map.dispose();
-                        object.material.dispose();
+                        if (Array.isArray(object.material)) {
+                            object.material.forEach(mat => {
+                                if (mat.map) mat.map.dispose();
+                                mat.dispose();
+                            });
+                        } else {
+                            if (object.material.map) object.material.map.dispose();
+                            object.material.dispose();
+                        }
                     }
                     scene.remove(object);
-                }
+                });
+                
+                console.log('✅ Scene cleared, lights preserved:', scene.children.length, 'objects remaining');
             }
         }
         
@@ -818,13 +873,35 @@ const { scene, camera } = createScene();`;
                 console.log('=== EXECUTING THREE.JS USER CODE ===');
                 
                 clearConsole();
+                
+                // Store old scene and camera for comparison
+                const oldScene = scene;
+                const oldCamera = camera;
+                
+                // Clear existing objects but preserve lighting
                 clearScene();
                 
                 // Execute the code in global context
                 const executeCode = new Function('THREE', 'scene', 'camera', 'renderer', 'controls', 'canvas',
                     `try {
                         ${code}
-                        return { scene: window.scene || scene, camera: window.camera || camera };
+                        
+                        // Check if code created a new scene vs modifying existing
+                        let resultScene = window.scene || scene;
+                        let resultCamera = window.camera || camera;
+                        
+                        // If user code creates its own scene, use that
+                        if (typeof createScene === 'function') {
+                            const sceneResult = createScene();
+                            if (sceneResult && sceneResult.scene) {
+                                resultScene = sceneResult.scene;
+                                resultCamera = sceneResult.camera || camera;
+                            } else if (sceneResult && sceneResult.constructor === THREE.Scene) {
+                                resultScene = sceneResult;
+                            }
+                        }
+                        
+                        return { scene: resultScene, camera: resultCamera };
                     } catch (execError) {
                         console.error('Code execution error:', execError);
                         throw execError;
@@ -833,13 +910,25 @@ const { scene, camera } = createScene();`;
                 
                 const result = executeCode(THREE, scene, camera, renderer, controls, canvas);
                 
-                if (result && result.scene) {
-                    window.scene = result.scene;
+                // Handle scene replacement
+                if (result && result.scene && result.scene !== oldScene) {
+                    console.log('🔄 Replacing scene with new one');
                     scene = result.scene;
+                    window.scene = result.scene;
+                } else if (result && result.scene) {
+                    console.log('🔧 Using modified existing scene');
+                    scene = result.scene;
+                    window.scene = result.scene;
                 }
-                if (result && result.camera) {
-                    window.camera = result.camera;
+                
+                // Handle camera replacement
+                if (result && result.camera && result.camera !== oldCamera) {
+                    console.log('📷 Replacing camera with new one');
                     camera = result.camera;
+                    window.camera = result.camera;
+                } else if (result && result.camera) {
+                    camera = result.camera;
+                    window.camera = result.camera;
                 }
                 
                 // Ensure renderer uses correct canvas dimensions (fix common user error)
@@ -860,6 +949,14 @@ const { scene, camera } = createScene();`;
                 console.log('🎯 Camera position:', camera.position);
                 console.log('🎯 Scene background:', scene.background);
                 console.log('🎯 Render loop running:', !!animationId);
+                
+                // Log scene composition for debugging
+                if (scene.children.length > 0) {
+                    console.log('🎯 Scene objects:', scene.children.map(child => child.constructor.name).join(', '));
+                    const lightCount = scene.children.filter(child => child instanceof THREE.Light).length;
+                    const meshCount = scene.children.filter(child => child instanceof THREE.Mesh).length;
+                    console.log(`🎯 Scene composition: ${lightCount} lights, ${meshCount} meshes`);
+                }
                 
                 // Force an immediate render to test
                 if (scene && camera && renderer) {
@@ -883,49 +980,85 @@ const { scene, camera } = createScene();`;
         }
         
         function createFallbackScene() {
-            console.log('Creating Three.js fallback scene');
-            clearScene();
+            console.log('🚨 Creating Three.js EMERGENCY fallback scene...');
             
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x606060); // Even lighter background
-            
-            camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
-            camera.position.set(0, 5, 10);
-            
-            // Enhanced lighting for fallback scene
-            const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
-            scene.add(ambientLight);
-            
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
-            directionalLight.position.set(10, 10, 5);
-            scene.add(directionalLight);
-            
-            // Use MeshPhongMaterial instead of Basic to show lighting effects
-            const geometry = new THREE.BoxGeometry();
-            const material = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
-            const cube = new THREE.Mesh(geometry, material);
-            cube.position.y = 1; // Lift cube off ground
-            scene.add(cube);
-            
-            // Add ground plane
-            const groundGeometry = new THREE.PlaneGeometry(10, 10);
-            const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
-            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-            ground.rotation.x = -Math.PI / 2;
-            scene.add(ground);
-            
-            controls.target.set(0, 0, 0);
-            controls.update();
-            
-            window.scene = scene;
-            window.camera = camera;
+            try {
+                clearScene();
+                
+                // Recreate scene and camera with global assignment
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x606060); // Light background for visibility
+                
+                camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+                camera.position.set(0, 5, 10);
+                camera.lookAt(0, 0, 0);
+                
+                // Enhanced lighting for fallback scene
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
+                scene.add(ambientLight);
+                
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+                directionalLight.position.set(10, 10, 5);
+                scene.add(directionalLight);
+                
+                const pointLight = new THREE.PointLight(0xffffff, 0.5, 50);
+                pointLight.position.set(-10, 10, -10);
+                scene.add(pointLight);
+                
+                // Create bright green sphere for visibility
+                const geometry = new THREE.SphereGeometry(1, 32, 32);
+                const material = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
+                const sphere = new THREE.Mesh(geometry, material);
+                sphere.position.y = 1;
+                scene.add(sphere);
+                
+                // Add ground plane
+                const groundGeometry = new THREE.PlaneGeometry(10, 10);
+                const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+                const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+                ground.rotation.x = -Math.PI / 2;
+                scene.add(ground);
+                
+                // Set controls
+                controls.target.set(0, 0, 0);
+                controls.update();
+                
+                // Update global references
+                window.scene = scene;
+                window.camera = camera;
+                
+                console.log('✅ Fallback scene created with objects:', scene.children.length);
+                console.log('✅ Fallback camera position:', camera.position);
+                
+                // Force immediate render
+                if (renderer) {
+                    renderer.render(scene, camera);
+                    console.log('✅ Fallback scene rendered immediately');
+                }
+                
+            } catch (fallbackError) {
+                console.error('❌ CRITICAL: Even fallback scene creation failed:', fallbackError);
+            }
         }
         
         // Playground functions
         function runCode() {
-            console.log('Run code button pressed');
-            createDefaultScene();
-            notifySwift('codeRun', {});
+            console.log('🚀 Run code button pressed - executing current editor content');
+            
+            try {
+                // Get current code from editor
+                const currentCode = editor ? editor.getValue() : getDefaultCode();
+                console.log('🎯 Executing code with length:', currentCode.length);
+                
+                // Execute the current code (this will replace the scene)
+                executeUserCode(currentCode);
+                
+                notifySwift('codeRun', { success: true });
+            } catch (error) {
+                console.error('❌ runCode failed:', error);
+                showError('Run Error: ' + error.message);
+                notifySwift('codeRun', { success: false, error: error.message });
+            }
         }
         
         function formatCode() {
