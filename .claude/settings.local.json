@@ -13,7 +13,12 @@
       "Bash(find:*)",
       "Bash(git commit:*)",
       "Bash(true)",
-      "Bash(sudo rm:*)"
+      "Bash(sudo rm:*)",
+      "Bash(rg:*)",
+      "Bash(mv:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(xcrun simctl delete:*)",
+      "Bash(git rm:*)"
     ],
     "deny": []
   }
