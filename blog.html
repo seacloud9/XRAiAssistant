@@ -1,0 +1,225 @@
+<section>
+  <p>If you missed Part 1, start here for the vision and first architecture pass:
+    <a href="https://medium.com/@seacloud9/building-xraiassistant-the-future-of-ai-powered-3d-development-on-ios-part-1-ab3291b494d3" target="_blank" rel="noopener">Building XRAiAssistant: The Future of AI-Powered 3D Development on iOS (Part 1)</a>.
+  </p>
+</section>
+
+<section>
+  <h2>What’s inside this release</h2>
+  <p>XRAiAssistant now brings two big capabilities together on iPhone and iPad.</p>
+  <ul>
+    <li><b>Multi provider AI</b> with Together AI, OpenAI, and Anthropic, selectable at runtime for different creative and engineering needs.</li>
+    <li><b>Multi framework XR</b> with
+      <a href="https://www.babylonjs.com/" target="_blank" rel="noopener">Babylon.js</a>,
+      <a href="https://threejs.org/" target="_blank" rel="noopener">Three.js</a>, and
+      <a href="https://aframe.io/" target="_blank" rel="noopener">A-Frame</a> templates so you can generate and run scenes in the stack that suits your project.
+    </li>
+  </ul>
+  <p>Everything is wired into SwiftUI and WKWebView for native performance and real time streaming.</p>
+</section>
+
+<section>
+  <h2>Quick links to the tech we use</h2>
+  <ul>
+    <li><b>Source</b>:
+      <a href="https://github.com/seacloud9/XRAiAssistant" target="_blank" rel="noopener">XRAiAssistant on GitHub</a>
+    </li>
+    <li><b>Babylon.js</b>:
+      <a href="https://doc.babylonjs.com/features/featuresDeepDive/webXR/introToWebXR" target="_blank" rel="noopener">WebXR docs</a>
+    </li>
+    <li><b>Three.js</b>:
+      <a href="https://threejs.org/" target="_blank" rel="noopener">Site</a> •
+      <a href="https://github.com/mrdoob/three.js" target="_blank" rel="noopener">GitHub</a>
+    </li>
+    <li><b>A-Frame</b>:
+      <a href="https://aframe.io/" target="_blank" rel="noopener">Site</a> •
+      <a href="https://aframe.io/docs/" target="_blank" rel="noopener">Docs</a>
+    </li>
+    <li><b>Monaco Editor</b>:
+      <a href="https://microsoft.github.io/monaco-editor/" target="_blank" rel="noopener">Site</a> •
+      <a href="https://microsoft.github.io/monaco-editor/docs.html" target="_blank" rel="noopener">API</a>
+    </li>
+  </ul>
+</section>
+
+<section>
+  <h2>Recap from Part 1</h2>
+  <p>We set out to make conversational 3D development real on mobile. Describe the scene, watch it render, then iterate with parameters that steer creativity and precision. The iOS app uses SwiftUI for a live settings panel and a WebKit bridge to a Babylon.js playground that streams responses as they generate.</p>
+</section>
+
+<section>
+  <h2>What’s new in Part 2</h2>
+
+  <h3>Multi provider AI that fits your workflow</h3>
+  <p>Choose an AI provider based on the task. Together AI is great for cost aware iteration, OpenAI for balanced creativity and natural language, Anthropic for reasoning-heavy logic and architecture. The app keeps separate API keys, visual status badges, and a clean model picker grouped by provider.</p>
+
+  <pre><code class="language-swift">protocol AIProvider {
+    var name: String { get }
+    var models: [AIModel] { get }
+    func generateResponse(
+        messages: [Message],
+        modelId: String,
+        temperature: Double,
+        topP: Double
+    ) -&gt; AsyncThrowingStream&lt;String, Error&gt;
+}</code></pre>
+
+  <p>The manager routes calls based on the selected model, streams tokens to the UI with backpressure, and provides graceful fallbacks if something fails.</p>
+
+  <h3>Multi framework XR templates</h3>
+  <p>Generate and render scenes in Babylon.js, Three.js, and A-Frame with consistent editor, console, and canvas behavior. Babylon.js stays the WebXR-first baseline with strong materials, physics, and post FX. Three.js gives you a lightweight path with a deep ecosystem of examples. A-Frame brings an HTML-first entity component approach that is friendly for rapid prototyping and WebXR.</p>
+
+  <h3>Monaco Editor and layout polish</h3>
+  <ul>
+    <li>Language modes match the framework. JavaScript for Three.js and A-Frame scenes. TypeScript where helpful for Babylon.js.</li>
+    <li>Stable split layout. Canvas and editor keep a consistent 50 50 layout with flexbox containment and box sizing fixes.</li>
+    <li>Console visibility. The console sits with the canvas and auto opens for errors so stack traces are visible while code remains editable.</li>
+  </ul>
+
+  <h3>Settings and persistence</h3>
+  <ul>
+    <li>Separate API keys per provider with validation.</li>
+    <li>Model picker grouped by provider with capability notes.</li>
+    <li>Temperature and Top p sliders with live summaries that explain how choices steer the AI.</li>
+    <li>Save and Cancel actions with animated confirmation and automatic restore on launch.</li>
+  </ul>
+
+  <h3>Reliability, streaming, and retries</h3>
+  <ul>
+    <li>Streaming with backpressure keeps the UI responsive while tokens arrive.</li>
+    <li>Retry policy avoids retrying client errors and only retries on transient network or rate conditions.</li>
+    <li>Cleanup for WebView message handlers and cancellables to prevent leaks.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Code bridge highlights</h2>
+  <p>Swift receives messages from the web side and forwards events into the view model.</p>
+  <pre><code class="language-swift">func userContentController(_ userContentController: WKUserContentController,
+                           didReceive message: WKScriptMessage) {
+    guard let body = message.body as? [String: Any] else { return }
+    switch body["action"] as? String {
+    case "insertCode":  onInsertCode?(body["data"] as? String ?? "")
+    case "runScene":    onRunScene?()
+    case "sceneError":  handleSceneError(body["data"] as? String ?? "")
+    default: break
+    }
+}</code></pre>
+  <p>Swift sends generated code and runs the scene.</p>
+  <pre><code class="language-swift">let js = """
+insertCodeAtCursor(`\(escapedGeneratedCode)`);
+runScene();
+"""
+webView.evaluateJavaScript(js)</code></pre>
+  <p>Streaming responses are rendered into the editor as they arrive which makes iteration feel immediate.</p>
+</section>
+
+<section>
+  <h2>New framework additions</h2>
+
+  <h3>React Three Fiber support</h3>
+  <p>We are adding a React Three Fiber workflow so you can declare scenes as React components and compose them with hooks and state. The official docs and the Drei helper library are the best places to explore patterns and ready made building blocks.</p>
+  <ul>
+    <li><a href="https://r3f.docs.pmnd.rs/" target="_blank" rel="noopener">@react three fiber documentation</a></li>
+    <li><a href="https://github.com/pmndrs/react-three-fiber" target="_blank" rel="noopener">GitHub repository</a></li>
+    <li><a href="https://drei.docs.pmnd.rs/" target="_blank" rel="noopener">Drei helper components</a></li>
+  </ul>
+  <p>R3F pairs naturally with our streaming code generation. The editor injects JSX into a scaffolded scene and hot reload keeps iteration tight. :contentReference[oaicite:0]{index=0}</p>
+
+  <h3>8th Wall XR8 integration</h3>
+  <p>We are adding 8th Wall XR8 for web based AR with robust camera pipeline control and integrations for Three.js, A-Frame, and Babylon.js. This lets you route tracking and camera frames into your chosen renderer while staying entirely on the web stack.</p>
+  <ul>
+    <li><a href="https://8thwall.com/docs/" target="_blank" rel="noopener">8th Wall documentation</a></li>
+    <li><a href="https://8thwall.com/docs/api/engine/xr8/" target="_blank" rel="noopener">XR8 engine API</a></li>
+    <li><a href="https://8thwall.com/docs/legacy/api/aframe/" target="_blank" rel="noopener">XR8 with A-Frame</a></li>
+    <li><a href="https://8thwall.com/docs/legacy/api/babylonjs/" target="_blank" rel="noopener">XR8 with Babylon.js</a></li>
+  </ul>
+  <p>XR8’s camera pipeline modules and lifecycle hooks give us a clean way to embed AR behaviors and device capability checks into XRAiAssistant’s templates. :contentReference[oaicite:1]{index=1}</p>
+</section>
+
+<section>
+  <h2>Coming soon. Private Local RAG on iOS</h2>
+  <p>We are adding on device Retrieval Augmented Generation so XRAiAssistant can search your own notes, snippets, and templates privately without a network connection. The design uses SQLite with full text search and a vector extension plus a compact embedding model converted to Core ML.</p>
+
+  <h3>Architecture at a glance</h3>
+  <ol>
+    <li>SQLite as a single file database for documents, metadata, and FTS5 keyword search.</li>
+    <li>Vector search with <code>sqlite-vec</code> storing embeddings in a virtual table and supporting nearest neighbor queries.</li>
+    <li>Swift bindings through SQLiteVec so inserts and queries are ergonomic in Swift.</li>
+    <li>On device embeddings with a small sentence encoder converted to Core ML.</li>
+    <li>Optional local generation paths using MLC LLM when you need fully offline prompts.</li>
+  </ol>
+  <p>Links.
+    <a href="https://github.com/asg017/sqlite-vec" target="_blank" rel="noopener">sqlite-vec</a> •
+    <a href="https://github.com/jkrukowski/SQLiteVec" target="_blank" rel="noopener">SQLiteVec Swift bindings</a> •
+    <a href="https://llm.mlc.ai/" target="_blank" rel="noopener">MLC LLM</a>. :contentReference[oaicite:2]{index=2}
+  </p>
+
+  <h3>Also coming. one click CodeSandbox integration</h3>
+  <p>We plan to add CodeSandbox integration so you can share and deploy scenes with very little setup. From inside XRAiAssistant you will be able to create a sandbox programmatically using the Define API, or import a GitHub branch to spin up a cloud environment. You can also embed the running sandbox in Medium or your docs, or power live editable examples with Sandpack.</p>
+  <ul>
+    <li>Create sandboxes with the <a href="https://codesandbox.io/docs/learn/browser-sandboxes/cli-api" target="_blank" rel="noopener">Define API</a>. For VM sandboxes include the <code>environment: "server"</code> parameter.</li>
+    <li>Import a repository or branch and work from the cloud dev environment. See <a href="https://codesandbox.io/docs/learn/repositories/getting-started/repo-import" target="_blank" rel="noopener">Repository import</a> and <a href="https://codesandbox.io/docs/learn/repositories/overview" target="_blank" rel="noopener">Repositories overview</a>. The <a href="https://codesandbox.io/docs/learn/integrations/github-app" target="_blank" rel="noopener">GitHub App</a> can add preview links to pull requests.</li>
+    <li>Embed in Medium by pasting a sandbox link, or use the editor Share button to copy iframe embed code. See <a href="https://codesandbox.io/docs/learn/browser-sandboxes/overview" target="_blank" rel="noopener">Embed on Medium</a> and <a href="https://codesandbox.io/docs/embedding" target="_blank" rel="noopener">Embedding guide</a>.</li>
+    <li>Use <a href="https://sandpack.codesandbox.io/docs" target="_blank" rel="noopener">Sandpack</a> or the <a href="https://www.npmjs.com/package/%40codesandbox/sandpack-react" target="_blank" rel="noopener">sandpack react</a> package to add live editable examples in your docs or site.</li>
+    <li>Explore the new <a href="https://codesandbox.io/sdk" target="_blank" rel="noopener">CodeSandbox SDK</a> if you want programmatic sandboxes for AI powered workflows.</li>
+  </ul>
+
+  <h3>Data model and flow</h3>
+  <ul>
+    <li>Tables. documents for raw text and metadata, documents fts for keyword search, documents vec for embeddings.</li>
+    <li>Flow. embed query locally, fetch nearest neighbors from the vector table, blend with FTS hits, assemble a prompt on device, then send to your chosen model or a local backend.</li>
+  </ul>
+
+  <h3>Why this approach</h3>
+  <ul>
+    <li>Private by default. notes and code never leave the device.</li>
+    <li>Offline. productive without connectivity.</li>
+    <li>Portable. a single db file and compact models keep the app lightweight.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Try it on your device</h2>
+  <ol>
+    <li>Clone the repo.
+      <a href="https://github.com/seacloud9/XRAiAssistant" target="_blank" rel="noopener">github.com/seacloud9/XRAiAssistant</a>
+    </li>
+    <li>Add API keys in Settings for the providers you plan to use.</li>
+    <li>Pick a framework template. Babylon.js, Three.js, A-Frame, and soon React Three Fiber or XR8 powered AR.</li>
+    <li>Describe a scene and watch it build in real time.</li>
+    <li>Tweak Temperature and Top p to steer creativity.</li>
+  </ol>
+  <p>For WebXR basics and headset testing, browse the Babylon.js WebXR docs.
+    <a href="https://doc.babylonjs.com/features/featuresDeepDive/webXR/introToWebXR" target="_blank" rel="noopener">Start here</a>. :contentReference[oaicite:3]{index=3}
+  </p>
+</section>
+
+<section>
+  <h2>Why this matters</h2>
+  <p>Framework choice, provider choice, and a fast feedback loop on mobile gives you creative freedom. Three.js and A-Frame broaden opportunities. Babylon.js provides a strong path for production XR. Monaco and WKWebView make the environment feel like a familiar editor with native responsiveness. React Three Fiber and XR8 expand into React based composition and web AR pipelines.</p>
+</section>
+
+<section>
+  <h2>Links and resources</h2>
+  <ul>
+    <li><a href="https://github.com/seacloud9/XRAiAssistant" target="_blank" rel="noopener">XRAiAssistant on GitHub</a></li>
+    <li><a href="https://doc.babylonjs.com/features/featuresDeepDive/webXR/introToWebXR" target="_blank" rel="noopener">Babylon.js WebXR</a></li>
+    <li><a href="https://threejs.org/" target="_blank" rel="noopener">Three.js</a> •
+        <a href="https://aframe.io/" target="_blank" rel="noopener">A-Frame</a>
+    </li>
+    <li><a href="https://microsoft.github.io/monaco-editor/" target="_blank" rel="noopener">Monaco Editor</a> •
+        <a href="https://microsoft.github.io/monaco-editor/docs.html" target="_blank" rel="noopener">API</a>
+    </li>
+    <li><a href="https://r3f.docs.pmnd.rs/" target="_blank" rel="noopener">@react three fiber</a> •
+        <a href="https://drei.docs.pmnd.rs/" target="_blank" rel="noopener">Drei</a>
+    </li>
+    <li><a href="https://8thwall.com/docs/" target="_blank" rel="noopener">8th Wall docs</a> •
+        <a href="https://8thwall.com/docs/api/engine/xr8/" target="_blank" rel="noopener">XR8 engine API</a>
+    </li>
+    <li><a href="https://github.com/asg017/sqlite-vec" target="_blank" rel="noopener">sqlite-vec</a> •
+        <a href="https://github.com/jkrukowski/SQLiteVec" target="_blank" rel="noopener">SQLiteVec</a> •
+        <a href="https://llm.mlc.ai/" target="_blank" rel="noopener">MLC LLM</a>
+    </li>
+  </ul>
+</section>

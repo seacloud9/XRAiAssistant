@@ -49,7 +49,7 @@ struct PlaygroundWebView: UIViewRepresentable {
     }
     
     func makeUIView(context: Context) -> WKWebView {
-        let configuration = WKWebViewConfiguration()
+        let configuration = WKWebViewConfiguration.createWithAppScheme()
         
         // Configure message handler
         let contentController = WKUserContentController()

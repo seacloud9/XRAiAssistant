@@ -1,0 +1,24 @@
+{
+  "name": "xrai-assistant-node-worker",
+  "version": "1.0.0",
+  "description": "Node.js worker for XRAiAssistant build pipeline",
+  "main": "build-worker.js",
+  "scripts": {
+    "start": "node build-worker.js",
+    "test": "node test-worker.js"
+  },
+  "dependencies": {
+    "esbuild": "^0.19.11"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "keywords": [
+    "react-three-fiber",
+    "esbuild",
+    "mobile",
+    "3d"
+  ],
+  "author": "XRAiAssistant Team",
+  "license": "MIT"
+}

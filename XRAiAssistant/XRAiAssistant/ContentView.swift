@@ -858,6 +858,25 @@ struct ContentView: View {
         chatViewModel.onDescribeScene = { description in
             print("Scene description: \(description)")
         }
+        
+        // Enhanced callback for build system
+        chatViewModel.onInsertCodeWithBuild = { code, framework in
+            print("=== ENHANCED CALLBACK: AI code with build support ===")
+            print("Framework: \(framework.displayName)")
+            print("Code length: \(code.count) characters")
+            lastGeneratedCode = code
+            
+            // Auto-build for frameworks that require it
+            if framework.requiresBuild {
+                print("🏗️ Framework requires build - starting auto-build process")
+                Task {
+                    await self.buildAndRunCode(code: code, framework: framework)
+                }
+            } else {
+                print("📝 Framework uses direct injection")
+                // Standard injection flow
+            }
+        }
     }
     
     private func sendMessage() {
@@ -898,6 +917,25 @@ struct ContentView: View {
             }
         case "codeFormatted":
             print("Code formatted")
+        case "consoleLog":
+            if let level = data["level"] as? String, 
+               let message = data["message"] as? String {
+                print("🌐 WebView Console [\(level.uppercased())]: \(message)")
+            }
+        case "libraryStatusUpdate":
+            if let libraries = data["libraries"] as? [String: Bool] {
+                let context = data["context"] as? String ?? "unknown"
+                print("📚 Library Status Update [\(context)]:")
+                for (library, available) in libraries {
+                    let status = available ? "✅" : "❌"
+                    print("   \(status) \(library): \(available)")
+                }
+                
+                // Check if all required libraries are loaded
+                let requiredLibraries = ["React", "ReactDOM", "ReactThreeFiber", "THREE"]
+                let allLoaded = requiredLibraries.allSatisfy { libraries[$0] == true }
+                print("📊 All required libraries loaded: \(allLoaded ? "✅ YES" : "❌ NO")")
+            }
         case "testInjection":
             print("🧪 Test injection requested")
             testEditorInjection()
@@ -1188,6 +1226,58 @@ struct ContentView: View {
                     }
                 } else {
                     print("🧪 Test readiness check returned: \(String(describing: result))")
+                }
+            }
+        }
+    }
+    
+    private func buildAndRunCode(code: String, framework: FrameworkKind) async {
+        print("🏗️ Building and running \(framework.displayName) code")
+        
+        await chatViewModel.buildSystem.buildCode(
+            code: code,
+            framework: framework
+        ) { result in
+            Task { @MainActor in
+                if result.success {
+                    print("✅ Build completed successfully")
+                    if let bundleCode = result.bundleCode {
+                        // Use the same injection mechanism that works for regular code
+                        print("🔄 Injecting built bundle via working injection method...")
+                        self.injectCodeWithRetry(bundleCode, maxRetries: 3)
+                    }
+                } else {
+                    print("❌ Build failed: \(result.errors)")
+                    self.errorMessage = "Build failed: \(result.errors.first ?? "Unknown error")"
+                    self.showingError = true
+                }
+            }
+        }
+    }
+    
+    private func injectBuiltCode(_ bundleCode: String, framework: FrameworkKind) {
+        guard let webView = self.webView else {
+            print("❌ WebView not available for bundle injection")
+            return
+        }
+        
+        print("🚀 Injecting built bundle for \(framework.displayName)")
+        
+        // For React Three Fiber, we need to execute the bundle directly
+        let jsCode = bundleCode
+        
+        webView.evaluateJavaScript(jsCode) { result, error in
+            if let error = error {
+                print("❌ Bundle execution error: \(error)")
+                Task { @MainActor in
+                    self.errorMessage = "Bundle execution error: \(error.localizedDescription)"
+                    self.showingError = true
+                }
+            } else {
+                print("✅ Bundle executed successfully")
+                Task { @MainActor in
+                    // Auto-switch to scene view to show the result
+                    self.currentView = .scene
                 }
             }
         }

@@ -29,6 +29,9 @@ class ChatViewModel: ObservableObject {
     // 3D Library Management System
     private let library3DManager = Library3DManager()
     
+    // Build System Management
+    private let buildManager = BuildManager.shared
+    
     // Expose managers for UI and tests
     var providerManager: AIProviderManager {
         return aiProviderManager
@@ -36,6 +39,10 @@ class ChatViewModel: ObservableObject {
     
     var libraryManager: Library3DManager {
         return library3DManager
+    }
+    
+    var buildSystem: BuildManager {
+        return buildManager
     }
     
     // Legacy providers - maintained for compatibility
@@ -100,6 +107,9 @@ class ChatViewModel: ObservableObject {
     var onInsertCode: ((String) -> Void)?
     var onRunScene: (() -> Void)?
     var onDescribeScene: ((String) -> Void)?
+    
+    // Enhanced callbacks for build system
+    var onInsertCodeWithBuild: ((String, FrameworkKind) -> Void)?
     
     init() {
         print("🚀 ChatViewModel initialization starting...")
@@ -731,7 +741,7 @@ class ChatViewModel: ObservableObject {
                     let correctedCode = fixBabylonJSCode(extractedCode)
                     processedResponse = processedResponse.replacingOccurrences(of: "[INSERT_CODE]```javascript", with: "✅ Code extracted!")
                     processedResponse = processedResponse.replacingOccurrences(of: "```", with: "")
-                    onInsertCode?(correctedCode)
+                    injectCodeWithBuildSupport(correctedCode)
                     return processedResponse.trimmingCharacters(in: .whitespacesAndNewlines)
                 }
             }
@@ -771,7 +781,7 @@ class ChatViewModel: ObservableObject {
                     processedResponse = processedResponse.replacingOccurrences(of: "[/INSERT_CODE]", with: "")
                     processedResponse = processedResponse.replacingOccurrences(of: "```javascript", with: "")
                     processedResponse = processedResponse.replacingOccurrences(of: "```", with: "")
-                    onInsertCode?(correctedCode)
+                    injectCodeWithBuildSupport(correctedCode)
                     return processedResponse.trimmingCharacters(in: .whitespacesAndNewlines)
                 } else {
                     print("⚠️ Extracted code is empty after trimming")
@@ -861,8 +871,8 @@ class ChatViewModel: ObservableObject {
                     processedResponse = processedResponse.replacingOccurrences(of: "```ts", with: "✅ Code extracted and ready!")
                     processedResponse = processedResponse.replacingOccurrences(of: "```", with: "")
                     
-                    print("🎯 Calling onInsertCode for model: \(selectedModel)")
-                    onInsertCode?(correctedCode)
+                    print("🎯 Calling enhanced code injection for model: \(selectedModel)")
+                    injectCodeWithBuildSupport(correctedCode)
                     break
                 }
             }
@@ -1005,6 +1015,28 @@ class ChatViewModel: ObservableObject {
         }
         
         return fixedCode
+    }
+    
+    // MARK: - Enhanced Code Injection with Build Support
+    
+    /// Handle code injection with automatic build for frameworks that require it
+    func injectCodeWithBuildSupport(_ code: String) {
+        let currentLibrary = library3DManager.selectedLibrary
+        
+        // Check if the current library requires building
+        if let frameworkKind = BuildIntegration.getFrameworkKind(from: currentLibrary),
+           frameworkKind.requiresBuild {
+            
+            print("🏗️ Framework \(frameworkKind.displayName) requires build - starting auto-build")
+            
+            // Use enhanced callback if available
+            onInsertCodeWithBuild?(code, frameworkKind)
+            
+        } else {
+            // Use regular injection for frameworks that don't need building
+            print("📝 Framework \(currentLibrary.displayName) uses direct injection")
+            onInsertCode?(code)
+        }
     }
     
     // MARK: - Settings Persistence

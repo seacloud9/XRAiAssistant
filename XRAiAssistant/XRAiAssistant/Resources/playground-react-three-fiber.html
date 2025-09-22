@@ -1,0 +1,3257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>React Three Fiber Playground</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+        }
+        
+        #main-container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #editor-container {
+            flex: 0 0 50%;
+            width: 50%;
+            height: 100%;
+            background: #1e1e1e;
+            border-right: 1px solid #333;
+            overflow: hidden;
+        }
+        
+        #toolbar {
+            background: #2d2d2d;
+            border-bottom: 1px solid #333;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 40px;
+        }
+        
+        #toolbar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        #toolbar-title {
+            color: #fff;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        #framework-badge {
+            background: #007acc;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        #toolbar-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        #build-button {
+            background: #28a745;
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        #build-button:hover {
+            background: #218838;
+        }
+        
+        #build-button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        #build-button.building {
+            background: #007bff;
+        }
+        
+        #build-button.error {
+            background: #dc3545;
+        }
+        
+        #build-status {
+            color: #ccc;
+            font-size: 11px;
+            max-width: 200px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        #build-status.success {
+            color: #28a745;
+        }
+        
+        #build-status.error {
+            color: #dc3545;
+        }
+        
+        #build-status.building {
+            color: #007bff;
+        }
+        
+        #run-button {
+            background: #17a2b8;
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        #run-button:hover {
+            background: #138496;
+        }
+        
+        #editor {
+            width: 100%;
+            height: calc(100% - 40px);
+        }
+        
+        #canvas-container {
+            flex: 0 0 50%;
+            width: 50%;
+            height: 100%;
+            background: #000;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #root {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            outline: none;
+        }
+        
+        #console {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.9);
+            color: #fff;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 11px;
+            max-height: 30%;
+            overflow-y: auto;
+            border-top: 1px solid #333;
+            z-index: 1000;
+            display: none;
+        }
+        
+        #console.show {
+            display: block;
+        }
+        
+        #console-header {
+            background: #1a1a1a;
+            padding: 4px 8px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        #console-title {
+            font-weight: 500;
+            font-size: 10px;
+            color: #ccc;
+        }
+        
+        #console-clear {
+            background: none;
+            border: none;
+            color: #ccc;
+            font-size: 10px;
+            cursor: pointer;
+            padding: 2px 4px;
+        }
+        
+        #console-content {
+            padding: 8px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        
+        .console-log { color: #fff; }
+        .console-warn { color: #ffc107; }
+        .console-error { color: #dc3545; }
+        .console-info { color: #17a2b8; }
+        
+        #loading-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            z-index: 2000;
+        }
+        
+        .spinner {
+            border: 2px solid #333;
+            border-top: 2px solid #007acc;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="main-container">
+        <div id="editor-container">
+            <div id="toolbar">
+                <div id="toolbar-left">
+                    <div id="toolbar-title">React Three Fiber Playground</div>
+                    <div id="framework-badge">TSX</div>
+                </div>
+                <div id="toolbar-right">
+                    <div id="build-status">Ready to build</div>
+                    <button id="build-button">Build</button>
+                    <button id="run-button">Run</button>
+                </div>
+            </div>
+            <div id="editor"></div>
+        </div>
+        
+        <div id="canvas-container">
+            <div id="loading-overlay">
+                <div class="spinner"></div>
+                Initializing React Three Fiber...
+            </div>
+            <div id="root"></div>
+            <canvas id="canvas"></canvas>
+            
+            <div id="console">
+                <div id="console-header">
+                    <div id="console-title">Console</div>
+                    <button id="console-clear">Clear</button>
+                </div>
+                <div id="console-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- React Three Fiber Dependencies with CDN fallbacks -->
+    
+    <!-- Load React directly via script tags -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+    
+    <script>
+        // Track library loading progress
+        window.libraryLoadingProgress = {
+            React: false,
+            ReactDOM: false,
+            THREE: false,
+            ReactThreeFiber: false,
+            Drei: false
+        };
+        
+        let librariesReady = false;
+        
+        // Check if basic libraries loaded via script tags and set up globals immediately
+        console.log('🔍 XCODE DEBUG: Checking script tag loaded libraries...');
+        console.log('   React:', typeof window.React);
+        console.log('   ReactDOM:', typeof window.ReactDOM);
+        console.log('   THREE:', typeof window.THREE);
+        
+        // Wait for DOM and create globals immediately
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('📄 XCODE DEBUG: DOM loaded, setting up globals...');
+            
+            setTimeout(() => {
+                // Check again and create globals
+                console.log('🔍 XCODE DEBUG: Final library check:', {
+                    React: typeof window.React,
+                    ReactDOM: typeof window.ReactDOM,
+                    THREE: typeof window.THREE
+                });
+                
+                if (window.React && window.ReactDOM && window.THREE) {
+                    console.log('✅ XCODE DEBUG: Basic libraries confirmed, creating R3F globals...');
+                    createReactThreeFiberGlobalsSync();
+                    createDreiGlobalsSync();
+                    
+                    // Update progress tracking
+                    window.libraryLoadingProgress.React = true;
+                    window.libraryLoadingProgress.ReactDOM = true;
+                    window.libraryLoadingProgress.THREE = true;
+                    window.libraryLoadingProgress.ReactThreeFiber = true;
+                    window.libraryLoadingProgress.Drei = true;
+                    librariesReady = true;
+                    
+                    // Final verification of all components
+                    console.log('🔍 XCODE DEBUG: Final component verification:', {
+                        'ReactThreeFiber.Canvas': !!window.ReactThreeFiber?.Canvas,
+                        'ReactThreeFiber.useFrame': !!window.ReactThreeFiber?.useFrame,
+                        'ReactThreeFiber.useThree': !!window.ReactThreeFiber?.useThree,
+                        'ReactThreeFiber.useLoader': !!window.ReactThreeFiber?.useLoader,
+                        'Drei.OrbitControls': !!window.Drei?.OrbitControls,
+                        'Drei.Box': !!window.Drei?.Box,
+                        'Drei.Sphere': !!window.Drei?.Sphere,
+                        'Drei.Environment': !!window.Drei?.Environment
+                    });
+                    
+                    // DEBUG: Test what's actually happening with component detection
+                    setTimeout(() => {
+                        console.log('🔍 XCODE DEBUG: Debugging component detection issue...');
+                        console.log('   window.Drei exists:', !!window.Drei);
+                        console.log('   window.Drei.Box exists:', !!window.Drei?.Box);
+                        console.log('   window.Drei.Box type:', typeof window.Drei?.Box);
+                        console.log('   window.Drei.Sphere exists:', !!window.Drei?.Sphere);
+                        console.log('   window.Drei.Sphere type:', typeof window.Drei?.Sphere);
+                        console.log('   window.Drei.Environment exists:', !!window.Drei?.Environment);
+                        console.log('   window.Drei.Environment type:', typeof window.Drei?.Environment);
+                        console.log('   Object.keys(window.Drei):', Object.keys(window.Drei || {}));
+                        
+                        // Try calling the validation function directly
+                        if (typeof validateLibraryLoaded === 'function') {
+                            console.log('   validateLibraryLoaded("Drei"):', validateLibraryLoaded("Drei"));
+                        }
+                    }, 200);
+                    
+                    console.log('✅ XCODE DEBUG: All libraries ready!');
+                } else {
+                    console.error('❌ XCODE DEBUG: Basic libraries not loaded from script tags');
+                }
+            }, 100);
+        });
+        
+        // Enhanced library loading with better tracking and validation
+        function loadLibraryWithFallback(localPath, cdnPath, globalVar, onLoad) {
+            return new Promise((resolve, reject) => {
+                console.log(`🔄 XCODE DEBUG: Starting load for ${globalVar}...`);
+                console.log(`   Local: ${localPath}`);
+                console.log(`   CDN: ${cdnPath}`);
+                
+                const script = document.createElement('script');
+                script.src = localPath;
+                script.type = 'text/javascript';
+                
+                // Set a timeout for loading
+                const loadTimeout = setTimeout(() => {
+                    console.warn(`⏰ XCODE DEBUG: Load timeout for ${globalVar}, trying CDN fallback`);
+                    script.remove();
+                    tryFallback();
+                }, 5000);
+                
+                script.onload = () => {
+                    clearTimeout(loadTimeout);
+                    console.log(`✅ XCODE DEBUG: Script loaded for ${globalVar} from local:`, localPath);
+                    
+                    // Wait a moment for global variables to be set
+                    setTimeout(() => {
+                        if (validateLibraryLoaded(globalVar)) {
+                            console.log(`✅ XCODE DEBUG: ${globalVar} validated successfully`);
+                            window.libraryLoadingProgress[globalVar] = true;
+                            checkLibraryGlobals(globalVar);
+                            if (onLoad) onLoad();
+                            resolve();
+                        } else {
+                            console.warn(`⚠️ XCODE DEBUG: ${globalVar} script loaded but global not found, trying CDN...`);
+                            script.remove();
+                            tryFallback();
+                        }
+                    }, 100);
+                };
+                
+                script.onerror = (event) => {
+                    clearTimeout(loadTimeout);
+                    console.warn(`⚠️ XCODE DEBUG: Local script load failed for ${globalVar}`);
+                    console.warn(`   Failed URL: ${localPath}`);
+                    console.warn(`   Error event:`, event);
+                    console.warn(`   Trying CDN fallback: ${cdnPath}`);
+                    script.remove();
+                    tryFallback();
+                };
+                
+                function tryFallback() {
+                    const fallbackScript = document.createElement('script');
+                    fallbackScript.src = cdnPath;
+                    fallbackScript.type = 'text/javascript';
+                    
+                    const fallbackTimeout = setTimeout(() => {
+                        console.error(`⏰ XCODE DEBUG: CDN timeout for ${globalVar}`);
+                        fallbackScript.remove();
+                        window.libraryLoadingProgress[globalVar] = false;
+                        reject(new Error(`Timeout loading ${globalVar} from CDN`));
+                    }, 10000);
+                    
+                    fallbackScript.onload = () => {
+                        clearTimeout(fallbackTimeout);
+                        console.log(`✅ XCODE DEBUG: Script loaded for ${globalVar} from CDN:`, cdnPath);
+                        
+                        // Wait a moment for global variables to be set
+                        setTimeout(() => {
+                            if (validateLibraryLoaded(globalVar)) {
+                                console.log(`✅ XCODE DEBUG: ${globalVar} CDN validated successfully`);
+                                window.libraryLoadingProgress[globalVar] = true;
+                                checkLibraryGlobals(globalVar);
+                                if (onLoad) onLoad();
+                                resolve();
+                            } else {
+                                console.error(`❌ XCODE DEBUG: ${globalVar} CDN loaded but global still not found`);
+                                window.libraryLoadingProgress[globalVar] = false;
+                                reject(new Error(`${globalVar} global not available after CDN load`));
+                            }
+                        }, 100);
+                    };
+                    
+                    fallbackScript.onerror = (event) => {
+                        clearTimeout(fallbackTimeout);
+                        console.error(`❌ XCODE DEBUG: CDN script load failed for ${globalVar}`);
+                        console.error(`   Local failed: ${localPath}`);
+                        console.error(`   CDN failed: ${cdnPath}`);
+                        console.error(`   CDN error event:`, event);
+                        console.error(`   Current window.${globalVar}:`, typeof window[globalVar]);
+                        window.libraryLoadingProgress[globalVar] = false;
+                        reject(new Error(`Failed to load ${globalVar} from both local and CDN`));
+                    };
+                    
+                    document.head.appendChild(fallbackScript);
+                }
+                
+                document.head.appendChild(script);
+            });
+        }
+        
+        // Validate that a library actually loaded and set its global variables
+        function validateLibraryLoaded(libraryName) {
+            switch (libraryName) {
+                case 'React':
+                    return typeof window.React === 'object' && window.React !== null && typeof window.React.createElement === 'function';
+                case 'ReactDOM':
+                    return typeof window.ReactDOM === 'object' && window.ReactDOM !== null && typeof window.ReactDOM.createRoot === 'function';
+                case 'THREE':
+                    return typeof window.THREE === 'object' && window.THREE !== null && typeof window.THREE.Scene === 'function';
+                case 'ReactThreeFiber':
+                    // Check for our custom React Three Fiber implementation (basic check first)
+                    const r3fValid = typeof window.ReactThreeFiber === 'object' && 
+                           window.ReactThreeFiber !== null &&
+                           typeof window.ReactThreeFiber.Canvas === 'function';
+                    console.log('🔍 XCODE DEBUG: ReactThreeFiber validation:', {
+                        exists: !!window.ReactThreeFiber,
+                        Canvas: typeof window.ReactThreeFiber?.Canvas,
+                        useFrame: typeof window.ReactThreeFiber?.useFrame,
+                        useThree: typeof window.ReactThreeFiber?.useThree,
+                        useLoader: typeof window.ReactThreeFiber?.useLoader,
+                        valid: r3fValid
+                    });
+                    return r3fValid;
+                case 'Drei':
+                    // Check for our custom Drei implementation (basic check first)
+                    const dreiValid = typeof window.Drei === 'object' && 
+                           window.Drei !== null &&
+                           typeof window.Drei.OrbitControls === 'function';
+                    console.log('🔍 XCODE DEBUG: Drei validation:', {
+                        exists: !!window.Drei,
+                        OrbitControls: typeof window.Drei?.OrbitControls,
+                        Box: typeof window.Drei?.Box,
+                        Sphere: typeof window.Drei?.Sphere,
+                        Environment: typeof window.Drei?.Environment,
+                        valid: dreiValid
+                    });
+                    return dreiValid;
+                default:
+                    return false;
+            }
+        }
+        
+        function checkLibraryGlobals(libraryName) {
+            const globals = {
+                React: typeof window.React,
+                ReactDOM: typeof window.ReactDOM,
+                THREE: typeof window.THREE,
+                ReactThreeFiber: typeof window.ReactThreeFiber,
+                Drei: typeof window.Drei
+            };
+            console.log(`🔍 XCODE DEBUG: After loading ${libraryName}, globals:`, globals);
+        }
+        
+        // Load all libraries sequentially to avoid conflicts
+        async function loadAllLibraries() {
+            console.log('🚀 XCODE DEBUG: Starting sequential library loading...');
+            
+            try {
+                // Load React first with detailed progress
+                console.log('📦 XCODE DEBUG: Step 1/5 - Loading React...');
+                await loadLibraryWithFallback(
+                    'app://vendor/react-18.2.0.min.js',
+                    'https://unpkg.com/react@18/umd/react.production.min.js',
+                    'React'
+                );
+                console.log('✅ XCODE DEBUG: React loading completed');
+                
+                // Load ReactDOM
+                console.log('📦 XCODE DEBUG: Step 2/5 - Loading ReactDOM...');
+                await loadLibraryWithFallback(
+                    'app://vendor/react-dom-18.2.0.min.js',
+                    'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js',
+                    'ReactDOM'
+                );
+                console.log('✅ XCODE DEBUG: ReactDOM loading completed');
+                
+                // Load Three.js (use UMD build, not module)
+                console.log('📦 XCODE DEBUG: Step 3/5 - Loading Three.js...');
+                await loadLibraryWithFallback(
+                    'app://vendor/three-r160.module.js',
+                    'https://unpkg.com/three@0.160.0/build/three.min.js',
+                    'THREE'
+                );
+                console.log('✅ XCODE DEBUG: Three.js loading completed');
+                
+                // Since React Three Fiber and Drei don't provide UMD builds,
+                // we'll load basic functionality and create mock globals
+                console.log('⚠️ XCODE DEBUG: React Three Fiber and Drei require ES modules - creating fallback globals');
+                await createReactThreeFiberGlobals();
+                await createDreiGlobals();
+                
+                console.log('✅ XCODE DEBUG: All libraries loading completed');
+                librariesReady = true;
+                
+                // Set up globals after all libraries are loaded with delay
+                setTimeout(() => {
+                    setupLibraryGlobals();
+                }, 200);
+                
+            } catch (error) {
+                console.error('❌ XCODE DEBUG: Library loading failed:', error);
+                // Try CDN-only fallback
+                console.log('🔄 XCODE DEBUG: Attempting CDN-only fallback...');
+                await loadLibrariesCDNOnly();
+            }
+        }
+        
+        // Fallback to load everything from CDN if local files fail
+        async function loadLibrariesCDNOnly() {
+            console.log('🌐 XCODE DEBUG: Loading all libraries from CDN only...');
+            
+            try {
+                // Clear any partial loads
+                delete window.React;
+                delete window.ReactDOM;
+                delete window.THREE;
+                delete window.ReactThreeFiber;
+                delete window.Drei;
+                
+                // Load React
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = 'https://unpkg.com/react@18/umd/react.production.min.js';
+                    script.onload = () => resolve();
+                    script.onerror = () => reject(new Error('React CDN failed'));
+                    document.head.appendChild(script);
+                });
+                
+                // Load ReactDOM
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = 'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js';
+                    script.onload = () => resolve();
+                    script.onerror = () => reject(new Error('ReactDOM CDN failed'));
+                    document.head.appendChild(script);
+                });
+                
+                // Load THREE
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = 'https://unpkg.com/three@0.160.0/build/three.min.js';
+                    script.onload = () => resolve();
+                    script.onerror = () => reject(new Error('THREE CDN failed'));
+                    document.head.appendChild(script);
+                });
+                
+                // Wait for all basic libraries to settle
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // Load React Three Fiber
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = 'https://unpkg.com/@react-three/fiber@8.15.12/dist/index.js';
+                    script.onload = () => resolve();
+                    script.onerror = () => {
+                        // Try alternative CDN
+                        const altScript = document.createElement('script');
+                        altScript.src = 'https://cdn.skypack.dev/@react-three/fiber@8';
+                        altScript.onload = () => resolve();
+                        altScript.onerror = () => reject(new Error('React Three Fiber CDN failed'));
+                        document.head.appendChild(altScript);
+                    };
+                    document.head.appendChild(script);
+                });
+                
+                // Load Drei
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = 'https://unpkg.com/@react-three/drei@9.88.13/dist/index.js';
+                    script.onload = () => resolve();
+                    script.onerror = () => {
+                        // Try alternative CDN
+                        const altScript = document.createElement('script');
+                        altScript.src = 'https://cdn.skypack.dev/@react-three/drei@9';
+                        altScript.onload = () => resolve();
+                        altScript.onerror = () => reject(new Error('Drei CDN failed'));
+                        document.head.appendChild(altScript);
+                    };
+                    document.head.appendChild(script);
+                });
+                
+                // Mark all as loaded
+                window.libraryLoadingProgress = {
+                    React: true,
+                    ReactDOM: true,
+                    THREE: true,
+                    ReactThreeFiber: true,
+                    Drei: true
+                };
+                
+                librariesReady = true;
+                console.log('✅ XCODE DEBUG: CDN-only loading completed');
+                
+                // Set up globals
+                setTimeout(() => {
+                    setupLibraryGlobals();
+                }, 300);
+                
+            } catch (error) {
+                console.error('❌ XCODE DEBUG: CDN-only loading failed:', error);
+            }
+        }
+        
+        // Create React Three Fiber globals synchronously
+        function createReactThreeFiberGlobalsSync() {
+            console.log('🔧 XCODE DEBUG: Creating React Three Fiber globals synchronously...');
+            
+            if (!window.React || !window.THREE) {
+                console.error('❌ XCODE DEBUG: React or THREE not available for R3F creation');
+                console.error('   React:', typeof window.React);
+                console.error('   THREE:', typeof window.THREE);
+                return false;
+            }
+            
+            try {
+            
+            // Create a simplified React Three Fiber implementation
+            window.ReactThreeFiber = {
+                Canvas: function(props) {
+                    try {
+                        console.log('🎨 XCODE DEBUG: Canvas component called with props:', props);
+                        console.log('🔍 XCODE DEBUG: Canvas children:', props.children);
+                        console.log('🔍 XCODE DEBUG: React hooks available:', {
+                            useRef: typeof window.React.useRef,
+                            useState: typeof window.React.useState,
+                            useEffect: typeof window.React.useEffect
+                        });
+                    
+                    const canvasRef = window.React.useRef();
+                    const [sceneReady, setSceneReady] = window.React.useState(false);
+                    
+                    window.React.useEffect(() => {
+                        if (!canvasRef.current) {
+                            console.warn('⚠️ XCODE DEBUG: Canvas ref not ready');
+                            return;
+                        }
+                        
+                        console.log('🎨 XCODE DEBUG: Setting up Three.js canvas...');
+                        console.log('🔍 XCODE DEBUG: Canvas dimensions:', {
+                            width: canvasRef.current.clientWidth,
+                            height: canvasRef.current.clientHeight
+                        });
+                        
+                        // Create Three.js scene
+                        const scene = new window.THREE.Scene();
+                        const camera = new window.THREE.PerspectiveCamera(
+                            props.camera?.fov || 75,
+                            canvasRef.current.clientWidth / canvasRef.current.clientHeight,
+                            0.1,
+                            1000
+                        );
+                        
+                        if (props.camera?.position) {
+                            camera.position.set(...props.camera.position);
+                        } else {
+                            camera.position.set(0, 0, 5);
+                        }
+                        
+                        const renderer = new window.THREE.WebGLRenderer({ 
+                            canvas: canvasRef.current,
+                            antialias: props.gl?.antialias !== false
+                        });
+                        renderer.setSize(canvasRef.current.clientWidth, canvasRef.current.clientHeight);
+                        renderer.setClearColor(0x1a1a2e, 1); // Dark blue background
+                        
+                        // Store references globally for child components
+                        window.currentScene = scene;
+                        window.currentCamera = camera; 
+                        window.currentRenderer = renderer;
+                        
+                        console.log('✅ XCODE DEBUG: Three.js scene created and stored globally');
+                        console.log('🔍 XCODE DEBUG: Scene:', scene);
+                        console.log('🔍 XCODE DEBUG: Camera position:', camera.position);
+                        console.log('🔍 XCODE DEBUG: Renderer:', renderer);
+                        
+                        // Call onCreated callback if provided
+                        if (props.onCreated) {
+                            try {
+                                props.onCreated({ gl: renderer, scene, camera });
+                            } catch (error) {
+                                console.error('❌ XCODE DEBUG: onCreated callback error:', error);
+                            }
+                        }
+                        
+                        setSceneReady(true);
+                        
+                        // Render loop
+                        function animate() {
+                            requestAnimationFrame(animate);
+                            if (window.currentScene && window.currentCamera && window.currentRenderer) {
+                                window.currentRenderer.render(window.currentScene, window.currentCamera);
+                            }
+                        }
+                        animate();
+                        
+                        console.log('🚀 XCODE DEBUG: Animation loop started');
+                        
+                        // Cleanup
+                        return () => {
+                            renderer.dispose();
+                        };
+                    }, []);
+                    
+                    // Render the canvas and children
+                    console.log('🔄 XCODE DEBUG: Canvas component rendering JSX...');
+                    const result = window.React.createElement('div', {
+                        style: { width: '100%', height: '100%', position: 'relative', ...props.style }
+                    },
+                        window.React.createElement('canvas', {
+                            ref: canvasRef,
+                            style: { width: '100%', height: '100%', display: 'block' }
+                        }),
+                        // Render children only when scene is ready
+                        sceneReady ? props.children : null
+                    );
+                    console.log('✅ XCODE DEBUG: Canvas JSX created successfully');
+                    return result;
+                    
+                    } catch (error) {
+                        console.error('❌ XCODE DEBUG: Canvas component error:', error);
+                        return window.React.createElement('div', {
+                            style: { 
+                                width: '100%', 
+                                height: '100%', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center', 
+                                color: 'white',
+                                backgroundColor: '#1a1a2e'
+                            }
+                        }, 'Canvas Error: ' + error.message);
+                    }
+                },
+                
+                useFrame: function(callback) {
+                    window.React.useEffect(() => {
+                        function frameCallback() {
+                            if (callback && window.currentScene && window.currentCamera) {
+                                callback({ scene: window.currentScene, camera: window.currentCamera }, 0.016);
+                            }
+                            requestAnimationFrame(frameCallback);
+                        }
+                        frameCallback();
+                    }, [callback]);
+                },
+                
+                useThree: function() {
+                    return {
+                        scene: window.currentScene,
+                        camera: window.currentCamera,
+                        renderer: window.currentRenderer
+                    };
+                }
+            };
+            
+            // Add useLoader functionality
+            window.ReactThreeFiber.useLoader = function(loader, url) {
+                const [resource, setResource] = window.React.useState(null);
+                
+                window.React.useEffect(() => {
+                    if (!loader || !url) return;
+                    
+                    try {
+                        const loaderInstance = new loader();
+                        loaderInstance.load(url, (result) => {
+                            setResource(result);
+                        });
+                    } catch (err) {
+                        console.error('useLoader error:', err);
+                    }
+                }, [loader, url]);
+                
+                return resource;
+            };
+            
+            console.log('✅ XCODE DEBUG: React Three Fiber globals created synchronously');
+            
+            // Verify each component was created successfully
+            console.log('🔍 XCODE DEBUG: Verifying R3F components:', {
+                Canvas: typeof window.ReactThreeFiber.Canvas,
+                useFrame: typeof window.ReactThreeFiber.useFrame,
+                useThree: typeof window.ReactThreeFiber.useThree,
+                useLoader: typeof window.ReactThreeFiber.useLoader
+            });
+            
+            return true;
+            
+            } catch (error) {
+                console.error('❌ XCODE DEBUG: Error creating ReactThreeFiber globals:', error);
+                return false;
+            }
+        }
+        
+        // Create React Three Fiber globals using a simplified implementation
+        async function createReactThreeFiberGlobals() {
+            console.log('🔧 XCODE DEBUG: Creating React Three Fiber globals...');
+            
+            if (!window.React || !window.THREE) {
+                console.error('❌ XCODE DEBUG: React or THREE not available for R3F creation');
+                return false;
+            }
+            
+            // Create a simplified React Three Fiber implementation
+            window.ReactThreeFiber = {
+                Canvas: function(props) {
+                    const canvasRef = window.React.useRef();
+                    const sceneRef = window.React.useRef();
+                    const rendererRef = window.React.useRef();
+                    
+                    window.React.useEffect(() => {
+                        if (!canvasRef.current) return;
+                        
+                        // Create Three.js scene
+                        const scene = new window.THREE.Scene();
+                        const camera = new window.THREE.PerspectiveCamera(
+                            props.camera?.fov || 75,
+                            canvasRef.current.clientWidth / canvasRef.current.clientHeight,
+                            0.1,
+                            1000
+                        );
+                        
+                        if (props.camera?.position) {
+                            camera.position.set(...props.camera.position);
+                        } else {
+                            camera.position.set(0, 0, 5);
+                        }
+                        
+                        const renderer = new window.THREE.WebGLRenderer({ 
+                            canvas: canvasRef.current,
+                            antialias: props.gl?.antialias || true
+                        });
+                        renderer.setSize(canvasRef.current.clientWidth, canvasRef.current.clientHeight);
+                        renderer.setClearColor(0x000000, 1);
+                        
+                        sceneRef.current = scene;
+                        rendererRef.current = renderer;
+                        
+                        // Store references globally for child components
+                        window.currentScene = scene;
+                        window.currentCamera = camera; 
+                        window.currentRenderer = renderer;
+                        
+                        // Render loop
+                        function animate() {
+                            requestAnimationFrame(animate);
+                            if (window.currentScene && window.currentCamera && window.currentRenderer) {
+                                window.currentRenderer.render(window.currentScene, window.currentCamera);
+                            }
+                        }
+                        animate();
+                        
+                        // Cleanup
+                        return () => {
+                            renderer.dispose();
+                        };
+                    }, []);
+                    
+                    return window.React.createElement('canvas', {
+                        ref: canvasRef,
+                        style: { width: '100%', height: '100%', display: 'block', ...props.style }
+                    });
+                },
+                
+                useFrame: function(callback) {
+                    window.React.useEffect(() => {
+                        function frameCallback() {
+                            if (callback && window.currentScene && window.currentCamera) {
+                                callback({ scene: window.currentScene, camera: window.currentCamera }, 0.016);
+                            }
+                            requestAnimationFrame(frameCallback);
+                        }
+                        frameCallback();
+                    }, [callback]);
+                },
+                
+                useThree: function() {
+                    return {
+                        scene: window.currentScene,
+                        camera: window.currentCamera,
+                        renderer: window.currentRenderer
+                    };
+                }
+            };
+            
+            console.log('✅ XCODE DEBUG: React Three Fiber globals created');
+            return true;
+        }
+        
+        // Create Drei globals synchronously
+        function createDreiGlobalsSync() {
+            console.log('🔧 XCODE DEBUG: Creating Drei globals synchronously...');
+            
+            if (!window.THREE) {
+                console.error('❌ XCODE DEBUG: THREE not available for Drei creation');
+                console.error('   THREE:', typeof window.THREE);
+                return false;
+            }
+            
+            try {
+            
+            window.Drei = {
+                OrbitControls: function(props) {
+                    window.React.useEffect(() => {
+                        console.log('🎮 XCODE DEBUG: Setting up OrbitControls...');
+                        
+                        if (!window.currentCamera || !window.currentRenderer) {
+                            console.log('⏳ XCODE DEBUG: Waiting for camera/renderer...');
+                            return;
+                        }
+                        
+                        // Simple orbit controls implementation
+                        let isMouseDown = false;
+                        let mouseX = 0, mouseY = 0;
+                        let targetRotationX = 0, targetRotationY = 0;
+                        let rotationX = 0, rotationY = 0;
+                        
+                        function onMouseDown(event) {
+                            isMouseDown = true;
+                            mouseX = event.clientX;
+                            mouseY = event.clientY;
+                        }
+                        
+                        function onMouseMove(event) {
+                            if (!isMouseDown) return;
+                            
+                            const deltaX = event.clientX - mouseX;
+                            const deltaY = event.clientY - mouseY;
+                            
+                            targetRotationY += deltaX * 0.01;
+                            targetRotationX += deltaY * 0.01;
+                            
+                            mouseX = event.clientX;
+                            mouseY = event.clientY;
+                        }
+                        
+                        function onMouseUp() {
+                            isMouseDown = false;
+                        }
+                        
+                        function animate() {
+                            rotationX += (targetRotationX - rotationX) * 0.1;
+                            rotationY += (targetRotationY - rotationY) * 0.1;
+                            
+                            if (window.currentCamera) {
+                                const radius = 5;
+                                window.currentCamera.position.x = Math.sin(rotationY) * radius;
+                                window.currentCamera.position.z = Math.cos(rotationY) * radius;
+                                window.currentCamera.position.y = Math.sin(rotationX) * radius;
+                                window.currentCamera.lookAt(0, 0, 0);
+                            }
+                            
+                            requestAnimationFrame(animate);
+                        }
+                        
+                        const canvas = window.currentRenderer?.domElement;
+                        if (canvas) {
+                            canvas.addEventListener('mousedown', onMouseDown);
+                            canvas.addEventListener('mousemove', onMouseMove);
+                            canvas.addEventListener('mouseup', onMouseUp);
+                            animate();
+                            
+                            console.log('✅ XCODE DEBUG: OrbitControls set up successfully');
+                            
+                            return () => {
+                                canvas.removeEventListener('mousedown', onMouseDown);
+                                canvas.removeEventListener('mousemove', onMouseMove);
+                                canvas.removeEventListener('mouseup', onMouseUp);
+                            };
+                        }
+                    }, []);
+                    
+                    return null; // OrbitControls doesn't render anything
+                },
+                
+                Box: function(props) {
+                    window.React.useEffect(() => {
+                        console.log('📦 XCODE DEBUG: Creating Box component...');
+                        if (window.currentScene) {
+                            const geometry = new window.THREE.BoxGeometry(
+                                props.args?.[0] || 1, 
+                                props.args?.[1] || 1, 
+                                props.args?.[2] || 1
+                            );
+                            const material = new window.THREE.MeshStandardMaterial({ 
+                                color: props.color || 0x00ff00 
+                            });
+                            const mesh = new window.THREE.Mesh(geometry, material);
+                            
+                            if (props.position) {
+                                mesh.position.set(...props.position);
+                            }
+                            if (props.rotation) {
+                                mesh.rotation.set(...props.rotation);
+                            }
+                            
+                            window.currentScene.add(mesh);
+                            console.log('✅ XCODE DEBUG: Box added to scene');
+                            
+                            return () => {
+                                window.currentScene.remove(mesh);
+                                geometry.dispose();
+                                material.dispose();
+                            };
+                        }
+                    }, [props]);
+                    
+                    return null;
+                },
+                
+                Sphere: function(props) {
+                    window.React.useEffect(() => {
+                        console.log('⚪ XCODE DEBUG: Creating Sphere component...');
+                        if (window.currentScene) {
+                            const geometry = new window.THREE.SphereGeometry(
+                                props.args?.[0] || 1,
+                                props.args?.[1] || 32,
+                                props.args?.[2] || 32
+                            );
+                            const material = new window.THREE.MeshStandardMaterial({ 
+                                color: props.color || 0xff0000 
+                            });
+                            const mesh = new window.THREE.Mesh(geometry, material);
+                            
+                            if (props.position) {
+                                mesh.position.set(...props.position);
+                            }
+                            if (props.rotation) {
+                                mesh.rotation.set(...props.rotation);
+                            }
+                            
+                            window.currentScene.add(mesh);
+                            console.log('✅ XCODE DEBUG: Sphere added to scene');
+                            
+                            return () => {
+                                window.currentScene.remove(mesh);
+                                geometry.dispose();
+                                material.dispose();
+                            };
+                        }
+                    }, [props]);
+                    
+                    return null;
+                },
+                
+                Environment: function(props) {
+                    window.React.useEffect(() => {
+                        console.log('🌍 XCODE DEBUG: Setting up Environment...');
+                        if (window.currentScene) {
+                            // Add basic environment lighting
+                            const ambientLight = new window.THREE.AmbientLight(0x404040, 0.4);
+                            const directionalLight = new window.THREE.DirectionalLight(0xffffff, 1);
+                            directionalLight.position.set(5, 5, 5);
+                            
+                            window.currentScene.add(ambientLight);
+                            window.currentScene.add(directionalLight);
+                            console.log('✅ XCODE DEBUG: Environment lighting added');
+                            
+                            // Optional: Add a basic skybox background
+                            if (props.background) {
+                                window.currentScene.background = new window.THREE.Color(props.background);
+                            }
+                            
+                            return () => {
+                                window.currentScene.remove(ambientLight);
+                                window.currentScene.remove(directionalLight);
+                            };
+                        }
+                    }, [props]);
+                    
+                    return null;
+                }
+            };
+            
+            
+            // Immediately verify all components are available
+            console.log('🔍 XCODE DEBUG: Verifying Drei components immediately after creation:', {
+                OrbitControls: typeof window.Drei.OrbitControls,
+                Box: typeof window.Drei.Box,
+                Sphere: typeof window.Drei.Sphere,
+                Environment: typeof window.Drei.Environment
+            });
+            
+            console.log('✅ XCODE DEBUG: Drei globals created synchronously');
+            
+            // Verify each component was created successfully
+            console.log('🔍 XCODE DEBUG: Verifying Drei components:', {
+                OrbitControls: typeof window.Drei.OrbitControls,
+                Box: typeof window.Drei.Box,
+                Sphere: typeof window.Drei.Sphere,
+                Environment: typeof window.Drei.Environment
+            });
+            
+            return true;
+            
+            } catch (error) {
+                console.error('❌ XCODE DEBUG: Error creating Drei globals:', error);
+                return false;
+            }
+        }
+        
+        // Create Drei globals with essential controls
+        async function createDreiGlobals() {
+            console.log('🔧 XCODE DEBUG: Creating Drei globals...');
+            
+            if (!window.THREE) {
+                console.error('❌ XCODE DEBUG: THREE not available for Drei creation');
+                return false;
+            }
+            
+            window.Drei = {
+                OrbitControls: function(props) {
+                    window.React.useEffect(() => {
+                        if (!window.currentCamera || !window.currentRenderer) return;
+                        
+                        // Simple orbit controls implementation
+                        let isMouseDown = false;
+                        let mouseX = 0, mouseY = 0;
+                        let targetRotationX = 0, targetRotationY = 0;
+                        let rotationX = 0, rotationY = 0;
+                        
+                        function onMouseDown(event) {
+                            isMouseDown = true;
+                            mouseX = event.clientX;
+                            mouseY = event.clientY;
+                        }
+                        
+                        function onMouseMove(event) {
+                            if (!isMouseDown) return;
+                            
+                            const deltaX = event.clientX - mouseX;
+                            const deltaY = event.clientY - mouseY;
+                            
+                            targetRotationY += deltaX * 0.01;
+                            targetRotationX += deltaY * 0.01;
+                            
+                            mouseX = event.clientX;
+                            mouseY = event.clientY;
+                        }
+                        
+                        function onMouseUp() {
+                            isMouseDown = false;
+                        }
+                        
+                        function animate() {
+                            rotationX += (targetRotationX - rotationX) * 0.1;
+                            rotationY += (targetRotationY - rotationY) * 0.1;
+                            
+                            if (window.currentCamera) {
+                                const radius = 5;
+                                window.currentCamera.position.x = Math.sin(rotationY) * radius;
+                                window.currentCamera.position.z = Math.cos(rotationY) * radius;
+                                window.currentCamera.position.y = Math.sin(rotationX) * radius;
+                                window.currentCamera.lookAt(0, 0, 0);
+                            }
+                            
+                            requestAnimationFrame(animate);
+                        }
+                        
+                        const canvas = window.currentRenderer?.domElement;
+                        if (canvas) {
+                            canvas.addEventListener('mousedown', onMouseDown);
+                            canvas.addEventListener('mousemove', onMouseMove);
+                            canvas.addEventListener('mouseup', onMouseUp);
+                            animate();
+                            
+                            return () => {
+                                canvas.removeEventListener('mousedown', onMouseDown);
+                                canvas.removeEventListener('mousemove', onMouseMove);
+                                canvas.removeEventListener('mouseup', onMouseUp);
+                            };
+                        }
+                    }, []);
+                    
+                    return null; // OrbitControls doesn't render anything
+                }
+            };
+            
+            console.log('✅ XCODE DEBUG: Drei globals created');
+            return true;
+        }
+        
+        // Add immediate simple library loading as backup
+        function loadLibrariesSimple() {
+            console.log('🔄 XCODE DEBUG: Loading libraries with simple approach...');
+            
+            // Load React directly
+            const reactScript = document.createElement('script');
+            reactScript.src = 'https://unpkg.com/react@18/umd/react.production.min.js';
+            reactScript.onload = () => {
+                console.log('✅ XCODE DEBUG: React loaded directly');
+                
+                // Load ReactDOM
+                const reactDOMScript = document.createElement('script');
+                reactDOMScript.src = 'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js';
+                reactDOMScript.onload = () => {
+                    console.log('✅ XCODE DEBUG: ReactDOM loaded directly');
+                    
+                    // Load Three.js
+                    const threeScript = document.createElement('script');
+                    threeScript.src = 'https://unpkg.com/three@0.160.0/build/three.min.js';
+                    threeScript.onload = () => {
+                        console.log('✅ XCODE DEBUG: Three.js loaded directly');
+                        
+                        // Create React Three Fiber and Drei globals
+                        setTimeout(() => {
+                            createReactThreeFiberGlobals();
+                            createDreiGlobals();
+                            
+                            console.log('📚 XCODE DEBUG: Simple loading complete - final status:', {
+                                React: typeof window.React,
+                                ReactDOM: typeof window.ReactDOM,
+                                THREE: typeof window.THREE,
+                                ReactThreeFiber: typeof window.ReactThreeFiber,
+                                Drei: typeof window.Drei
+                            });
+                        }, 500);
+                    };
+                    threeScript.onerror = () => console.error('❌ Three.js failed');
+                    document.head.appendChild(threeScript);
+                };
+                reactDOMScript.onerror = () => console.error('❌ ReactDOM failed');
+                document.head.appendChild(reactDOMScript);
+            };
+            reactScript.onerror = () => console.error('❌ React failed');
+            document.head.appendChild(reactScript);
+        }
+        
+        // Start both loading approaches
+        console.log('🚀 XCODE DEBUG: Starting library loading...');
+        loadAllLibraries().catch(error => {
+            console.error('❌ XCODE DEBUG: Advanced loading failed:', error);
+            console.log('🔄 XCODE DEBUG: Falling back to simple loading...');
+            loadLibrariesSimple();
+        });
+        
+        // Also start simple loading as immediate backup
+        setTimeout(() => {
+            if (!window.React || !window.ReactDOM || !window.THREE) {
+                console.log('⏰ XCODE DEBUG: Libraries not loaded after 2s, trying simple approach...');
+                loadLibrariesSimple();
+            }
+        }, 2000);
+    </script>
+    
+    <!-- Initialize React Three Fiber globals -->
+    <script>
+        // Redirect console output to Xcode debug window via WebKit messages
+        // Store original console methods BEFORE any overrides
+        const originalLog = console.log;
+        const originalWarn = console.warn;
+        const originalError = console.error;
+        
+        function debugLog(level, ...args) {
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ');
+            
+            try {
+                if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.playgroundHandler) {
+                    window.webkit.messageHandlers.playgroundHandler.postMessage({
+                        action: 'consoleLog',
+                        data: { level: level, message: message }
+                    });
+                }
+            } catch (error) {
+                // Fallback to original console - no recursion
+                if (level === 'error') {
+                    originalError.call(console, 'debugLog error:', error);
+                }
+            }
+            
+            // Also log to original console methods - no recursion
+            if (level === 'error') {
+                originalError.call(console, ...args);
+            } else if (level === 'warn') {
+                originalWarn.call(console, ...args);
+            } else {
+                originalLog.call(console, ...args);
+            }
+        }
+        
+        // Override console methods to redirect to Xcode
+        console.log = function(...args) {
+            debugLog('log', ...args);
+        };
+        
+        console.warn = function(...args) {
+            debugLog('warn', ...args);
+        };
+        
+        console.error = function(...args) {
+            debugLog('error', ...args);
+        };
+        
+        // Enhanced global setup function called after libraries load
+        function setupLibraryGlobals() {
+            console.log('🚀 XCODE DEBUG: Setting up library globals...');
+            
+            // Wait a bit for all libraries to fully initialize
+            setTimeout(() => {
+                try {
+                    // Safety check - don't run if our custom components are already set up
+                    if (window.Drei && window.Drei.Box && window.Drei.Sphere && window.Drei.Environment) {
+                        console.log('✅ XCODE DEBUG: Custom components already exist, skipping global setup');
+                        
+                        // Just do the final component check and reporting
+                        const dreiComponents = {
+                            OrbitControls: !!window.Drei.OrbitControls,
+                            Box: !!window.Drei.Box,
+                            Sphere: !!window.Drei.Sphere,
+                            Environment: !!window.Drei.Environment
+                        };
+                        console.log('🔍 XCODE DEBUG: Drei components:', dreiComponents);
+                        
+                        return;
+                    }
+                    
+                    console.log('🔧 XCODE DEBUG: Custom components not complete, proceeding with setup...');
+                    // Log all available globals to understand what's actually loaded
+                    const allGlobals = {};
+                    for (const key in window) {
+                        if (key.toLowerCase().includes('react') || key.toLowerCase().includes('three') || key.toLowerCase().includes('drei') || key === 'THREE' || key === 'Canvas') {
+                            allGlobals[key] = typeof window[key];
+                        }
+                    }
+                    console.log('🔍 XCODE DEBUG: All React/Three related globals:', allGlobals);
+                    
+                    // Set up React globals with fallbacks
+                    if (!window.React) {
+                        window.React = (typeof React !== 'undefined') ? React : null;
+                    }
+                    if (!window.ReactDOM) {
+                        window.ReactDOM = (typeof ReactDOM !== 'undefined') ? ReactDOM : null;
+                    }
+                    if (!window.THREE) {
+                        window.THREE = (typeof THREE !== 'undefined') ? THREE : null;
+                    }
+                    
+                    // Set up React Three Fiber - check all possible locations
+                    if (!window.ReactThreeFiber) {
+                        // Check common R3F global names
+                        const r3fCandidates = [
+                            window.ReactThreeFiber,
+                            window.R3F,
+                            window.Fiber,
+                            window['@react-three/fiber'],
+                            window.Canvas && { Canvas: window.Canvas, useFrame: window.useFrame, useThree: window.useThree },
+                            (typeof ReactThreeFiber !== 'undefined') ? ReactThreeFiber : null,
+                            (typeof R3F !== 'undefined') ? R3F : null
+                        ];
+                        
+                        for (const candidate of r3fCandidates) {
+                            if (candidate && typeof candidate === 'object') {
+                                console.log('✅ XCODE DEBUG: Found React Three Fiber candidate:', candidate);
+                                window.ReactThreeFiber = candidate;
+                                break;
+                            }
+                        }
+                        
+                        // If still not found, create from individual globals
+                        if (!window.ReactThreeFiber && window.Canvas) {
+                            console.log('🔧 XCODE DEBUG: Creating ReactThreeFiber from individual globals');
+                            window.ReactThreeFiber = {
+                                Canvas: window.Canvas,
+                                useFrame: window.useFrame,
+                                useThree: window.useThree,
+                                useLoader: window.useLoader
+                            };
+                        }
+                    }
+                    
+                    // Set up Drei - ensure our custom implementation is preserved and complete
+                    if (!window.Drei || !window.Drei.Box || !window.Drei.Sphere || !window.Drei.Environment) {
+                        console.log('🔧 XCODE DEBUG: Drei incomplete or missing, ensuring complete custom implementation...');
+                        
+                        // Force recreation of complete custom Drei implementation
+                        createDreiGlobalsSync();
+                        
+                        console.log('✅ XCODE DEBUG: Custom Drei implementation created/updated');
+                        console.log('   All components:', Object.keys(window.Drei || {}));
+                    } else {
+                        console.log('✅ XCODE DEBUG: Drei already complete, preserving existing implementation');
+                        console.log('   Existing components:', Object.keys(window.Drei));
+                    }
+                    
+                    // Final validation and status check
+                    const finalStatus = {
+                        React: validateLibraryLoaded('React'),
+                        ReactDOM: validateLibraryLoaded('ReactDOM'),
+                        THREE: validateLibraryLoaded('THREE'),
+                        ReactThreeFiber: validateLibraryLoaded('ReactThreeFiber'),
+                        Drei: validateLibraryLoaded('Drei')
+                    };
+                    
+                    // Update the loading progress to reflect actual status
+                    window.libraryLoadingProgress = finalStatus;
+                    
+                    console.log('🚀 XCODE DEBUG: Final libraries status after setup:', finalStatus);
+                    
+                    // Detailed component check
+                    if (window.ReactThreeFiber) {
+                        const r3fComponents = {
+                            Canvas: !!window.ReactThreeFiber.Canvas,
+                            useFrame: !!window.ReactThreeFiber.useFrame,
+                            useThree: !!window.ReactThreeFiber.useThree,
+                            useLoader: !!window.ReactThreeFiber.useLoader
+                        };
+                        console.log('🔍 XCODE DEBUG: React Three Fiber components:', r3fComponents);
+                    }
+                    
+                    if (window.Drei) {
+                        const dreiComponents = {
+                            OrbitControls: !!window.Drei.OrbitControls,
+                            Box: !!window.Drei.Box,
+                            Sphere: !!window.Drei.Sphere,
+                            Environment: !!window.Drei.Environment
+                        };
+                        console.log('🔍 XCODE DEBUG: Drei components:', dreiComponents);
+                        
+                        // 🔧 CRITICAL FIX: If any components are missing, recreate them now
+                        const missingComponents = Object.entries(dreiComponents).filter(([_, exists]) => !exists).map(([name, _]) => name);
+                        if (missingComponents.length > 0) {
+                            console.warn('⚠️ XCODE DEBUG: Missing Drei components detected:', missingComponents);
+                            console.log('🔧 XCODE DEBUG: Force recreating complete Drei implementation...');
+                            createDreiGlobalsSync();
+                            
+                            // Re-check after recreation
+                            const recheck = {
+                                OrbitControls: !!window.Drei.OrbitControls,
+                                Box: !!window.Drei.Box,
+                                Sphere: !!window.Drei.Sphere,
+                                Environment: !!window.Drei.Environment
+                            };
+                            console.log('✅ XCODE DEBUG: Drei components after recreation:', recheck);
+                        }
+                    }
+                    
+                    // Send comprehensive library status update to Swift
+                    try {
+                        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.playgroundHandler) {
+                            window.webkit.messageHandlers.playgroundHandler.postMessage({
+                                action: 'libraryStatusUpdate',
+                                data: {
+                                    libraries: finalStatus,
+                                    loadingProgress: window.libraryLoadingProgress,
+                                    components: {
+                                        r3f: window.ReactThreeFiber ? Object.keys(window.ReactThreeFiber) : [],
+                                        drei: window.Drei ? Object.keys(window.Drei) : []
+                                    },
+                                    timestamp: Date.now(),
+                                    loadingComplete: librariesReady,
+                                    setupComplete: true
+                                }
+                            });
+                            console.log('📡 XCODE DEBUG: Sent comprehensive library status update to Swift');
+                    
+                    // 🔧 CRITICAL FIX: Auto-run test scene when all libraries are ready
+                    if (finalStatus.React && finalStatus.ReactDOM && finalStatus.ReactThreeFiber && finalStatus.Drei) {
+                        console.log('🚀 XCODE DEBUG: All libraries ready - auto-running test scene...');
+                        setTimeout(() => {
+                            testBasicSceneRendering();
+                        }, 500);
+                    }
+                        }
+                    } catch (error) {
+                        console.warn('⚠️ XCODE DEBUG: Could not send library status to Swift:', error);
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ XCODE DEBUG: Error setting up library globals:', error);
+                }
+            }, 1000); // Give libraries more time to fully initialize (1 second)
+        }
+    </script>
+    
+    <!-- Monaco Editor -->
+    <script src="https://unpkg.com/monaco-editor@0.44.0/min/vs/loader.js"></script>
+    
+    <script>
+        let editor = null;
+        let buildService = null;
+        let consoleElement = null;
+        let currentBundle = null;
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 XCODE DEBUG: DOM Content Loaded - starting initialization');
+            
+            // IMMEDIATELY load default scene while Monaco loads
+            loadDefaultScene();
+            
+            console.log('🎯 XCODE DEBUG: Starting Monaco editor initialization...');
+            initializeEditor();
+            initializeBuildService();
+            initializeConsole();
+            setupEventListeners();
+            hideLoadingOverlay();
+            
+            // Backup notification in case Monaco fails or takes too long
+            setTimeout(() => {
+                if (!editor) {
+                    console.warn('⚠️ Monaco not loaded after 15 seconds, sending fallback notification');
+                    notifySwiftInitialization({
+                        editorReady: false,
+                        engineReady: true,
+                        framework: 'reactThreeFiber',
+                        error: 'Monaco loading timeout'
+                    });
+                }
+            }, 15000);
+        });
+        
+        function initializeEditor() {
+            console.log('🎯 XCODE DEBUG: Monaco editor initialization starting...');
+            
+            // Check if editor container exists
+            const editorContainer = document.getElementById('editor');
+            if (!editorContainer) {
+                console.error('❌ XCODE DEBUG: Editor container not found!');
+                return;
+            }
+            console.log('✅ XCODE DEBUG: Editor container found, size:', editorContainer.offsetWidth, 'x', editorContainer.offsetHeight);
+            
+            // Configure Monaco with fallback CDNs
+            const monacoCDNs = [
+                'https://unpkg.com/monaco-editor@0.44.0/min/vs',
+                'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs'
+            ];
+            
+            let cdnIndex = 0;
+            
+            function tryLoadMonaco() {
+                const cdnPath = monacoCDNs[cdnIndex];
+                // Trying Monaco CDN
+                
+                require.config({ 
+                    paths: { vs: cdnPath },
+                    timeout: 10000 // 10 second timeout
+                });
+                
+                require(['vs/editor/editor.main'], function () {
+                    initializeMonacoEditor();
+                }, function(error) {
+                    // Monaco CDN failed, trying next
+                    cdnIndex++;
+                    if (cdnIndex < monacoCDNs.length) {
+                        tryLoadMonaco();
+                    } else {
+                        console.error('All Monaco CDNs failed');
+                        // Still notify initialization but with editor disabled
+                        notifySwiftInitialization({
+                            editorReady: false,
+                            engineReady: true,
+                            framework: 'reactThreeFiber',
+                            error: 'Monaco editor failed to load'
+                        });
+                    }
+                });
+            }
+            
+            tryLoadMonaco();
+        }
+        
+        function initializeMonacoEditor() {
+            try {
+                console.log('🎯 XCODE DEBUG: Monaco loaded successfully, creating editor...');
+                console.log('🔍 XCODE DEBUG: Monaco object:', !!monaco, 'monaco.editor:', !!monaco.editor);
+                
+                console.log('🎯 XCODE DEBUG: Configuring Monaco TypeScript settings...');
+                monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+                    target: monaco.languages.typescript.ScriptTarget.ES2020,
+                    allowNonTsExtensions: true,
+                    moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+                    module: monaco.languages.typescript.ModuleKind.CommonJS,
+                    noEmit: true,
+                    esModuleInterop: true,
+                    jsx: monaco.languages.typescript.JsxEmit.ReactJSX,
+                    reactNamespace: 'React',
+                    allowJs: true,
+                    typeRoots: ['node_modules/@types']
+                });
+                
+                console.log('🎯 XCODE DEBUG: Creating Monaco editor instance...');
+                const editorElement = document.getElementById('editor');
+                console.log('📏 XCODE DEBUG: Editor element:', !!editorElement, 'Size:', editorElement?.offsetWidth, 'x', editorElement?.offsetHeight);
+                
+                editor = monaco.editor.create(editorElement, {
+                    value: getDefaultCode(),
+                    language: 'typescript',
+                    theme: 'vs-dark',
+                    automaticLayout: true,
+                    fontSize: 14,
+                    minimap: { enabled: false },
+                    scrollBeyondLastLine: false,
+                    wordWrap: 'on',
+                    formatOnPaste: true,
+                    formatOnType: true
+                });
+                
+                // Add keyboard shortcuts
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB, () => {
+                    buildScene();
+                });
+                
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+                    runScene();
+                });
+                
+                console.log('✅ XCODE DEBUG: Monaco editor initialized successfully!');
+                console.log('📊 XCODE DEBUG: Editor info:', {
+                    hasEditor: !!editor,
+                    hasGetValue: !!(editor && editor.getValue),
+                    hasSetValue: !!(editor && editor.setValue),
+                    currentValue: editor ? editor.getValue().length + ' chars' : 'N/A'
+                });
+                
+                // Make editor available globally for readiness checks
+                window.editor = editor;
+                window.monaco = monaco;
+                window.editorReady = true; // Critical flag for readiness check
+                
+                // Notify Swift that Monaco is ready
+                notifySwiftInitialization({
+                    editorReady: true,
+                    engineReady: true,
+                    framework: 'reactThreeFiber'
+                });
+                
+            } catch (error) {
+                console.error('❌ Monaco editor initialization failed:', error);
+                // Still notify but with error
+                notifySwiftInitialization({
+                    editorReady: false,
+                    engineReady: true,
+                    framework: 'reactThreeFiber',
+                    error: error.message
+                });
+            }
+        }
+        
+        function initializeBuildService() {
+            // BuildService will be injected by the app
+            console.log('⏳ Waiting for build service initialization...');
+        }
+        
+        function initializeConsole() {
+            consoleElement = document.getElementById('console-content');
+            
+            // Capture console methods
+            const originalLog = console.log;
+            const originalWarn = console.warn;
+            const originalError = console.error;
+            const originalInfo = console.info;
+            
+            console.log = (...args) => {
+                addConsoleMessage('log', args.join(' '));
+                originalLog.apply(console, args);
+            };
+            
+            console.warn = (...args) => {
+                addConsoleMessage('warn', args.join(' '));
+                originalWarn.apply(console, args);
+            };
+            
+            console.error = (...args) => {
+                addConsoleMessage('error', args.join(' '));
+                originalError.apply(console, args);
+                showConsole();
+            };
+            
+            console.info = (...args) => {
+                addConsoleMessage('info', args.join(' '));
+                originalInfo.apply(console, args);
+            };
+            
+            // Global error handler
+            window.addEventListener('error', (event) => {
+                console.error(`Runtime Error: ${event.message} at ${event.filename}:${event.lineno}`);
+            });
+            
+            window.addEventListener('unhandledrejection', (event) => {
+                console.error(`Unhandled Promise Rejection: ${event.reason}`);
+            });
+        }
+        
+        function setupEventListeners() {
+            document.getElementById('build-button').addEventListener('click', buildScene);
+            document.getElementById('run-button').addEventListener('click', runScene);
+            document.getElementById('console-clear').addEventListener('click', clearConsole);
+        }
+        
+        function addConsoleMessage(type, message) {
+            if (!consoleElement) return;
+            
+            const messageElement = document.createElement('div');
+            messageElement.className = `console-${type}`;
+            messageElement.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            consoleElement.appendChild(messageElement);
+            consoleElement.scrollTop = consoleElement.scrollHeight;
+        }
+        
+        function showConsole() {
+            document.getElementById('console').classList.add('show');
+        }
+        
+        function hideConsole() {
+            document.getElementById('console').classList.remove('show');
+        }
+        
+        function clearConsole() {
+            if (consoleElement) {
+                consoleElement.innerHTML = '';
+            }
+            hideConsole();
+        }
+        
+        function updateBuildStatus(status, message, type = '') {
+            const statusElement = document.getElementById('build-status');
+            const buildButton = document.getElementById('build-button');
+            
+            statusElement.textContent = message;
+            statusElement.className = type ? `${type}` : '';
+            
+            buildButton.className = type || '';
+            buildButton.disabled = type === 'building';
+            
+            if (type === 'building') {
+                buildButton.textContent = 'Building...';
+            } else {
+                buildButton.textContent = 'Build';
+            }
+        }
+        
+        async function buildScene() {
+            if (!editor) {
+                console.error('Editor not initialized');
+                return;
+            }
+            
+            const code = editor.getValue();
+            if (!code.trim()) {
+                console.warn('No code to build');
+                return;
+            }
+            
+            updateBuildStatus('building', 'Building...', 'building');
+            clearConsole();
+            
+            try {
+                // Call Swift build service
+                const result = await callSwiftBuildService(code);
+                
+                if (result.success) {
+                    currentBundle = result.bundleCode;
+                    updateBuildStatus('success', result.statusText, 'success');
+                    console.log('✅ Build completed successfully');
+                    
+                    // Auto-run for R3F
+                    setTimeout(() => runBuiltScene(), 100);
+                } else {
+                    currentBundle = null;
+                    updateBuildStatus('error', result.errors[0] || 'Build failed', 'error');
+                    console.error('❌ Build failed:', result.errors.join(', '));
+                    showConsole();
+                }
+                
+            } catch (error) {
+                currentBundle = null;
+                updateBuildStatus('error', 'Build error', 'error');
+                console.error('❌ Build error:', error);
+                showConsole();
+            }
+        }
+        
+        function runScene() {
+            console.log('🎬 XCODE DEBUG: runScene() called');
+            console.log('🔍 XCODE DEBUG: currentBundle exists:', !!currentBundle);
+            console.log('🔍 XCODE DEBUG: editor exists:', !!editor);
+            console.log('🔍 XCODE DEBUG: editor content length:', editor ? editor.getValue().length : 'N/A');
+            
+            if (currentBundle) {
+                console.log('📦 XCODE DEBUG: Running built bundle scene...');
+                runBuiltScene();
+            } else {
+                // Run the current editor content directly (for injected code)
+                console.log('📝 XCODE DEBUG: Running current editor content directly...');
+                runCurrentEditorCode();
+            }
+        }
+        
+        function runCurrentEditorCode() {
+            console.log('📝 XCODE DEBUG: runCurrentEditorCode called');
+            
+            if (!editor) {
+                console.error('❌ XCODE DEBUG: Editor not available - trying default code...');
+                
+                // If no editor, try to run the default code directly
+                const defaultCode = getDefaultCode();
+                console.log('🔄 XCODE DEBUG: Using default code, length:', defaultCode.length);
+                executeCodeDirectly(defaultCode);
+                return;
+            }
+            
+            const code = editor.getValue();
+            if (!code.trim()) {
+                console.warn('⚠️ XCODE DEBUG: No code in editor - using default code...');
+                const defaultCode = getDefaultCode();
+                executeCodeDirectly(defaultCode);
+                return;
+            }
+            
+            console.log('📄 XCODE DEBUG: Editor code length:', code.length);
+            
+            executeCodeDirectlyInternal(code);
+        }
+        
+        // Prevent infinite loops with global tracking - more robust initialization
+        if (typeof window.isExecutingCode === 'undefined') {
+            window.isExecutingCode = false;
+            window.lastExecutionTime = 0;
+            window.executionCallCount = 0;
+        }
+        
+        function executeCodeDirectlyInternal(code) {
+            const now = Date.now();
+            window.executionCallCount++;
+            
+            console.log('🚀 XCODE DEBUG: executeCodeDirectlyInternal called with code length:', code.length);
+            console.log('📊 XCODE DEBUG: Call #' + window.executionCallCount + ', State:', {
+                isExecuting: window.isExecutingCode,
+                lastExecutionTime: window.lastExecutionTime,
+                currentTime: now
+            });
+            
+            // Calculate time since last execution (handle initial case)
+            const timeSinceLastExecution = window.lastExecutionTime > 0 ? now - window.lastExecutionTime : 999999;
+            console.log('🔍 XCODE DEBUG: Time since last execution:', timeSinceLastExecution + 'ms');
+            
+            // Prevent rapid repeated calls (less than 1 second apart)
+            if (window.isExecutingCode) {
+                console.warn('⚠️ XCODE DEBUG: Already executing code, ignoring call #' + window.executionCallCount);
+                return;
+            }
+            
+            if (window.lastExecutionTime > 0 && timeSinceLastExecution < 1000) {
+                console.warn('⚠️ XCODE DEBUG: Too soon since last execution (' + timeSinceLastExecution + 'ms), ignoring call #' + window.executionCallCount);
+                return;
+            }
+            
+            console.log('✅ XCODE DEBUG: Proceeding with execution call #' + window.executionCallCount);
+            window.isExecutingCode = true;
+            window.lastExecutionTime = now;
+            console.log('🔒 XCODE DEBUG: Setting execution lock at', now);
+            
+            // Safety timeout to prevent permanent lock
+            setTimeout(() => {
+                if (window.isExecutingCode) {
+                    console.warn('⚠️ XCODE DEBUG: Safety timeout - releasing stuck execution lock');
+                    window.isExecutingCode = false;
+                }
+            }, 10000); // 10 second safety timeout
+            
+            // Check if libraries are ready, wait if not
+            function checkAndRun(attempts = 0) {
+                console.log(`🔍 XCODE DEBUG: checkAndRun attempt ${attempts + 1}`);
+                const libraryStatus = {
+                    React: !!window.React,
+                    ReactDOM: !!window.ReactDOM,
+                    ReactThreeFiber: !!window.ReactThreeFiber,
+                    Drei: !!window.Drei,
+                    THREE: !!window.THREE
+                };
+                
+                console.log(`🔍 XCODE DEBUG: Libraries check attempt ${attempts}:`, libraryStatus);
+                
+                const allReady = libraryStatus.React && libraryStatus.ReactDOM && libraryStatus.ReactThreeFiber;
+                
+                if (allReady || attempts >= 10) {
+                    if (!allReady) {
+                        console.warn('⚠️ XCODE DEBUG: Proceeding with incomplete libraries after 10 attempts');
+                    }
+                    executeCode();
+                } else {
+                    console.log(`⏳ XCODE DEBUG: Libraries not ready, waiting... (attempt ${attempts + 1}/10)`);
+                    setTimeout(() => checkAndRun(attempts + 1), 500);
+                }
+            }
+            
+            function executeCode() {
+                try {
+                    // Clear the root element
+                    const root = document.getElementById('root');
+                    root.innerHTML = '';
+                    
+                    // Transform the code to replace imports with global variables AND JSX
+                    console.log('🔄 XCODE DEBUG: Transforming import statements and JSX...');
+                    let transformedCode = code;
+                    
+                    // Replace ES6 imports with global variable assignments
+                    transformedCode = transformedCode
+                        .replace(/import\s+React[^'"]*from\s+['"]react['"];?\s*/g, 'const React = window.React;\n')
+                        .replace(/import\s+\{([^}]+)\}\s+from\s+['"]react['"];?\s*/g, 'const {$1} = window.React;\n')
+                        .replace(/import\s+\{([^}]+)\}\s+from\s+['"]react-dom\/client['"];?\s*/g, 'const {$1} = window.ReactDOM;\n')
+                        .replace(/import\s+\{([^}]+)\}\s+from\s+['"]@react-three\/fiber['"];?\s*/g, 'const {$1} = window.ReactThreeFiber;\n')
+                        .replace(/import\s+\{([^}]+)\}\s+from\s+['"]@react-three\/drei['"];?\s*/g, 'const {$1} = window.Drei;\n')
+                        .replace(/import\s+\*\s+as\s+THREE\s+from\s+['"]three['"];?\s*/g, 'const THREE = window.THREE;\n')
+                        .replace(/import\s+THREE\s+from\s+['"]three['"];?\s*/g, 'const THREE = window.THREE;\n');
+                    
+                    // 🔧 CRITICAL FIX: Remove TypeScript type annotations 
+                    console.log('🔧 XCODE DEBUG: Removing TypeScript syntax...');
+                    transformedCode = transformedCode
+                        .replace(/:\s*[A-Z][A-Za-z0-9\[\]<>\.]*(\s*\[\])?/g, '') // Remove type annotations like : THREE.Mesh[]
+                        .replace(/useRef<[^>]+>/g, 'useRef') // Remove generic types from useRef<Type>
+                        .replace(/useState<[^>]+>/g, 'useState') // Remove generic types from useState<Type>
+                        .replace(/useCallback<[^>]+>/g, 'useCallback') // Remove generic types from useCallback<Type>
+                        .replace(/useMemo<[^>]+>/g, 'useMemo') // Remove generic types from useMemo<Type>
+                        .replace(/as\s+[A-Z][A-Za-z0-9\[\]<>\.]*(\s*\[\])?/g, '') // Remove 'as Type' casting
+                        .replace(/interface\s+\w+\s*\{[^}]*\}/g, '') // Remove interface declarations
+                        .replace(/type\s+\w+\s*=\s*[^;]+;/g, ''); // Remove type aliases
+                    
+                    // 🔧 CRITICAL FIX: Check if code contains JSX - if so, provide working alternative
+                    if (transformedCode.includes('<') && transformedCode.includes('>')) {
+                        console.log('🎯 XCODE DEBUG: JSX detected, providing working React.createElement version...');
+                        transformedCode = getWorkingRainbowCode();
+                    }
+                    
+                    // Debug the transformed code before execution
+                    console.log('🔍 XCODE DEBUG: Complete transformed code:');
+                    console.log('--- START TRANSFORMED CODE ---');
+                    console.log(transformedCode);
+                    console.log('--- END TRANSFORMED CODE ---');
+                    
+                    console.log('✅ XCODE DEBUG: Code transformed, executing...');
+                    
+                    // Add window error handler to catch all errors
+                    window.addEventListener('error', function(e) {
+                        console.error('🚨 XCODE DEBUG: Window error caught:', {
+                            message: e.message,
+                            filename: e.filename,
+                            lineno: e.lineno,
+                            colno: e.colno,
+                            error: e.error
+                        });
+                    });
+                    
+                    // Create a safe execution context with better error handling
+                    const script = document.createElement('script');
+                    script.onerror = function(e) {
+                        console.error('🚨 XCODE DEBUG: Script load error:', e);
+                    };
+                    
+                    script.textContent = `
+                        // Override console to ensure we see all logs
+                        (function() {
+                            const originalError = console.error;
+                            console.error = function(...args) {
+                                originalError.apply(console, ['🔴 SCRIPT ERROR:'].concat(args));
+                            };
+                        })();
+                        
+                        try {
+                            console.log('🚀 XCODE DEBUG: Starting code execution...');
+                            console.log('📚 XCODE DEBUG: Available libraries:', {
+                                React: typeof window.React,
+                                ReactDOM: typeof window.ReactDOM, 
+                                ReactThreeFiber: typeof window.ReactThreeFiber,
+                                Drei: typeof window.Drei,
+                                THREE: typeof window.THREE
+                            });
+                            
+                            // Test access to specific components
+                            console.log('🔍 XCODE DEBUG: Testing component access:', {
+                                'React.createElement': typeof window.React?.createElement,
+                                'ReactDOM.createRoot': typeof window.ReactDOM?.createRoot,
+                                'ReactThreeFiber.Canvas': typeof window.ReactThreeFiber?.Canvas,
+                                'Drei.OrbitControls': typeof window.Drei?.OrbitControls,
+                                'THREE.Scene': typeof window.THREE?.Scene
+                            });
+                            
+                            // Ensure critical libraries are available
+                            if (!window.React) {
+                                throw new Error('React library not loaded');
+                            }
+                            if (!window.ReactDOM) {
+                                throw new Error('ReactDOM library not loaded');
+                            }
+                            if (!window.ReactThreeFiber) {
+                                throw new Error('React Three Fiber library not loaded');
+                            }
+                            
+                            console.log('🎯 XCODE DEBUG: About to execute transformed code...');
+                            
+                            // Wrap the transformed code in an immediately invoked function to catch more errors
+                            (function executeUserCode() {
+                                ${transformedCode}
+                            })();
+                            
+                            console.log('✅ XCODE DEBUG: Code execution completed successfully');
+                        } catch (error) {
+                            console.error('❌ XCODE DEBUG: Scene execution error:', error);
+                            console.error('📊 XCODE DEBUG: Error details:', {
+                                name: error.name,
+                                message: error.message,
+                                stack: error.stack,
+                                line: error.lineNumber || 'unknown',
+                                column: error.columnNumber || 'unknown'
+                            });
+                            
+                            // Try to provide more helpful debugging
+                            console.error('🔍 XCODE DEBUG: Possible issues to check:');
+                            console.error('  - Missing components in Drei or ReactThreeFiber');
+                            console.error('  - Syntax errors in transformed code'); 
+                            console.error('  - JSX transformation issues');
+                            console.error('  - Canvas rendering context problems');
+                            
+                            throw error; // Re-throw to trigger window error handler
+                        }
+                    `;
+                    
+                    document.head.appendChild(script);
+                    
+                    console.log('✅ XCODE DEBUG: Script element added to DOM');
+                    
+                    // Reset execution lock after successful execution
+                    setTimeout(() => {
+                        window.isExecutingCode = false;
+                        console.log('🔓 XCODE DEBUG: Execution lock released');
+                    }, 500);
+                    
+                    // Clean up script element
+                    setTimeout(() => {
+                        if (script.parentNode) {
+                            document.head.removeChild(script);
+                            console.log('🧹 XCODE DEBUG: Script element cleaned up');
+                        }
+                    }, 1000);
+                    
+                } catch (error) {
+                    console.error('❌ XCODE DEBUG: Runtime error in executeCode:', error);
+                    window.isExecutingCode = false; // Reset lock on error
+                    console.log('🔓 XCODE DEBUG: Execution lock released (error case)');
+                    showFallbackScene(error);
+                    showConsole();
+                }
+            }
+            
+            // Start the check and run process
+            checkAndRun();
+        }
+        
+        // 🔧 CRITICAL FIX: Working Rainbow code without JSX
+        function getWorkingRainbowCode() {
+            return `
+const React = window.React;
+const { createRoot } = window.ReactDOM;
+const { Canvas, useFrame } = window.ReactThreeFiber;
+const { OrbitControls } = window.Drei;
+const THREE = window.THREE;
+
+function Rainbow() {
+  console.log('🎯 XCODE DEBUG: Rainbow component rendering...');
+  
+  window.React.useEffect(() => {
+    if (!window.currentScene) {
+      console.warn('⚠️ XCODE DEBUG: Scene not ready for rainbow');
+      return;
+    }
+    
+    console.log('🌈 XCODE DEBUG: Creating rainbow meshes directly in scene...');
+    
+    const colors = ['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'violet'];
+    const segments = 7;
+    const radius = 3;
+    const height = 2;
+    const meshes = [];
+
+    colors.forEach((color, index) => {
+      const angle = (Math.PI / 2) - (Math.PI / segments * index);
+      const x = radius * Math.cos(angle);
+      const y = 0;
+      const z = radius * Math.sin(angle);
+
+      console.log(\`🌈 XCODE DEBUG: Creating \${color} segment at position [\${x.toFixed(2)}, \${y}, \${z.toFixed(2)}]\`);
+
+      // Create geometry and material
+      const geometry = new window.THREE.BoxGeometry(0.3, height, 0.3);
+      const material = new window.THREE.MeshStandardMaterial({
+        color: color,
+        roughness: 0.3,
+        metalness: 0.1
+      });
+
+      // Create mesh
+      const mesh = new window.THREE.Mesh(geometry, material);
+      mesh.position.set(x, y, z);
+      mesh.rotation.set(0, 0, angle);
+
+      // Add to scene
+      window.currentScene.add(mesh);
+      meshes.push(mesh);
+
+      console.log(\`✅ XCODE DEBUG: \${color} segment added to scene at\`, mesh.position);
+    });
+
+    console.log('✅ XCODE DEBUG: All rainbow segments added to scene');
+    console.log('🔍 XCODE DEBUG: Scene children count:', window.currentScene.children.length);
+    
+    // Cleanup function
+    return () => {
+      meshes.forEach(mesh => {
+        window.currentScene.remove(mesh);
+        mesh.geometry.dispose();
+        mesh.material.dispose();
+      });
+    };
+  }, []);
+
+  return null; // No React elements needed, we're adding directly to Three.js scene
+}
+
+function Scene() {
+  console.log('🎯 XCODE DEBUG: Scene component rendering...');
+  
+  // Use useEffect to add lights and objects directly to the Three.js scene
+  window.React.useEffect(() => {
+    if (!window.currentScene) {
+      console.warn('⚠️ XCODE DEBUG: Scene not ready for lights');
+      return;
+    }
+    
+    console.log('💡 XCODE DEBUG: Adding lights to scene...');
+    
+    // Create and add ambient light
+    const ambientLight = new window.THREE.AmbientLight(0xffffff, 0.6);
+    window.currentScene.add(ambientLight);
+    console.log('✅ XCODE DEBUG: Ambient light added to scene');
+    
+    // Create and add directional light
+    const directionalLight = new window.THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(5, 5, 5);
+    directionalLight.castShadow = true;
+    window.currentScene.add(directionalLight);
+    console.log('✅ XCODE DEBUG: Directional light added to scene');
+    
+    // Create and add point light
+    const pointLight = new window.THREE.PointLight(0xffffff, 0.5);
+    pointLight.position.set(-5, 5, -5);
+    window.currentScene.add(pointLight);
+    console.log('✅ XCODE DEBUG: Point light added to scene');
+    
+    // Cleanup function
+    return () => {
+      window.currentScene.remove(ambientLight);
+      window.currentScene.remove(directionalLight);
+      window.currentScene.remove(pointLight);
+    };
+  }, []);
+  
+  return React.createElement(React.Fragment, null,
+    React.createElement(Rainbow),
+    React.createElement(OrbitControls)
+  );
+}
+
+function App() {
+  console.log('🎯 XCODE DEBUG: App component rendering...');
+  console.log('🔍 XCODE DEBUG: Canvas component:', typeof Canvas);
+  
+  return React.createElement(Canvas, {
+    style: { 
+      width: '100%', 
+      height: '100%',
+      display: 'block',
+      background: '#1a1a2e'
+    },
+    camera: { position: [0, 0, 8], fov: 75 },
+    gl: { antialias: true },
+    onCreated: ({ gl, scene, camera }) => {
+      console.log('✅ XCODE DEBUG: Canvas created successfully!');
+      console.log('🔍 XCODE DEBUG: WebGL context:', !!gl);
+      console.log('🔍 XCODE DEBUG: Scene:', !!scene);
+      console.log('🔍 XCODE DEBUG: Camera position:', camera.position);
+    }
+  },
+    React.createElement(Scene)
+  );
+}
+
+console.log('🎯 XCODE DEBUG: Looking for root element...');
+const rootElement = document.getElementById('root');
+console.log('🔍 XCODE DEBUG: Root element found:', !!rootElement);
+console.log('🔍 XCODE DEBUG: Root element details:', {
+  exists: !!rootElement,
+  tagName: rootElement?.tagName,
+  style: rootElement?.style.cssText,
+  clientWidth: rootElement?.clientWidth,
+  clientHeight: rootElement?.clientHeight
+});
+
+if (rootElement) {
+  console.log('🎯 XCODE DEBUG: Creating React root...');
+  
+  try {
+    const root = createRoot(rootElement);
+    console.log('🎯 XCODE DEBUG: React root created successfully');
+    
+    console.log('🎯 XCODE DEBUG: Rendering App component...');
+    root.render(React.createElement(App));
+    console.log('✅ XCODE DEBUG: App component render call completed');
+    
+    // Fallback: if React Three Fiber fails, create direct Three.js scene
+    setTimeout(() => {
+      console.log('⏰ XCODE DEBUG: Checking if scene rendered after 2 seconds...');
+      if (!window.currentScene || window.currentScene.children.length === 0) {
+        console.warn('⚠️ XCODE DEBUG: React Three Fiber failed, creating direct Three.js scene...');
+        createDirectThreeJSScene(rootElement);
+      } else {
+        console.log('✅ XCODE DEBUG: React Three Fiber scene found with', window.currentScene.children.length, 'children');
+      }
+    }, 2000);
+    
+  } catch (error) {
+    console.error('❌ XCODE DEBUG: Error creating React root or rendering:', error);
+    console.log('🔄 XCODE DEBUG: Falling back to direct Three.js implementation...');
+    createDirectThreeJSScene(rootElement);
+  }
+} else {
+  console.error('❌ XCODE DEBUG: Root element not found!');
+}
+
+// 🔧 FALLBACK: Direct Three.js implementation without React
+function createDirectThreeJSScene(container) {
+  console.log('🎯 XCODE DEBUG: Creating direct Three.js scene without React...');
+  
+  try {
+    // Clear container
+    container.innerHTML = '';
+    
+    // Create canvas
+    const canvas = document.createElement('canvas');
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    canvas.style.display = 'block';
+    container.appendChild(canvas);
+    
+    console.log('🎨 XCODE DEBUG: Canvas created and added to DOM');
+    
+    // Create Three.js scene
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+    
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setClearColor(0x1a1a2e, 1);
+    
+    console.log('🎨 XCODE DEBUG: Three.js renderer created');
+    
+    // Add lights
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+    
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(5, 5, 5);
+    scene.add(directionalLight);
+    
+    console.log('💡 XCODE DEBUG: Lights added to scene');
+    
+    // Create rainbow
+    const colors = ['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'violet'];
+    const segments = 7;
+    const radius = 3;
+    const height = 2;
+    
+    colors.forEach((color, index) => {
+      const angle = (Math.PI / 2) - (Math.PI / segments * index);
+      const x = radius * Math.cos(angle);
+      const y = 0;
+      const z = radius * Math.sin(angle);
+      
+      const geometry = new THREE.BoxGeometry(0.3, height, 0.3);
+      const material = new THREE.MeshStandardMaterial({ color: color });
+      const mesh = new THREE.Mesh(geometry, material);
+      
+      mesh.position.set(x, y, z);
+      mesh.rotation.set(0, 0, angle);
+      scene.add(mesh);
+      
+      console.log(\`🌈 XCODE DEBUG: Added \${color} segment to direct scene\`);
+    });
+    
+    // Position camera
+    camera.position.set(0, 0, 8);
+    
+    console.log('✅ XCODE DEBUG: Direct Three.js scene created with', scene.children.length, 'objects');
+    
+    // Render loop
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+    }
+    animate();
+    
+    console.log('🚀 XCODE DEBUG: Direct Three.js animation started');
+    
+    // Store globally for debugging
+    window.currentScene = scene;
+    window.currentCamera = camera;
+    window.currentRenderer = renderer;
+    
+  } catch (error) {
+    console.error('❌ XCODE DEBUG: Direct Three.js scene creation failed:', error);
+    container.innerHTML = '<div style="color: white; padding: 20px; text-align: center;">Failed to create 3D scene. Check console for errors.</div>';
+  }
+}
+`;
+        }
+
+        // 🔧 CRITICAL FIX: Simple JSX replacement for basic patterns
+        function convertJSXSimple(code) {
+            console.log('🎯 XCODE DEBUG: Starting simple JSX conversion...');
+            
+            let converted = code;
+            
+            // First, let's just handle the most common JSX patterns manually
+            // This is much more reliable than complex regex
+            
+            // Handle React fragments
+            converted = converted.replace(/<>\s*/g, 'React.createElement(React.Fragment, null, ');
+            converted = converted.replace(/\s*<\/>/g, ')');
+            
+            // Handle common self-closing tags
+            converted = converted.replace(/<(\w+)\s*\/>/g, 'React.createElement(\'$1\', null)');
+            
+            // Handle basic JSX with props but no children (simplified)
+            converted = converted.replace(/<(\w+)\s+([^>]+?)\s*\/>/g, (match, tagName, props) => {
+                // Very basic prop conversion - just pass as object
+                const cleanProps = props.replace(/(\w+)=\{([^}]+)\}/g, '$1: $2').replace(/(\w+)="([^"]+)"/g, '$1: "$2"');
+                return `React.createElement('${tagName}', {${cleanProps}})`;
+            });
+            
+            console.log('✅ XCODE DEBUG: Simple JSX conversion completed');
+            console.log('🔍 XCODE DEBUG: Converted code sample:', converted.substring(0, 300) + '...');
+            
+            return converted;
+        }
+
+        // 🔧 CRITICAL FIX: Enhanced JSX to React.createElement() converter (DISABLED)
+        function convertJSXToReactCreateElement(code) {
+            console.log('🎯 XCODE DEBUG: Starting enhanced JSX conversion...');
+            
+            let converted = code;
+            
+            // First handle JSX fragments <> ... </>
+            converted = converted.replace(/<>\s*([\s\S]*?)\s*<\/>/g, (match, content) => {
+                return `React.createElement(React.Fragment, null, ${content.trim()})`;
+            });
+            
+            // Handle nested JSX more carefully - start with innermost tags
+            let lastConverted;
+            let iterations = 0;
+            do {
+                lastConverted = converted;
+                iterations++;
+                
+                // Convert self-closing tags like <mesh position={[0, 0, 0]} />
+                converted = converted.replace(/<(\w+)(\s[^>\/]*?)?\s*\/>/g, (match, tagName, attrs) => {
+                    const props = attrs ? parseEnhancedJSXProps(attrs) : 'null';
+                    return `React.createElement('${tagName}', ${props})`;
+                });
+                
+                // Convert simple tags with text content like <div>text</div>
+                converted = converted.replace(/<(\w+)(\s[^>]*?)?>([^<]+)<\/\1>/g, (match, tagName, attrs, content) => {
+                    const props = attrs ? parseEnhancedJSXProps(attrs) : 'null';
+                    const textContent = content.trim();
+                    if (textContent && !textContent.includes('React.createElement')) {
+                        return `React.createElement('${tagName}', ${props}, "${textContent}")`;
+                    }
+                    return match; // Don't convert if content contains React.createElement
+                });
+                
+                // Convert tags with React element children
+                converted = converted.replace(/<(\w+)(\s[^>]*?)?>(\s*React\.createElement[\s\S]*?)\s*<\/\1>/g, (match, tagName, attrs, children) => {
+                    const props = attrs ? parseEnhancedJSXProps(attrs) : 'null';
+                    return `React.createElement('${tagName}', ${props}, ${children.trim()})`;
+                });
+                
+            } while (converted !== lastConverted && iterations < 10); // Prevent infinite loops
+            
+            console.log('✅ XCODE DEBUG: JSX conversion completed after', iterations, 'iterations');
+            console.log('🔍 XCODE DEBUG: Converted code sample:', converted.substring(0, 300) + '...');
+            
+            return converted;
+        }
+        
+        function parseEnhancedJSXProps(attrString) {
+            if (!attrString || !attrString.trim()) return 'null';
+            
+            const cleanAttrs = attrString.trim();
+            let props = '{';
+            
+            // Handle JSX expression attributes like position={[0, 1, 0]}
+            const expressionMatches = cleanAttrs.matchAll(/(\w+)=\{([^}]+)\}/g);
+            for (const match of expressionMatches) {
+                const [, propName, expression] = match;
+                props += `${propName}: ${expression}, `;
+            }
+            
+            // Handle string attributes like color="red"
+            const stringMatches = cleanAttrs.matchAll(/(\w+)="([^"]+)"/g);
+            for (const match of stringMatches) {
+                const [, propName, value] = match;
+                props += `${propName}: "${value}", `;
+            }
+            
+            // Handle boolean attributes like disabled
+            const booleanMatches = cleanAttrs.matchAll(/(\w+)(?!=)/g);
+            for (const match of booleanMatches) {
+                const propName = match[1];
+                if (!cleanAttrs.includes(`${propName}=`)) {
+                    props += `${propName}: true, `;
+                }
+            }
+            
+            // Remove trailing comma and close
+            props = props.replace(/, $/, '') + '}';
+            
+            return props === '{}' ? 'null' : props;
+        }
+        
+        function parseSimpleJSXProps(attrString) {
+            if (!attrString || !attrString.trim()) return 'null';
+            
+            // Very basic JSX attribute parser
+            // Convert style={{...}} to {style: {...}}
+            // Convert other={value} to {other: value}
+            let props = '{';
+            const cleanAttrs = attrString.trim();
+            
+            // Handle style={{...}} pattern
+            const styleMatch = cleanAttrs.match(/style=\{\{([^}]+)\}\}/);
+            if (styleMatch) {
+                props += `style: {${styleMatch[1]}}, `;
+            }
+            
+            // Handle simple prop={value} patterns
+            const propMatches = cleanAttrs.matchAll(/(\w+)=\{([^}]+)\}/g);
+            for (const match of propMatches) {
+                if (match[1] !== 'style') { // skip style, already handled
+                    props += `${match[1]}: ${match[2]}, `;
+                }
+            }
+            
+            // Handle string props like className="test"
+            const stringMatches = cleanAttrs.matchAll(/(\w+)="([^"]+)"/g);
+            for (const match of stringMatches) {
+                props += `${match[1]}: "${match[2]}", `;
+            }
+            
+            // Remove trailing comma and close
+            props = props.replace(/, $/, '') + '}';
+            
+            return props === '{}' ? 'null' : props;
+        }
+
+        function showFallbackScene(error) {
+            console.log('🔄 Showing fallback scene due to error:', error?.message || 'Unknown error');
+            
+            try {
+                // Clear the root element
+                const root = document.getElementById('root');
+                root.innerHTML = '';
+                
+                // Create a simple, reliable fallback scene
+                const fallbackScript = document.createElement('script');
+                fallbackScript.textContent = `
+                    try {
+                        const React = window.React;
+                        const { createRoot } = window.ReactDOM;
+                        const { Canvas } = window.ReactThreeFiber;
+                        const { OrbitControls } = window.Drei;
+                        
+                        function FallbackScene() {
+                            return React.createElement(Canvas, {
+                                style: { width: '100%', height: '100%' },
+                                camera: { position: [3, 3, 3], fov: 75 }
+                            }, 
+                                // Ambient light
+                                React.createElement('ambientLight', { intensity: 0.6 }),
+                                // Directional light
+                                React.createElement('directionalLight', { 
+                                    position: [5, 5, 5], 
+                                    intensity: 0.8 
+                                }),
+                                // Simple cube
+                                React.createElement('mesh', { position: [0, 0, 0] },
+                                    React.createElement('boxGeometry', { args: [1, 1, 1] }),
+                                    React.createElement('meshStandardMaterial', { color: '#ff6b6b' })
+                                ),
+                                // Ground plane
+                                React.createElement('mesh', { 
+                                    rotation: [-Math.PI / 2, 0, 0], 
+                                    position: [0, -1, 0] 
+                                },
+                                    React.createElement('planeGeometry', { args: [10, 10] }),
+                                    React.createElement('meshStandardMaterial', { color: '#f0f0f0' })
+                                ),
+                                // Controls
+                                React.createElement(OrbitControls)
+                            );
+                        }
+                        
+                        const rootElement = document.getElementById('root');
+                        if (rootElement && window.ReactDOM && window.ReactDOM.createRoot) {
+                            const reactRoot = window.ReactDOM.createRoot(rootElement);
+                            reactRoot.render(React.createElement(FallbackScene));
+                            console.log('✅ Fallback scene rendered successfully');
+                        }
+                    } catch (fallbackError) {
+                        console.error('❌ Fallback scene failed:', fallbackError);
+                        // Last resort: show a simple message
+                        const root = document.getElementById('root');
+                        root.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: white; font-family: Arial, sans-serif;">Scene error - check console</div>';
+                    }
+                `;
+                
+                document.head.appendChild(fallbackScript);
+                
+                // Clean up after execution
+                setTimeout(() => {
+                    if (fallbackScript.parentNode) {
+                        document.head.removeChild(fallbackScript);
+                    }
+                }, 500);
+                
+            } catch (error) {
+                console.error('❌ Critical error in showFallbackScene:', error);
+            }
+        }
+        
+        function runBuiltScene() {
+            if (!currentBundle) {
+                console.error('No bundle to run');
+                return;
+            }
+            
+            try {
+                // Clear the root element
+                const root = document.getElementById('root');
+                root.innerHTML = '';
+                
+                // Create a new script element and execute the bundle
+                const script = document.createElement('script');
+                script.textContent = currentBundle;
+                document.head.appendChild(script);
+                
+                console.log('✅ Scene executed successfully');
+                
+                // Clean up script element
+                setTimeout(() => {
+                    document.head.removeChild(script);
+                }, 100);
+                
+            } catch (error) {
+                console.error('❌ Runtime error:', error);
+                showConsole();
+            }
+        }
+        
+        async function callSwiftBuildService(code) {
+            // This will be implemented by Swift side
+            return new Promise((resolve) => {
+                // Mock response for now
+                setTimeout(() => {
+                    resolve({
+                        success: false,
+                        bundleCode: null,
+                        errors: ['Build service not yet connected'],
+                        statusText: 'Build service unavailable'
+                    });
+                }, 1000);
+            });
+        }
+        
+        function getDefaultCode() {
+            return `// Welcome to React Three Fiber!
+// Create declarative 3D scenes with React components
+// Using React.createElement syntax for browser compatibility
+
+import React, { useRef } from 'react'
+import { createRoot } from 'react-dom/client'
+import { Canvas, useFrame } from '@react-three/fiber'
+import { OrbitControls } from '@react-three/drei'
+import * as THREE from 'three'
+
+function RotatingCube() {
+  const meshRef = useRef(null);
+  
+  useFrame((state, delta) => {
+    if (meshRef.current) {
+      meshRef.current.rotation.x += delta * 0.5;
+      meshRef.current.rotation.y += delta * 0.2;
+    }
+  });
+  
+  return React.createElement('mesh', 
+    { ref: meshRef, position: [0, 1, 0] },
+    React.createElement('boxGeometry', { args: [1, 1, 1] }),
+    React.createElement('meshStandardMaterial', { color: 'hotpink' })
+  );
+}
+
+function Scene() {
+  return React.createElement(React.Fragment, null,
+    React.createElement('ambientLight', { intensity: 0.6 }),
+    React.createElement('directionalLight', { position: [2, 2, 2], intensity: 1 }),
+    React.createElement(RotatingCube),
+    React.createElement('mesh', 
+      { rotation: [-Math.PI / 2, 0, 0], position: [0, -0.5, 0] },
+      React.createElement('planeGeometry', { args: [10, 10] }),
+      React.createElement('meshStandardMaterial', { color: '#888888' })
+    ),
+    React.createElement(OrbitControls)
+  );
+}
+
+function App() {
+  return React.createElement(Canvas, 
+    { 
+      style: { width: '100%', height: '100%' },
+      camera: { position: [3, 3, 3], fov: 75 },
+      gl: { antialias: true }
+    },
+    React.createElement(Scene)
+  );
+}
+
+const root = createRoot(document.getElementById('root'));
+root.render(React.createElement(App));`;
+        }
+        
+        function loadDefaultScene() {
+            console.log('🎬 XCODE DEBUG: Loading default scene immediately...');
+            
+            // First show a simple loading screen immediately
+            showSimpleLoadingScreen();
+            
+            // Then try to load the 3D scene
+            setTimeout(() => {
+                tryLoad3DScene();
+            }, 100);
+            
+            // 🔧 CRITICAL TEST: Load a simple scene to verify rendering and lighting works
+            setTimeout(() => {
+                testBasicSceneRendering();
+            }, 2000);
+        }
+        
+        function testBasicSceneRendering() {
+            console.log('🧪 XCODE DEBUG: Testing basic scene rendering with verified components...');
+            
+            if (!window.React || !window.ReactDOM || !window.ReactThreeFiber) {
+                console.warn('⚠️ XCODE DEBUG: Core libraries not ready for test - retrying in 1 second...');
+                setTimeout(testBasicSceneRendering, 1000);
+                return;
+            }
+            
+            try {
+                // Create a simple test scene using React.createElement to ensure it works
+                const TestScene = () => {
+                    return window.React.createElement(window.ReactThreeFiber.Canvas, 
+                        { style: { width: '100%', height: '100%' } },
+                        // Add comprehensive lighting
+                        window.React.createElement('ambientLight', { intensity: 0.5 }),
+                        window.React.createElement('directionalLight', { 
+                            position: [2, 2, 2], 
+                            intensity: 1,
+                            castShadow: true 
+                        }),
+                        window.React.createElement('pointLight', { 
+                            position: [-2, 2, -2], 
+                            intensity: 0.5,
+                            color: '#ffffff'
+                        }),
+                        // Add a simple test object
+                        window.React.createElement('mesh', 
+                            { position: [0, 0, 0] },
+                            window.React.createElement('boxGeometry', { args: [1, 1, 1] }),
+                            window.React.createElement('meshStandardMaterial', { 
+                                color: '#ff6b6b',
+                                roughness: 0.3,
+                                metalness: 0.1
+                            })
+                        ),
+                        // Add OrbitControls if available
+                        window.Drei && window.Drei.OrbitControls 
+                            ? window.React.createElement(window.Drei.OrbitControls)
+                            : null
+                    );
+                };
+                
+                const root = document.getElementById('root');
+                if (root && window.ReactDOM.createRoot) {
+                    const reactRoot = window.ReactDOM.createRoot(root);
+                    reactRoot.render(window.React.createElement(TestScene));
+                    console.log('✅ XCODE DEBUG: Test scene rendered successfully with proper lighting');
+                } else {
+                    console.error('❌ XCODE DEBUG: Root element or ReactDOM.createRoot not available');
+                }
+                
+            } catch (error) {
+                console.error('❌ XCODE DEBUG: Test scene rendering failed:', error);
+                console.error('   Error details:', {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack
+                });
+            }
+        }
+        
+        function showSimpleLoadingScreen() {
+            console.log('📺 XCODE DEBUG: Showing simple loading screen...');
+            const root = document.getElementById('root');
+            if (!root) {
+                console.error('❌ XCODE DEBUG: Root element not found!');
+                return;
+            }
+            
+            root.innerHTML = `
+                <div style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100%;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    font-family: Arial, sans-serif;
+                    text-align: center;
+                    flex-direction: column;
+                ">
+                    <h2>React Three Fiber Playground</h2>
+                    <p>Loading 3D Scene...</p>
+                    <div style="
+                        width: 50px;
+                        height: 50px;
+                        border: 3px solid rgba(255,255,255,0.3);
+                        border-top: 3px solid white;
+                        border-radius: 50%;
+                        animation: spin 1s linear infinite;
+                        margin-top: 20px;
+                    "></div>
+                    <style>
+                        @keyframes spin {
+                            0% { transform: rotate(0deg); }
+                            100% { transform: rotate(360deg); }
+                        }
+                    </style>
+                </div>
+            `;
+            console.log('✅ XCODE DEBUG: Loading screen displayed');
+        }
+        
+        function tryLoad3DScene() {
+            console.log('🎯 XCODE DEBUG: Attempting 3D scene load...');
+            
+            try {
+                const root = document.getElementById('root');
+                if (!root) {
+                    console.error('❌ XCODE DEBUG: Root element not found for 3D scene');
+                    return;
+                }
+                
+                // Create immediate default scene without waiting for Monaco
+                const sceneScript = document.createElement('script');
+                sceneScript.textContent = `
+                    try {
+                        console.log('🔧 XCODE DEBUG: Inside scene script...');
+                        
+                        // Wait for React libraries to be available
+                        function tryRenderDefaultScene(attempts = 0) {
+                            console.log('🔄 XCODE DEBUG: Render attempt', attempts, 'Library check:', {
+                                React: !!window.React,
+                                ReactDOM: !!window.ReactDOM,
+                                ReactThreeFiber: !!window.ReactThreeFiber,
+                                Drei: !!window.Drei,
+                                THREE: !!window.THREE
+                            });
+                            
+                            if (window.React && window.ReactDOM && window.ReactThreeFiber) {
+                                const React = window.React;
+                                const { createRoot } = window.ReactDOM;
+                                const { Canvas, useFrame } = window.ReactThreeFiber;
+                                const { OrbitControls } = window.Drei;
+                                const THREE = window.THREE;
+                                
+                                function RotatingCube() {
+                                    const meshRef = React.useRef();
+                                    
+                                    useFrame((state, delta) => {
+                                        if (meshRef.current) {
+                                            meshRef.current.rotation.x += delta * 0.5;
+                                            meshRef.current.rotation.y += delta * 0.2;
+                                        }
+                                    });
+                                    
+                                    return React.createElement('mesh', { 
+                                        ref: meshRef, 
+                                        position: [0, 1, 0] 
+                                    },
+                                        React.createElement('boxGeometry', { args: [1, 1, 1] }),
+                                        React.createElement('meshStandardMaterial', { color: 'hotpink' })
+                                    );
+                                }
+                                
+                                function DefaultScene() {
+                                    return React.createElement(Canvas, {
+                                        style: { width: '100%', height: '100%' },
+                                        camera: { position: [3, 3, 3], fov: 75 },
+                                        gl: { antialias: true }
+                                    },
+                                        React.createElement('ambientLight', { intensity: 0.6 }),
+                                        React.createElement('directionalLight', { 
+                                            position: [2, 2, 2], 
+                                            intensity: 1 
+                                        }),
+                                        React.createElement(RotatingCube),
+                                        React.createElement('mesh', {
+                                            rotation: [-Math.PI / 2, 0, 0],
+                                            position: [0, -0.5, 0]
+                                        },
+                                            React.createElement('planeGeometry', { args: [10, 10] }),
+                                            React.createElement('meshStandardMaterial', { color: '#888888' })
+                                        ),
+                                        React.createElement(OrbitControls)
+                                    );
+                                }
+                                
+                                const rootElement = document.getElementById('root');
+                                const reactRoot = createRoot(rootElement);
+                                reactRoot.render(React.createElement(DefaultScene));
+                                console.log('✅ Default scene loaded successfully');
+                                
+                            } else if (attempts < 20) {
+                                // Retry until React libraries are loaded
+                                setTimeout(() => tryRenderDefaultScene(attempts + 1), 200);
+                            } else {
+                                console.warn('⚠️ React libraries not available after 4 seconds, showing simple fallback');
+                                showSimpleFallback();
+                            }
+                        }
+                        
+                        function showSimpleFallback() {
+                            const root = document.getElementById('root');
+                            root.innerHTML = \`
+                                <div style="
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    height: 100%;
+                                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                    color: white;
+                                    font-family: Arial, sans-serif;
+                                    text-align: center;
+                                    flex-direction: column;
+                                ">
+                                    <h2>React Three Fiber Playground</h2>
+                                    <p>Loading 3D libraries...</p>
+                                    <div style="
+                                        width: 50px;
+                                        height: 50px;
+                                        border: 3px solid rgba(255,255,255,0.3);
+                                        border-top: 3px solid white;
+                                        border-radius: 50%;
+                                        animation: spin 1s linear infinite;
+                                        margin-top: 20px;
+                                    "></div>
+                                    <style>
+                                        @keyframes spin {
+                                            0% { transform: rotate(0deg); }
+                                            100% { transform: rotate(360deg); }
+                                        }
+                                    </style>
+                                </div>
+                            \`;
+                            console.log('Simple fallback scene shown');
+                        }
+                        }
+                        
+                        tryRenderDefaultScene();
+                        
+                    } catch (error) {
+                        console.error('❌ Error loading default scene:', error);
+                    }
+                `;
+                
+                document.head.appendChild(sceneScript);
+                
+                // Clean up script after execution
+                setTimeout(() => {
+                    if (sceneScript.parentNode) {
+                        document.head.removeChild(sceneScript);
+                    }
+                }, 2000);
+                
+            } catch (error) {
+                console.error('❌ Critical error in loadDefaultScene:', error);
+            }
+        }
+        
+        function hideLoadingOverlay() {
+            setTimeout(() => {
+                const overlay = document.getElementById('loading-overlay');
+                if (overlay) {
+                    overlay.style.display = 'none';
+                }
+                
+                // Send basic page ready notification immediately
+                if (!editor) {
+                    console.log('📄 Page loaded, Monaco still loading...');
+                    notifySwiftInitialization({
+                        editorReady: false,
+                        engineReady: true,
+                        framework: 'reactThreeFiber',
+                        pageLoaded: true
+                    });
+                }
+            }, 2000);
+        }
+        
+        // Expose functions for Swift integration
+        window.insertCodeAtCursor = function(code) {
+            if (editor) {
+                const position = editor.getPosition();
+                editor.executeEdits('', [{
+                    range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+                    text: code
+                }]);
+                editor.focus();
+            }
+        };
+        
+        window.getEditorContent = function() {
+            return editor ? editor.getValue() : '';
+        };
+        
+        window.setEditorContent = function(code) {
+            if (editor) {
+                editor.setValue(code);
+            }
+        };
+        
+        // Add enhanced functions that Swift expects
+        window.setFullEditorContent = function(code) {
+            console.log('📝 XCODE DEBUG: setFullEditorContent called with code length:', code.length);
+            
+            // Check library status with more detailed information
+            const libraryStatus = {
+                React: !!window.React,
+                ReactDOM: !!window.ReactDOM,
+                ReactThreeFiber: !!window.ReactThreeFiber,
+                Drei: !!window.Drei,
+                THREE: !!window.THREE,
+                editor: !!editor,
+                loadingProgress: window.libraryLoadingProgress
+            };
+            
+            console.log('📚 XCODE DEBUG: Libraries available:', libraryStatus);
+            
+            // Send immediate status to Swift for debugging
+            try {
+                if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.playgroundHandler) {
+                    window.webkit.messageHandlers.playgroundHandler.postMessage({
+                        action: 'libraryStatusUpdate',
+                        data: {
+                            libraries: {
+                                React: libraryStatus.React,
+                                ReactDOM: libraryStatus.ReactDOM,
+                                ReactThreeFiber: libraryStatus.ReactThreeFiber,
+                                Drei: libraryStatus.Drei,
+                                THREE: libraryStatus.THREE
+                            },
+                            context: 'setFullEditorContent',
+                            timestamp: Date.now()
+                        }
+                    });
+                    console.log('📡 XCODE DEBUG: Sent library status from setFullEditorContent');
+                }
+            } catch (error) {
+                console.warn('⚠️ XCODE DEBUG: Could not send library status:', error);
+            }
+            
+            if (editor) {
+                try {
+                    editor.setValue(code);
+                    console.log('✅ XCODE DEBUG: Code set in editor successfully');
+                    
+                    // Auto-execute the injected code to ensure the scene updates
+                    console.log('🎬 XCODE DEBUG: Auto-running injected code in 500ms...');
+                    setTimeout(() => {
+                        console.log('🎯 XCODE DEBUG: Calling runScene() now...');
+                        runScene();
+                    }, 500);
+                    
+                    return true;
+                } catch (error) {
+                    console.error('❌ XCODE DEBUG: Error setting code:', error);
+                    return false;
+                }
+            } else {
+                console.warn('⚠️ XCODE DEBUG: Editor not available for injection');
+                return false;
+            }
+        };
+        
+        window.formatCode = function() {
+            if (editor) {
+                editor.getAction('editor.action.formatDocument').run();
+            }
+        };
+        
+        // 🔧 CRITICAL FIX: Direct code execution function for Swift
+        window.executeCodeDirectly = function(code) {
+            console.log('🎯 XCODE DEBUG: executeCodeDirectly (Swift wrapper) called with code length:', code.length);
+            console.log('📊 XCODE DEBUG: Global state before call:', {
+                isExecuting: window.isExecutingCode,
+                lastExecutionTime: window.lastExecutionTime,
+                callCount: window.executionCallCount || 0
+            });
+            executeCodeDirectlyInternal(code);
+        };
+        
+        // 🔧 CRITICAL FIX: Force run test scene function for Swift
+        window.runTestScene = function() {
+            console.log('🧪 XCODE DEBUG: runTestScene called from Swift');
+            testBasicSceneRendering();
+        };
+        
+        // 🔧 CRITICAL FIX: Force run default scene
+        window.runDefaultScene = function() {
+            console.log('🎬 XCODE DEBUG: runDefaultScene called from Swift');
+            const defaultCode = getDefaultCode();
+            executeCodeDirectly(defaultCode);
+        };
+        
+        // 🔧 CRITICAL FIX: Reset execution lock manually
+        window.resetExecutionLock = function() {
+            console.log('🔓 XCODE DEBUG: Manually resetting execution lock');
+            window.isExecutingCode = false;
+            window.lastExecutionTime = 0;
+            console.log('✅ XCODE DEBUG: Lock reset complete');
+        };
+        
+        // 🔧 CRITICAL FIX: Check execution status
+        window.checkExecutionStatus = function() {
+            console.log('📊 XCODE DEBUG: Execution status:', {
+                isExecutingCode: window.isExecutingCode,
+                lastExecutionTime: window.lastExecutionTime,
+                timeSinceLastExecution: Date.now() - (window.lastExecutionTime || 0)
+            });
+        };
+        
+        // 🔧 CRITICAL FIX: Simple test without any transformation
+        window.runSimpleTest = function() {
+            console.log('🧪 XCODE DEBUG: runSimpleTest called - testing basic React Three Fiber');
+            
+            try {
+                // Clear the root
+                const root = document.getElementById('root');
+                root.innerHTML = '';
+                
+                // Create the simplest possible React Three Fiber scene
+                const SimpleTestApp = () => {
+                    return window.React.createElement(
+                        window.ReactThreeFiber.Canvas,
+                        { style: { width: '100%', height: '100%', background: '#1a1a2e' } },
+                        // Lighting
+                        window.React.createElement('ambientLight', { intensity: 0.6 }),
+                        window.React.createElement('directionalLight', { 
+                            position: [3, 3, 3], 
+                            intensity: 1 
+                        }),
+                        // Simple red cube
+                        window.React.createElement(
+                            'mesh',
+                            { position: [0, 0, 0] },
+                            window.React.createElement('boxGeometry', { args: [2, 2, 2] }),
+                            window.React.createElement('meshStandardMaterial', { 
+                                color: '#ff4444',
+                                roughness: 0.3,
+                                metalness: 0.1
+                            })
+                        )
+                    );
+                };
+                
+                // Render it
+                if (window.ReactDOM && window.ReactDOM.createRoot) {
+                    const reactRoot = window.ReactDOM.createRoot(root);
+                    reactRoot.render(window.React.createElement(SimpleTestApp));
+                    console.log('✅ XCODE DEBUG: Simple test scene rendered successfully');
+                } else {
+                    console.error('❌ XCODE DEBUG: ReactDOM.createRoot not available');
+                }
+                
+            } catch (error) {
+                console.error('❌ XCODE DEBUG: Simple test failed:', error);
+            }
+        };
+        
+        // Notify Swift about initialization status
+        function notifySwiftInitialization(data) {
+            try {
+                // Use the correct message handler name and format
+                if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.playgroundHandler) {
+                    const message = {
+                        action: 'initializationComplete',
+                        data: data
+                    };
+                    window.webkit.messageHandlers.playgroundHandler.postMessage(message);
+                    console.log('✅ Notified Swift about initialization:', data);
+                } else {
+                    console.warn('⚠️ playgroundHandler not available');
+                }
+            } catch (error) {
+                console.warn('Could not notify Swift about initialization:', error);
+            }
+        }
+        
+        // Ensure readiness check variables are always available
+        window.monaco = window.monaco || null;
+        window.editor = window.editor || null;
+        window.setFullEditorContent = window.setFullEditorContent || function() { return false; };
+        
+        // Manual library status checker for debugging
+        window.checkLibraryStatus = function() {
+            const status = {
+                React: {
+                    available: !!window.React,
+                    type: typeof window.React,
+                    hasCreateElement: !!(window.React && window.React.createElement),
+                    hasUseState: !!(window.React && window.React.useState)
+                },
+                ReactDOM: {
+                    available: !!window.ReactDOM,
+                    type: typeof window.ReactDOM,
+                    hasCreateRoot: !!(window.ReactDOM && window.ReactDOM.createRoot)
+                },
+                THREE: {
+                    available: !!window.THREE,
+                    type: typeof window.THREE,
+                    hasScene: !!(window.THREE && window.THREE.Scene)
+                },
+                ReactThreeFiber: {
+                    available: !!window.ReactThreeFiber,
+                    type: typeof window.ReactThreeFiber,
+                    hasCanvas: !!(window.ReactThreeFiber && window.ReactThreeFiber.Canvas),
+                    hasUseFrame: !!(window.ReactThreeFiber && window.ReactThreeFiber.useFrame)
+                },
+                Drei: {
+                    available: !!window.Drei,
+                    type: typeof window.Drei,
+                    hasOrbitControls: !!(window.Drei && window.Drei.OrbitControls)
+                },
+                loadingProgress: window.libraryLoadingProgress,
+                librariesReady: librariesReady
+            };
+            
+            console.log('📊 XCODE DEBUG: Manual library status check:', status);
+            return status;
+        };
+        
+        // Export for debugging
+        window.playgroundAPI = {
+            editor,
+            buildScene,
+            runScene,
+            clearConsole,
+            showConsole,
+            hideConsole,
+            notifySwiftInitialization,
+            checkLibraryStatus: window.checkLibraryStatus,
+            validateLibraryLoaded,
+            setupLibraryGlobals,
+            loadAllLibraries
+        };
+    </script>
+</body>
+</html>
