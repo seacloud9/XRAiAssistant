@@ -23,30 +23,11 @@ public class NodeBuildService: NSObject, BuildService {
     }
     
     private func initializeNodeWorker() async {
-        do {
-            print("🚀 Initializing Node.js Mobile worker...")
-            nodeWorker = try NodeBuildWorker()
-            
-            // Test worker availability
-            let isAvailable = await nodeWorker?.ping() ?? false
-            isInitialized = isAvailable
-            
-            if isInitialized {
-                print("✅ Node.js build service initialized successfully")
-                
-                // Log worker capabilities
-                if let stats = await nodeWorker?.getStats() {
-                    print("📊 Worker stats: \(stats)")
-                }
-            } else {
-                print("❌ Node.js worker initialization failed")
-            }
-            
-        } catch {
-            print("❌ Node.js Mobile initialization error: \(error)")
-            isInitialized = false
-            nodeWorker = nil
-        }
+        // Node.js Mobile implementation is not yet complete
+        print("🚀 Node.js Mobile worker initialization...")
+        print("⚠️ Node.js Mobile worker not yet implemented - using WASM fallback")
+        isInitialized = false
+        nodeWorker = nil
     }
     
     public func isNodeAvailable() -> Bool {

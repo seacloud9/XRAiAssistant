@@ -1094,10 +1094,19 @@ class ChatViewModel: ObservableObject {
         }
         
         // Load model selection
-        if let savedModel = UserDefaults.standard.string(forKey: "XRAiAssistant_SelectedModel"), 
-           availableModels.contains(savedModel) {
-            selectedModel = savedModel
-            print("🤖 Loaded saved model: \(getModelDisplayName(savedModel))")
+        if let savedModel = UserDefaults.standard.string(forKey: "XRAiAssistant_SelectedModel") {
+            // Check if model exists in either legacy models or new provider system
+            let isLegacyModel = availableModels.contains(savedModel)
+            let isProviderModel = aiProviderManager.getModel(id: savedModel) != nil
+            
+            if isLegacyModel || isProviderModel {
+                selectedModel = savedModel
+                print("🤖 Loaded saved model: \(getModelDisplayName(savedModel))")
+            } else {
+                // Model no longer exists, reset to default
+                print("⚠️ Saved model '\(savedModel)' no longer available, using default")
+                selectedModel = availableModels.first ?? "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
+            }
         }
         
         // Load AI parameters

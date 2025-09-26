@@ -9,32 +9,53 @@ class AnthropicProvider: AIProvider {
     
     let models: [AIModel] = [
         AIModel(
-            id: "claude-3-5-sonnet-20241022",
-            displayName: "Claude 3.5 Sonnet",
-            description: "Most intelligent model for complex tasks",
+            id: "claude-sonnet-4-20250514",
+            displayName: "Claude Sonnet 4",
+            description: "Latest high-performance model with exceptional reasoning and efficiency",
             pricing: "$3.00/$15.00 per 1M tokens",
             provider: "Anthropic",
             isDefault: true
         ),
         AIModel(
+            id: "claude-opus-4-20250514",
+            displayName: "Claude Opus 4",
+            description: "Most advanced Claude model - world's best coding model (SWE-bench: 72.5%)",
+            pricing: "$15.00/$75.00 per 1M tokens",
+            provider: "Anthropic"
+        ),
+        AIModel(
+            id: "claude-3-5-sonnet-20241022",
+            displayName: "Claude 3.5 Sonnet (Legacy)",
+            description: "⚠️ DEPRECATED - Will be retired Oct 22, 2025. Upgrade to Claude Sonnet 4",
+            pricing: "$3.00/$15.00 per 1M tokens",
+            provider: "Anthropic"
+        ),
+        AIModel(
             id: "claude-3-5-haiku-20241022",
             displayName: "Claude 3.5 Haiku",
-            description: "Fast and affordable model",
+            description: "Fast and affordable model with excellent performance",
             pricing: "$0.25/$1.25 per 1M tokens",
             provider: "Anthropic"
         ),
         AIModel(
             id: "claude-3-opus-20240229",
             displayName: "Claude 3 Opus",
-            description: "Most powerful model for complex tasks",
+            description: "Previous generation powerful model for complex reasoning",
             pricing: "$15.00/$75.00 per 1M tokens",
             provider: "Anthropic"
         ),
         AIModel(
             id: "claude-3-sonnet-20240229",
             displayName: "Claude 3 Sonnet",
-            description: "Balance of intelligence and speed",
+            description: "Previous generation balanced model",
             pricing: "$3.00/$15.00 per 1M tokens",
+            provider: "Anthropic"
+        ),
+        AIModel(
+            id: "claude-3-haiku-20240307",
+            displayName: "Claude 3 Haiku",
+            description: "Previous generation fast model",
+            pricing: "$0.25/$1.25 per 1M tokens",
             provider: "Anthropic"
         )
     ]
