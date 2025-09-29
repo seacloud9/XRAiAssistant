@@ -1,0 +1,62 @@
+<resources>
+    <string name="app_name">XRAiAssistant</string>
+    <string name="app_description">AI-powered Extended Reality development platform</string>
+    
+    <!-- Navigation -->
+    <string name="nav_chat">Code</string>
+    <string name="nav_scene">Run Scene</string>
+    <string name="nav_settings">Settings</string>
+    
+    <!-- Chat -->
+    <string name="chat_input_hint">Ask me to create a 3D scene...</string>
+    <string name="chat_thinking">AI is thinking...</string>
+    <string name="ai_code_ready">AI code ready! Tap 'Run Scene' to see it.</string>
+    
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_api_keys">AI Provider API Keys</string>
+    <string name="settings_model">Model &amp; Library Settings</string>
+    <string name="settings_system_prompt">System Prompt</string>
+    <string name="settings_save">Save</string>
+    <string name="settings_cancel">Cancel</string>
+    <string name="settings_saved">Settings saved successfully!</string>
+    
+    <!-- AI Providers -->
+    <string name="provider_together_ai">Together.ai</string>
+    <string name="provider_openai">OpenAI</string>
+    <string name="provider_anthropic">Anthropic</string>
+    <string name="api_key_hint">Enter your API key</string>
+    <string name="api_key_required">API key required</string>
+    <string name="api_key_configured">Configured</string>
+    
+    <!-- 3D Libraries -->
+    <string name="library_babylonjs">Babylon.js</string>
+    <string name="library_threejs">Three.js</string>
+    <string name="library_aframe">A-Frame</string>
+    <string name="library_react_three_fiber">React Three Fiber</string>
+    <string name="library_reactylon">Reactylon</string>
+    
+    <!-- AI Parameters -->
+    <string name="parameter_temperature">Temperature</string>
+    <string name="parameter_top_p">Top-p (Nucleus Sampling)</string>
+    <string name="parameter_description">Current Mode</string>
+    <string name="temperature_focused">Focused</string>
+    <string name="temperature_creative">Creative</string>
+    <string name="top_p_precise">Precise</string>
+    <string name="top_p_diverse">Diverse</string>
+    
+    <!-- WebView -->
+    <string name="webview_loading">Loading 3D playground...</string>
+    <string name="webview_error">Error loading playground</string>
+    <string name="code_injection">Injecting AI Code...</string>
+    
+    <!-- Build System -->
+    <string name="build_success">Build completed successfully</string>
+    <string name="build_failed">Build failed</string>
+    <string name="build_in_progress">Building...</string>
+    
+    <!-- Errors -->
+    <string name="error_network">Network error. Please check your connection.</string>
+    <string name="error_api_key">Invalid API key. Please check your settings.</string>
+    <string name="error_unknown">An unexpected error occurred.</string>
+</resources>
