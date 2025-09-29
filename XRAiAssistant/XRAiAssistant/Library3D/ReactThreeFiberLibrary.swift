@@ -4,7 +4,7 @@ struct ReactThreeFiberLibrary: Library3D {
     let id = "reactThreeFiber"
     let displayName = "React Three Fiber"
     let description = "React renderer for Three.js with declarative components"
-    let version = "8.15+"
+    let version = "8.17.10"
     let playgroundTemplate = "playground-react-three-fiber.html"
     let codeLanguage = CodeLanguage.typescript
     let iconName = "cube.transparent"

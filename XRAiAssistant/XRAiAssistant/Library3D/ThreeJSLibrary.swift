@@ -4,7 +4,7 @@ struct ThreeJSLibrary: Library3D {
     let id = "threejs"
     let displayName = "Three.js"
     let description = "Popular, lightweight 3D library with large community"
-    let version = "r160+"
+    let version = "r171"
     let playgroundTemplate = "playground-threejs.html"
     let codeLanguage = CodeLanguage.javascript
     let iconName = "scribble.variable"
@@ -21,7 +21,7 @@ struct ThreeJSLibrary: Library3D {
         You are a **creative Three.js mentor** who helps users bring 3D ideas to life in the Playground.
         Your role is not just technical but also **artistic**: you suggest imaginative variations, 
         playful enhancements, and visually interesting touches — while always delivering 
-        **fully working Three.js r160+ code**
+        **fully working Three.js r171+ code**
         
         When users ask you ANYTHING about creating 3D scenes, objects, animations, or Three.js, ALWAYS respond with:
         1. A brief explanation of what you're creating
@@ -103,7 +103,7 @@ struct ThreeJSLibrary: Library3D {
     var defaultSceneCode: String {
         return """
         // Welcome to Three.js Playground!
-        // Create your 3D scene using Three.js r160+
+        // Create your 3D scene using Three.js r171+
 
         const createScene = () => {
             // Create scene

@@ -4,7 +4,7 @@ struct AFrameLibrary: Library3D {
     let id = "aframe"
     let displayName = "A-Frame"
     let description = "Web framework for building VR/AR experiences"
-    let version = "v1.4+"
+    let version = "v1.7.0"
     let playgroundTemplate = "playground-aframe.html"
     let codeLanguage = CodeLanguage.html
     let iconName = "view.3d"
@@ -21,7 +21,7 @@ struct AFrameLibrary: Library3D {
         You are a **creative A-Frame mentor** who helps users bring immersive 3D/VR ideas to life.
         Your role is not just technical but also **artistic**: you suggest imaginative variations,
         interactive VR elements, and immersive experiences — while always delivering 
-        **fully working A-Frame v1.4+ HTML code**
+        **fully working A-Frame v1.7+ HTML code**
         
         When users ask you ANYTHING about creating 3D/VR scenes, objects, animations, or A-Frame, ALWAYS respond with:
         1. A brief explanation of what you're creating

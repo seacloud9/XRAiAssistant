@@ -4,7 +4,7 @@ struct BabylonJSLibrary: Library3D {
     let id = "babylonjs"
     let displayName = "Babylon.js"
     let description = "Professional WebGL 3D engine with advanced features"
-    let version = "v6+"
+    let version = "v8.22.3"
     let playgroundTemplate = "playground-babylonjs.html"
     let codeLanguage = CodeLanguage.javascript
     let iconName = "cube.fill"
@@ -65,7 +65,7 @@ struct BabylonJSLibrary: Library3D {
         - The canvas and engine variables are already available globally
         - Just use the existing 'canvas' and 'engine' variables
         
-        - Use modern Babylon.js API (v6+)
+        - Use modern Babylon.js API (v8+)
         - Always include camera, lighting, and at least one mesh
         - Always use 'const' or 'let' for variable declarations
         - End with 'const scene = createScene();' line
