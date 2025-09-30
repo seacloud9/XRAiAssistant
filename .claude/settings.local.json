@@ -20,7 +20,10 @@
       "Bash(xcrun simctl delete:*)",
       "Bash(git rm:*)",
       "Bash(curl:*)",
-      "Bash(open:*)"
+      "Bash(open:*)",
+      "Bash(npm run dev:*)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm run dev:*)"
     ],
     "deny": []
   }

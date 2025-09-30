@@ -20,6 +20,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **⚠️ CRITICAL SETUP REQUIRED**: XRAiAssistant uses `DEFAULT_API_KEY = "changeMe"` for security. Users MUST configure their Together AI API key in the Settings panel before AI features will work.
 
+### NextJS Web Application (`XrAiAssistantStation/`)
+**⚠️ LOCAL DEVELOPMENT ONLY**: XRAiAssistant Station - NextJS web implementation with complete iOS feature parity:
+- **🔒 LOCALHOST ONLY**: Currently designed for local development at `http://localhost:3000`
+- **🚫 NO PRODUCTION DEPLOYMENT**: Not configured for public hosting due to API key exposure risks
+- **🛡️ SECURITY NOTE**: API keys stored in localStorage - safe only for local development
+- **📱 Feature Parity**: Complete match with iOS app including streaming AI, settings persistence, and Babylon.js playground
+- **🎯 Development Target**: Professional local development environment for XR prototyping
+
+**⚠️ CRITICAL SETUP REQUIRED**: Like iOS app, uses `"changeMe"` default API key. Users MUST configure their Together AI API key in Settings before AI features work.
+
 ### Web Playground (`playground/`)
 **XRAiAssistant Web Layer** - TypeScript/React-based Babylon.js playground implementation:
 - Monaco editor for professional code editing with IntelliSense and XR syntax highlighting
@@ -176,6 +186,33 @@ open XRAiAssistant.xcodeproj  # Open in Xcode
 - Swift Files: `BabylonPlaygroundApp.swift` → `XRAiAssistant.swift`
 - Test Target: `BabylonPlaygroundAppTests` → `XRAiAssistantTests`
 - Bundle ID: `com.example.XRAiAssistant`
+
+### XRAiAssistant Station - NextJS Web Application (LOCAL DEVELOPMENT ONLY)
+**🔒 LOCALHOST ONLY - DO NOT DEPLOY TO PRODUCTION**
+
+```bash
+cd XrAiAssistantStation/
+pnpm install               # Install dependencies (requires Node.js 20+)
+pnpm run dev              # Start local development server on http://localhost:3000
+pnpm run build            # Build for local testing only
+pnpm run start            # Start production build locally
+pnpm run lint             # Run ESLint
+pnpm run type-check       # TypeScript type checking
+```
+
+**⚠️ SECURITY WARNING - LOCAL DEVELOPMENT ONLY:**
+- **🚫 DO NOT DEPLOY**: This implementation stores API keys in localStorage
+- **🔒 LOCALHOST ONLY**: Designed exclusively for local development at `http://localhost:3000`
+- **🛡️ API KEY EXPOSURE**: Public deployment would expose API keys to all users
+- **🎯 LOCAL PROTOTYPING**: Perfect for local XR development and testing
+
+**IMPORTANT Setup Steps:**
+1. Ensure Node.js 20+ and pnpm 8+ are installed
+2. Run `pnpm install` to install dependencies
+3. Start with `pnpm run dev`
+4. Open `http://localhost:3000` in browser
+5. Go to Settings and replace "changeMe" with your Together AI API key
+6. Select AI model and configure temperature/top-p parameters
 
 ### Web Playground (Supporting Development)
 ```bash
