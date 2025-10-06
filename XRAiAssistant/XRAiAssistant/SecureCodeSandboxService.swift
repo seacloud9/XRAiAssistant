@@ -35,46 +35,25 @@ class SecureCodeSandboxService {
 
     /// Use CodeSandbox template URLs (most reliable approach)
     func createTemplateBasedSandbox(code: String, framework: String) -> String {
-        switch framework {
-        case "reactThreeFiber":
-            return createR3FTemplate(code: code)
-        case "reactylon":
-            return createReactylonTemplate(code: code)
-        default:
-            return createR3FTemplate(code: code) // Default to R3F
+        print("🌐 Creating secure CodeSandbox using Define API for \(framework)")
+        print("🔍 Input code preview: \(String(code.prefix(200)))...")
+
+        // Generate files for the specific framework
+        let files = generateSecureFiles(code: code, framework: framework)
+
+        print("🔍 Generated \(files.count) files for CodeSandbox")
+        for (filename, file) in files {
+            print("📄 File: \(filename) - \(file.content.count) characters")
         }
+
+        // Use the Define API approach instead of URL parameters
+        let html = generateFormSubmissionHTML(files: files)
+        print("🔍 Generated HTML length: \(html.count) characters")
+
+        return html
     }
 
-    // MARK: - Security-First Implementation
-
-    private func createR3FTemplate(code: String) -> String {
-        // Use CodeSandbox's official React Three Fiber starter template
-        let templateId = "react-three-fiber"
-        let encodedCode = sanitizeAndEncodeCode(code)
-
-        // Create URL with code injection via URL parameters
-        return "https://codesandbox.io/s/\(templateId)?file=/src/App.js&initialcode=\(encodedCode)"
-    }
-
-    private func createReactylonTemplate(code: String) -> String {
-        // Use a React template as base for Reactylon
-        let templateId = "new"
-        let encodedCode = sanitizeAndEncodeCode(code)
-
-        return "https://codesandbox.io/s/\(templateId)?template=react&file=/src/App.js&initialcode=\(encodedCode)"
-    }
-
-    private func sanitizeAndEncodeCode(_ code: String) -> String {
-        // Security: Sanitize code to prevent XSS
-        let sanitized = code
-            .replacingOccurrences(of: "<script", with: "")
-            .replacingOccurrences(of: "</script>", with: "")
-            .replacingOccurrences(of: "javascript:", with: "")
-            .replacingOccurrences(of: "data:", with: "")
-
-        // URL encode for safe transmission
-        return sanitized.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-    }
+    // MARK: - CodeSandbox Define API Implementation
 
     // MARK: - Form Submission HTML Generator
 
@@ -128,9 +107,27 @@ class SecureCodeSandboxService {
             </form>
 
             <script>
+                // Debug logging
+                function debugLog(message) {
+                    console.log('CodeSandbox: ' + message);
+                    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.codeSandboxDebug) {
+                        window.webkit.messageHandlers.codeSandboxDebug.postMessage(message);
+                    }
+                }
+
+                debugLog('HTML loaded, preparing form submission');
+
                 // Auto-submit form after a brief delay
                 setTimeout(function() {
-                    document.getElementById('sandbox-form').submit();
+                    debugLog('Attempting to submit form');
+                    var form = document.getElementById('sandbox-form');
+                    if (form) {
+                        debugLog('Form found, submitting to: ' + form.action);
+                        form.submit();
+                        debugLog('Form submit() called');
+                    } else {
+                        debugLog('ERROR: Form not found');
+                    }
                 }, 2000);
             </script>
         </body>
@@ -200,56 +197,72 @@ class SecureCodeSandboxService {
         }
         """
 
-        let indexJs = """
-        import React from 'react';
-        import { createRoot } from 'react-dom/client';
-        import App from './App';
+        // Check if user code contains a complete App component structure
+        let containsApp = userCode.contains("function App(") || userCode.contains("const App =") || userCode.contains("export default function App")
+        let containsCreateRoot = userCode.contains("createRoot") && userCode.contains("render")
 
-        const container = document.getElementById('root');
-        const root = createRoot(container);
-        root.render(<App />);
-        """
+        if containsApp && containsCreateRoot {
+            // User provided complete app - use it directly as index.js
+            let indexJs = userCode
 
-        let appJs = """
-        import React from 'react';
-        import { Canvas } from '@react-three/fiber';
-        import { OrbitControls } from '@react-three/drei';
-        import Scene from './Scene';
+            return [
+                "package.json": SecureCodeSandboxFile(content: packageJson),
+                "src/index.js": SecureCodeSandboxFile(content: indexJs),
+                "public/index.html": SecureCodeSandboxFile(content: generateSecureIndexHTML())
+            ]
+        } else {
+            // User provided only Scene component - wrap it in our App structure
+            let indexJs = """
+            import React from 'react';
+            import { createRoot } from 'react-dom/client';
+            import App from './App';
 
-        export default function App() {
-          return (
-            <div style={{ width: '100vw', height: '100vh' }}>
-              <Canvas
-                camera={{ position: [0, 0, 5], fov: 75 }}
-                gl={{ antialias: true }}
-              >
-                <ambientLight intensity={0.5} />
-                <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} />
-                <pointLight position={[-10, -10, -10]} />
-                <Scene />
-                <OrbitControls />
-              </Canvas>
-            </div>
-          );
+            const container = document.getElementById('root');
+            const root = createRoot(container);
+            root.render(<App />);
+            """
+
+            let appJs = """
+            import React from 'react';
+            import { Canvas } from '@react-three/fiber';
+            import { OrbitControls } from '@react-three/drei';
+            import Scene from './Scene';
+
+            export default function App() {
+              return (
+                <div style={{ width: '100vw', height: '100vh' }}>
+                  <Canvas
+                    camera={{ position: [0, 0, 5], fov: 75 }}
+                    gl={{ antialias: true }}
+                  >
+                    <ambientLight intensity={0.5} />
+                    <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} />
+                    <pointLight position={[-10, -10, -10]} />
+                    <Scene />
+                    <OrbitControls />
+                  </Canvas>
+                </div>
+              );
+            }
+            """
+
+            let sceneJs = """
+            import React, { useRef } from 'react';
+            import { useFrame } from '@react-three/fiber';
+
+            \(userCode)
+
+            export default Scene;
+            """
+
+            return [
+                "package.json": SecureCodeSandboxFile(content: packageJson),
+                "src/index.js": SecureCodeSandboxFile(content: indexJs),
+                "src/App.js": SecureCodeSandboxFile(content: appJs),
+                "src/Scene.js": SecureCodeSandboxFile(content: sceneJs),
+                "public/index.html": SecureCodeSandboxFile(content: generateSecureIndexHTML())
+            ]
         }
-        """
-
-        let sceneJs = """
-        import React, { useRef } from 'react';
-        import { useFrame } from '@react-three/fiber';
-
-        \(userCode)
-
-        export default Scene;
-        """
-
-        return [
-            "package.json": SecureCodeSandboxFile(content: packageJson),
-            "src/index.js": SecureCodeSandboxFile(content: indexJs),
-            "src/App.js": SecureCodeSandboxFile(content: appJs),
-            "src/Scene.js": SecureCodeSandboxFile(content: sceneJs),
-            "public/index.html": SecureCodeSandboxFile(content: generateSecureIndexHTML())
-        ]
     }
 
     private func generateSecureReactylonFiles(userCode: String) -> [String: SecureCodeSandboxFile] {

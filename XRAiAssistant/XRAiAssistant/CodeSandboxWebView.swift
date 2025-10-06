@@ -2,12 +2,34 @@ import WebKit
 import Foundation
 import SwiftUI
 
-class CodeSandboxWebViewCoordinator: NSObject, WKNavigationDelegate {
+class CodeSandboxWebViewCoordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
     var parent: CodeSandboxWebView
 
     init(parent: CodeSandboxWebView) {
         self.parent = parent
         super.init()
+    }
+
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        // Allow navigation to CodeSandbox Define API
+        if let url = navigationAction.request.url {
+            print("🌐 CodeSandbox WebView - Navigation request to: \(url.absoluteString)")
+
+            if url.absoluteString.contains("codesandbox.io") {
+                print("✅ CodeSandbox WebView - Allowing navigation to CodeSandbox")
+                decisionHandler(.allow)
+                return
+            }
+        }
+
+        // Allow form submissions and local content
+        if navigationAction.navigationType == .formSubmitted || navigationAction.navigationType == .other {
+            print("✅ CodeSandbox WebView - Allowing form submission or local content")
+            decisionHandler(.allow)
+        } else {
+            print("🔍 CodeSandbox WebView - Navigation type: \(navigationAction.navigationType.rawValue)")
+            decisionHandler(.allow) // Allow all for now
+        }
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -23,6 +45,14 @@ class CodeSandboxWebViewCoordinator: NSObject, WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
         print("❌ CodeSandbox WebView - Provisional navigation failed: \(error)")
         parent.onWebViewError?(error)
+    }
+
+    // MARK: - WKScriptMessageHandler
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        if message.name == "codeSandboxDebug" {
+            print("📱 CodeSandbox WebView - JavaScript message: \(message.body)")
+        }
     }
 }
 
@@ -52,6 +82,9 @@ struct CodeSandboxWebView: UIViewRepresentable {
         } else {
             configuration.preferences.javaScriptEnabled = true
         }
+
+        // Add message handler for debugging
+        configuration.userContentController.add(context.coordinator, name: "codeSandboxDebug")
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
@@ -91,10 +124,10 @@ struct CodeSandboxWebView: UIViewRepresentable {
         )
 
         DispatchQueue.main.async {
-            print("🛡️ CodeSandbox WebView - Using secure template approach")
-            self.currentSandboxURL = sandboxURL
-            self.loadSandbox(webView: webView, url: sandboxURL)
-            self.onSandboxCreated?(sandboxURL)
+            print("🛡️ CodeSandbox WebView - Using secure Define API approach")
+            self.currentSandboxURL = "about:blank" // Placeholder since we're using HTML content
+            self.loadSandboxHTML(webView: webView, html: sandboxURL) // sandboxURL is actually HTML now
+            self.onSandboxCreated?("CodeSandbox Define API") // Placeholder URL
             self.isCreatingSandbox = false
         }
     }
@@ -208,6 +241,12 @@ struct CodeSandboxWebView: UIViewRepresentable {
 
         print("🌐 CodeSandbox WebView - Loading sandbox: \(url)")
         webView.load(URLRequest(url: sandboxURL))
+    }
+
+    private func loadSandboxHTML(webView: WKWebView, html: String) {
+        print("🌐 CodeSandbox WebView - Loading HTML form for Define API")
+        // Use nil baseURL to avoid navigation conflicts and enable form submission
+        webView.loadHTMLString(html, baseURL: nil)
     }
 }
 
