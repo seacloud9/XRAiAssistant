@@ -13,7 +13,7 @@
 
 /* Begin PBXFileReference section */
 		26AF95742D3D743800168181 /* XRAiAssistant.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = XRAiAssistant.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		26AF95852D3D743A00168181 /* XRAiAssistantTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = XRAiAssistantTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		26BF95842D3D743A00168182 /* XRAiAssistantTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = XRAiAssistantTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -22,7 +22,7 @@
 			path = XRAiAssistant;
 			sourceTree = "<group>";
 		};
-		26AF95862D3D743A00168181 /* XRAiAssistantTests */ = {
+		26BF95862D3D743A00168182 /* XRAiAssistantTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = XRAiAssistantTests;
 			sourceTree = "<group>";
@@ -39,7 +39,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		26AF95872D3D743A00168181 /* Frameworks */ = {
+		26BF95872D3D743A00168182 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -53,7 +53,7 @@
 			isa = PBXGroup;
 			children = (
 				26AF95762D3D743800168181 /* XRAiAssistant */,
-				26AF95862D3D743A00168181 /* XRAiAssistantTests */,
+				26BF95862D3D743A00168182 /* XRAiAssistantTests */,
 				26F399242D42F0AB007FB9D6 /* Frameworks */,
 				26AF95752D3D743800168181 /* Products */,
 			);
@@ -63,7 +63,7 @@
 			isa = PBXGroup;
 			children = (
 				26AF95742D3D743800168181 /* XRAiAssistant.app */,
-				26AF95852D3D743A00168181 /* XRAiAssistantTests.xctest */,
+				26BF95842D3D743A00168182 /* XRAiAssistantTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -102,25 +102,25 @@
 			productReference = 26AF95742D3D743800168181 /* XRAiAssistant.app */;
 			productType = "com.apple.product-type.application";
 		};
-		26AF95842D3D743A00168181 /* XRAiAssistantTests */ = {
+		26BF95832D3D743A00168182 /* XRAiAssistantTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 26AF95882D3D743A00168181 /* Build configuration list for PBXNativeTarget "XRAiAssistantTests" */;
+			buildConfigurationList = 26BF95882D3D743A00168182 /* Build configuration list for PBXNativeTarget "XRAiAssistantTests" */;
 			buildPhases = (
-				26AF95892D3D743A00168181 /* Sources */,
-				26AF95872D3D743A00168181 /* Frameworks */,
-				26AF958A2D3D743A00168181 /* Resources */,
+				26BF95892D3D743A00168182 /* Sources */,
+				26BF95872D3D743A00168182 /* Frameworks */,
+				26BF958A2D3D743A00168182 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				26AF958B2D3D743A00168181 /* PBXTargetDependency */,
+				26BF958B2D3D743A00168182 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				26AF95862D3D743A00168181 /* XRAiAssistantTests */,
+				26BF95862D3D743A00168182 /* XRAiAssistantTests */,
 			);
 			name = XRAiAssistantTests;
 			productName = XRAiAssistantTests;
-			productReference = 26AF95852D3D743A00168181 /* XRAiAssistantTests.xctest */;
+			productReference = 26BF95842D3D743A00168182 /* XRAiAssistantTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
@@ -136,7 +136,7 @@
 					26AF95732D3D743800168181 = {
 						CreatedOnToolsVersion = 16.2;
 					};
-					26AF95842D3D743A00168181 = {
+					26BF95832D3D743A00168182 = {
 						CreatedOnToolsVersion = 16.2;
 						TestTargetID = 26AF95732D3D743800168181;
 					};
@@ -161,7 +161,7 @@
 			projectRoot = "";
 			targets = (
 				26AF95732D3D743800168181 /* XRAiAssistant */,
-				26AF95842D3D743A00168181 /* XRAiAssistantTests */,
+				26BF95832D3D743A00168182 /* XRAiAssistantTests */,
 			);
 		};
 /* End PBXProject section */
@@ -174,7 +174,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		26AF958A2D3D743A00168181 /* Resources */ = {
+		26BF958A2D3D743A00168182 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -191,7 +191,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		26AF95892D3D743A00168181 /* Sources */ = {
+		26BF95892D3D743A00168182 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -201,15 +201,15 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		26AF958B2D3D743A00168181 /* PBXTargetDependency */ = {
+		26BF958B2D3D743A00168182 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 26AF95732D3D743800168181 /* XRAiAssistant */;
-			targetProxy = 26AF958C2D3D743A00168181 /* PBXContainerItemProxy */;
+			targetProxy = 26BF958C2D3D743A00168182 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
 /* Begin PBXContainerItemProxy section */
-		26AF958C2D3D743A00168181 /* PBXContainerItemProxy */ = {
+		26BF958C2D3D743A00168182 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 26AF956C2D3D743800168181 /* Project object */;
 			proxyType = 1;
@@ -398,7 +398,7 @@
 			};
 			name = Release;
 		};
-		26AF95852D3D743A00168181 /* Debug */ = {
+		26BF95D12D3D743A00168182 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -417,7 +417,7 @@
 			};
 			name = Debug;
 		};
-		26AF95862D3D743A00168181 /* Release */ = {
+		26BF95D22D3D743A00168182 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -457,11 +457,11 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		26AF95882D3D743A00168181 /* Build configuration list for PBXNativeTarget "XRAiAssistantTests" */ = {
+		26BF95882D3D743A00168182 /* Build configuration list for PBXNativeTarget "XRAiAssistantTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				26AF95852D3D743A00168181 /* Debug */,
-				26AF95862D3D743A00168181 /* Release */,
+				26BF95D12D3D743A00168182 /* Debug */,
+				26BF95D22D3D743A00168182 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
