@@ -35,7 +35,7 @@ class SecureCodeSandboxService {
 
     /// Use CodeSandbox template URLs (most reliable approach)
     func createTemplateBasedSandbox(code: String, framework: String) -> String {
-        print("🌐 Creating secure CodeSandbox using Define API for \(framework)")
+        print("🌐 Creating secure CodeSandbox using direct URL approach for \(framework)")
         print("🔍 Input code preview: \(String(code.prefix(200)))...")
 
         // Generate files for the specific framework
@@ -46,8 +46,8 @@ class SecureCodeSandboxService {
             print("📄 File: \(filename) - \(file.content.count) characters")
         }
 
-        // Use the Define API approach instead of URL parameters
-        let html = generateFormSubmissionHTML(files: files)
+        // Use form submission approach but with simpler HTML to avoid WebKit issues
+        let html = generateSimpleFormHTML(files: files)
         print("🔍 Generated HTML length: \(html.count) characters")
 
         return html
@@ -57,6 +57,30 @@ class SecureCodeSandboxService {
 
     // MARK: - Form Submission HTML Generator
 
+    private func generateSimpleFormHTML(files: [String: SecureCodeSandboxFile]) -> String {
+        let filesJSON = generateFilesJSON(files: files)
+        let parameters = createParametersString(filesJSON: filesJSON)
+
+        return """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>Creating CodeSandbox...</title>
+        </head>
+        <body>
+            <p>Creating your React Three Fiber scene...</p>
+            <form id="codeform" action="https://codesandbox.io/api/v1/sandboxes/define" method="POST" target="_self">
+                <input type="hidden" name="parameters" value="\(parameters)">
+            </form>
+            <script>
+                document.getElementById('codeform').submit();
+            </script>
+        </body>
+        </html>
+        """
+    }
+
     private func generateFormSubmissionHTML(files: [String: SecureCodeSandboxFile]) -> String {
         let filesJSON = generateFilesJSON(files: files)
 
@@ -65,6 +89,7 @@ class SecureCodeSandboxService {
         <html>
         <head>
             <title>Creating CodeSandbox...</title>
+            <meta charset="utf-8">
             <style>
                 body {
                     font-family: system-ui, -apple-system, sans-serif;
@@ -102,7 +127,7 @@ class SecureCodeSandboxService {
                 <p>Redirecting to your live React Three Fiber environment...</p>
             </div>
 
-            <form id="sandbox-form" action="https://codesandbox.io/api/v1/sandboxes/define" method="POST">
+            <form id="sandbox-form" action="https://codesandbox.io/api/v1/sandboxes/define" method="POST" target="_self">
                 <input type="hidden" name="parameters" value="\(createParametersString(filesJSON: filesJSON))" />
             </form>
 
@@ -117,18 +142,28 @@ class SecureCodeSandboxService {
 
                 debugLog('HTML loaded, preparing form submission');
 
-                // Auto-submit form after a brief delay
-                setTimeout(function() {
-                    debugLog('Attempting to submit form');
-                    var form = document.getElementById('sandbox-form');
-                    if (form) {
-                        debugLog('Form found, submitting to: ' + form.action);
-                        form.submit();
-                        debugLog('Form submit() called');
-                    } else {
-                        debugLog('ERROR: Form not found');
-                    }
-                }, 2000);
+                // Use a more reliable approach - programmatic form creation and submission
+                window.addEventListener('load', function() {
+                    debugLog('Window loaded, creating and submitting form programmatically');
+
+                    // Create form programmatically to avoid WebKit navigation issues
+                    var form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = 'https://codesandbox.io/api/v1/sandboxes/define';
+                    form.target = '_self';
+
+                    var input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'parameters';
+                    input.value = '\(createParametersString(filesJSON: filesJSON))';
+
+                    form.appendChild(input);
+                    document.body.appendChild(form);
+
+                    debugLog('Programmatic form created, submitting...');
+                    form.submit();
+                    debugLog('Form submitted successfully');
+                });
             </script>
         </body>
         </html>

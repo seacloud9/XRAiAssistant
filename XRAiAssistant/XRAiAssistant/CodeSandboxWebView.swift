@@ -11,48 +11,35 @@ class CodeSandboxWebViewCoordinator: NSObject, WKNavigationDelegate, WKScriptMes
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-        // Allow navigation to CodeSandbox Define API
+        // Simplified navigation policy to avoid interference
         if let url = navigationAction.request.url {
             let urlString = url.absoluteString
-            print("🌐 CodeSandbox WebView - Navigation request to: \(urlString)")
+            print("🌐 CodeSandbox WebView - Navigation request to: \(String(urlString.prefix(100)))...")
 
-            // Allow CodeSandbox Define API
-            if urlString.contains("codesandbox.io") && urlString.contains("/api/v1/sandboxes/define") {
-                print("✅ CodeSandbox WebView - Allowing navigation to CodeSandbox Define API")
-                decisionHandler(.allow)
+            // Block obviously malformed URLs (encoded HTML as URL)
+            if urlString.hasPrefix("%3C") || urlString.hasPrefix("<") {
+                print("❌ CodeSandbox WebView - Blocking malformed URL that appears to be encoded HTML")
+                decisionHandler(.cancel)
                 return
             }
 
-            // Allow CodeSandbox main domain
+            // Allow all CodeSandbox domains
             if urlString.contains("codesandbox.io") {
                 print("✅ CodeSandbox WebView - Allowing navigation to CodeSandbox")
                 decisionHandler(.allow)
                 return
             }
 
-            // Block invalid/malformed URLs that start with encoded HTML
-            if urlString.hasPrefix("%3C") || urlString.hasPrefix("<") {
-                print("❌ CodeSandbox WebView - Blocking malformed URL that appears to be encoded HTML")
-                decisionHandler(.cancel)
+            // Allow local content
+            if urlString.hasPrefix("file://") || urlString.hasPrefix("about:") {
+                print("✅ CodeSandbox WebView - Allowing local content")
+                decisionHandler(.allow)
                 return
             }
         }
 
-        // Allow form submissions (critical for CodeSandbox Define API)
-        if navigationAction.navigationType == .formSubmitted {
-            print("✅ CodeSandbox WebView - Allowing form submission")
-            decisionHandler(.allow)
-            return
-        }
-
-        // Allow local content loading
-        if navigationAction.navigationType == .other {
-            print("✅ CodeSandbox WebView - Allowing local content")
-            decisionHandler(.allow)
-            return
-        }
-
-        print("🔍 CodeSandbox WebView - Navigation type: \(navigationAction.navigationType.rawValue)")
+        // Allow all navigation types by default to avoid blocking
+        print("✅ CodeSandbox WebView - Allowing navigation (type: \(navigationAction.navigationType.rawValue))")
         decisionHandler(.allow)
     }
 
@@ -153,17 +140,20 @@ struct CodeSandboxWebView: UIViewRepresentable {
         isCreatingSandbox = true
         print("🚀 CodeSandbox WebView - Creating secure sandbox for framework: \(framework)")
 
-        // Use secure template-based approach (bypasses CORS issues)
+        // Use secure template-based approach (direct URL to avoid WebKit issues)
         let sandboxURL = SecureCodeSandboxService.shared.createTemplateBasedSandbox(
             code: code,
             framework: framework
         )
 
         DispatchQueue.main.async {
-            print("🛡️ CodeSandbox WebView - Using secure Define API approach")
-            self.currentSandboxURL = "about:blank" // Placeholder since we're using HTML content
-            self.loadSandboxHTML(webView: webView, html: sandboxURL) // sandboxURL is actually HTML now
-            self.onSandboxCreated?("CodeSandbox Define API") // Placeholder URL
+            print("🛡️ CodeSandbox WebView - Using direct URL approach")
+            self.currentSandboxURL = sandboxURL
+
+            // Always treat as HTML content since we're using form submission approach
+            self.loadSandboxHTML(webView: webView, html: sandboxURL)
+
+            self.onSandboxCreated?(sandboxURL)
             self.isCreatingSandbox = false
         }
     }
