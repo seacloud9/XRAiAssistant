@@ -5,7 +5,9 @@ import { Play, Square, RotateCcw, Download, Upload, Maximize2, Minimize2 } from 
 import { useAppStore } from '@/store/app-store'
 import { CodeEditor } from './code-editor'
 import { SceneRenderer } from './scene-renderer'
+import { SandpackWebView } from './sandpack-webview'
 import { downloadTextFile } from '@/lib/utils'
+import { SandpackErrorBoundary } from './error-boundary'
 import toast from 'react-hot-toast'
 
 export function PlaygroundView() {
@@ -16,6 +18,10 @@ export function PlaygroundView() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   
   const currentLibrary = getCurrentLibrary()
+  
+  // Determine if we should use Sandpack (React frameworks) or iframe (legacy frameworks)
+  const useSandpack = currentLibrary?.id === 'react-three-fiber'
+  const sandpackFramework = 'react-three-fiber'
 
   useEffect(() => {
     // Initialize with template if no code exists
@@ -120,6 +126,11 @@ export function PlaygroundView() {
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
               {currentLibrary.name} v{currentLibrary.version}
             </span>
+            {useSandpack && (
+              <span className="px-2 py-1 text-xs bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded font-medium">
+                Sandpack Live
+              </span>
+            )}
           </div>
           
           <button
@@ -192,14 +203,36 @@ export function PlaygroundView() {
           </div>
         )}
 
-        {/* Scene Renderer */}
+        {/* Scene Renderer - Conditional based on framework type */}
         {(splitView || isFullscreen) && (
           <div className={splitView ? 'w-1/2' : 'h-full'}>
-            <SceneRenderer
-              code={currentCode}
-              library={currentLibrary}
-              isRunning={isRunning}
-            />
+            {useSandpack ? (
+              <SandpackErrorBoundary
+                onError={(error, errorInfo) => {
+                  console.error('Playground Sandpack error:', error, errorInfo)
+                  toast.error('React Three Fiber preview encountered an error. Check console for details.')
+                }}
+              >
+                <SandpackWebView
+                  initialCode={currentCode}
+                  framework="react-three-fiber"
+                  onCodeChange={setCurrentCode}
+                  onSandboxCreated={(url) => {
+                    console.log('Sandbox created:', url)
+                    toast.success('Sandbox created! URL copied to clipboard.')
+                  }}
+                  showConsole={false}
+                  showPreview={true}
+                  autoReload={isRunning}
+                />
+              </SandpackErrorBoundary>
+            ) : (
+              <SceneRenderer
+                code={currentCode}
+                library={currentLibrary}
+                isRunning={isRunning}
+              />
+            )}
           </div>
         )}
       </div>

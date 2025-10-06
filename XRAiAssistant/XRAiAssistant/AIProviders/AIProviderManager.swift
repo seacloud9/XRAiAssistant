@@ -18,6 +18,11 @@ class AIProviderManager: ObservableObject {
     private func setupProviders() {
         providers = [togetherProvider, openaiProvider, anthropicProvider]
         currentProvider = togetherProvider // Default to Together.ai
+        
+        // Initialize CodeSandbox API key (not a chat provider, but deployment service)
+        if apiKeys["CodeSandbox"] == nil {
+            apiKeys["CodeSandbox"] = "" // Empty by default for optional service
+        }
     }
     
     func setAPIKey(for provider: String, key: String) {
@@ -127,7 +132,14 @@ class AIProviderManager: ObservableObject {
     }
     
     func isProviderConfigured(_ provider: String) -> Bool {
-        return getAPIKey(for: provider) != "changeMe"
+        let apiKey = getAPIKey(for: provider)
+        
+        // CodeSandbox is optional, so empty key is acceptable
+        if provider == "CodeSandbox" {
+            return true // Always considered "configured" since it's optional
+        }
+        
+        return apiKey != "changeMe" && !apiKey.isEmpty
     }
     
     func getConfiguredProviders() -> [AIProvider] {

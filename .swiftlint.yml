@@ -1,0 +1,64 @@
+# SwiftLint Configuration for XRAiAssistant
+
+# Paths to include during linting
+included:
+  - XRAiAssistant/XRAiAssistant
+
+# Paths to ignore during linting
+excluded:
+  - Carthage
+  - Pods
+  - XRAiAssistant/XRAiAssistant.xcodeproj
+  - XRAiAssistant/XRAiAssistant/Resources
+  - node_modules
+  - playground
+  - XrAiAssistantStation
+
+# Basic opt-in rules (conservative set)
+opt_in_rules:
+  - empty_count
+  - empty_string
+  - trailing_closure
+
+# Rules to disable
+disabled_rules:
+  - todo # Allow TODO comments for development
+  - trailing_whitespace # Can be auto-fixed
+
+# Rule customizations
+line_length:
+  warning: 120
+  error: 150
+
+function_body_length:
+  warning: 80
+  error: 120
+
+type_body_length:
+  warning: 300
+  error: 400
+
+file_length:
+  warning: 400
+  error: 500
+
+identifier_name:
+  min_length: 2
+  max_length: 50
+  excluded:
+    - id
+    - ui
+    - x
+    - y
+    - z
+
+# Custom rules for XRAiAssistant
+custom_rules:
+  no_print_statements:
+    name: "Avoid print statements"
+    regex: 'print\s*\('
+    message: "Consider using proper logging instead of print()"
+    severity: warning
+
+# Reporter type
+reporter: "xcode"

@@ -183,7 +183,7 @@ window.addEventListener('resize', () => {
     id: 'react-three-fiber',
     name: 'React Three Fiber',
     version: '8.17.10',
-    description: 'React renderer for Three.js',
+    description: 'React renderer for Three.js with live Sandpack preview and CodeSandbox deployment',
     cdnUrls: [
       'https://unpkg.com/three@0.171.0/build/three.min.js',
       'https://unpkg.com/@react-three/fiber@8.17.10/dist/index.esm.js'
@@ -191,52 +191,145 @@ window.addEventListener('resize', () => {
     systemPrompt: `You are an expert React Three Fiber developer. Generate complete, working 3D scenes using React Three Fiber and modern React patterns.
 
 Key guidelines:
-- Use React Three Fiber components and hooks
-- Implement proper React patterns (hooks, refs, state)
-- Include interactive elements when appropriate
-- Use drei helpers when beneficial
+- Use React Three Fiber components and hooks (useFrame, useThree, useRef)
+- Implement proper React patterns (hooks, refs, state, context)
+- Include interactive elements (onClick, onPointerOver, animations)
+- Use @react-three/drei helpers (OrbitControls, Environment, Html, useGLTF, etc.)
 - Focus on component composition and reusability
-- Include helpful comments explaining React Three Fiber concepts`,
-    codeTemplate: `import React, { useRef, useState } from 'react'
+- Include performance optimizations (useMemo, useCallback, instancing)
+- Add proper lighting (ambientLight, directionalLight, spotLight)
+- Implement smooth animations and transitions
+- Use proper TypeScript when applicable
+- Include helpful comments explaining React Three Fiber concepts
+- Consider XR/VR compatibility when possible
+- Use modern Three.js patterns and geometries
+- Implement responsive design for different screen sizes`,
+    codeTemplate: `import React, { useRef, useState, useMemo } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
+import { OrbitControls, Environment, Stats, Html } from '@react-three/drei'
+import * as THREE from 'three'
 
-function Scene() {
+function InteractiveCube({ position = [0, 0, 0] }) {
   const meshRef = useRef()
   const [hovered, setHover] = useState(false)
   const [active, setActive] = useState(false)
 
+  // Smooth rotation animation
   useFrame((state, delta) => {
     if (meshRef.current) {
-      meshRef.current.rotation.x += delta
+      meshRef.current.rotation.x += delta * 0.5
+      meshRef.current.rotation.y += delta * 0.2
+      
+      // Gentle floating motion
+      meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime) * 0.1
     }
   })
 
+  // Memoized material for performance
+  const material = useMemo(() => 
+    new THREE.MeshStandardMaterial({ 
+      color: hovered ? '#ff6b6b' : active ? '#4ecdc4' : '#45b7d1',
+      roughness: 0.4,
+      metalness: 0.8
+    }), [hovered, active])
+
   return (
-    <mesh
-      ref={meshRef}
-      scale={active ? 1.5 : 1}
-      onClick={() => setActive(!active)}
-      onPointerOver={() => setHover(true)}
-      onPointerOut={() => setHover(false)}
-    >
-      <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial color={hovered ? 'hotpink' : 'orange'} />
-    </mesh>
+    <group position={position}>
+      <mesh
+        ref={meshRef}
+        scale={active ? 1.3 : hovered ? 1.1 : 1}
+        onClick={() => setActive(!active)}
+        onPointerOver={() => setHover(true)}
+        onPointerOut={() => setHover(false)}
+        castShadow
+        receiveShadow
+        material={material}
+      >
+        <boxGeometry args={[1, 1, 1]} />
+      </mesh>
+      
+      {/* Interactive label */}
+      {hovered && (
+        <Html position={[0, 1.5, 0]} center>
+          <div style={{
+            background: 'rgba(0,0,0,0.8)',
+            color: 'white',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            fontSize: '14px'
+          }}>
+            {active ? 'Active!' : 'Click me!'}
+          </div>
+        </Html>
+      )}
+    </group>
   )
 }
 
-function App() {
+function Scene() {
   return (
-    <Canvas>
-      <ambientLight intensity={0.5} />
-      <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} />
-      <pointLight position={[-10, -10, -10]} />
-      <Scene />
-    </Canvas>
+    <>
+      {/* Multiple interactive cubes */}
+      <InteractiveCube position={[-2, 0, 0]} />
+      <InteractiveCube position={[0, 0, 0]} />
+      <InteractiveCube position={[2, 0, 0]} />
+      
+      {/* Ground plane */}
+      <mesh position={[0, -2, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[10, 10]} />
+        <meshStandardMaterial color="#f0f0f0" />
+      </mesh>
+    </>
   )
 }
 
-export default App`
+export default function App() {
+  return (
+    <div style={{ width: '100vw', height: '100vh' }}>
+      <Canvas
+        camera={{ position: [5, 3, 5], fov: 60 }}
+        shadows
+        dpr={[1, 2]}
+      >
+        {/* Background and atmosphere */}
+        <color attach="background" args={['#f0f8ff']} />
+        <fog attach="fog" args={['#f0f8ff', 5, 20]} />
+        
+        {/* Lighting setup */}
+        <ambientLight intensity={0.4} />
+        <directionalLight
+          position={[10, 10, 5]}
+          intensity={1}
+          castShadow
+          shadow-mapSize={[1024, 1024]}
+          shadow-camera-far={50}
+          shadow-camera-left={-10}
+          shadow-camera-right={10}
+          shadow-camera-top={10}
+          shadow-camera-bottom={-10}
+        />
+        <pointLight position={[-10, 0, -20]} color="#4ecdc4" intensity={0.5} />
+        
+        {/* Scene content */}
+        <Scene />
+        
+        {/* Controls and environment */}
+        <OrbitControls 
+          makeDefault 
+          enablePan={true}
+          enableZoom={true}
+          enableRotate={true}
+          minDistance={3}
+          maxDistance={20}
+        />
+        <Environment preset="city" />
+        
+        {/* Performance monitoring */}
+        <Stats />
+      </Canvas>
+    </div>
+  )
+}`
   }
 ]
 
@@ -316,6 +409,19 @@ const defaultProviders: AIProvider[] = [
         pricing: '$0.25/1M tokens'
       }
     ]
+  },
+  {
+    id: 'codesandbox',
+    name: 'CodeSandbox',
+    baseUrl: 'https://codesandbox.io/api/v1',
+    models: [
+      {
+        id: 'sandbox-deployment',
+        name: 'Sandbox Deployment',
+        description: 'Deploy React Three Fiber scenes to CodeSandbox',
+        pricing: 'Free (with optional API key for advanced features)'
+      }
+    ]
   }
 ]
 
@@ -323,11 +429,12 @@ const defaultSettings: AppSettings = {
   apiKeys: {
     together: 'changeMe',
     openai: '',
-    anthropic: ''
+    anthropic: '',
+    codesandbox: ''
   },
   selectedProvider: 'together',
   selectedModel: 'deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free',
-  selectedLibrary: 'babylonjs',
+  selectedLibrary: 'react-three-fiber',
   temperature: 0.7,
   topP: 0.9,
   systemPrompt: '',

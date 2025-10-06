@@ -161,7 +161,7 @@ export function CodeEditor({ value, onChange, language, library }: CodeEditorPro
     },
     renderLineHighlight: 'line' as const,
     selectionHighlight: true,
-    occurrencesHighlight: true,
+    occurrencesHighlight: 'singleFile' as const,
     codeLens: false,
     contextmenu: true,
     mouseWheelZoom: true

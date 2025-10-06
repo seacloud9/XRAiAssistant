@@ -493,24 +493,19 @@ class ChatViewModel: ObservableObject {
         print("✅ LlamaStack stream created successfully")
         
         // Standard processing for Llama models with error handling
-        do {
-            for try await chunk in stream {
-                print("📦 Processing chunk from LlamaStack...")
-                do {
-                    let chunkResult = try processChunk(chunk, modelId: selectedModel)
-                    fullResponse += chunkResult
-                    if !chunkResult.isEmpty {
-                        print("📦 Added chunk content: '\(chunkResult.prefix(20))...' (total: \(fullResponse.count))")
-                    }
-                } catch {
-                    print("⚠️ Error processing individual chunk: \(error)")
-                    print("🔍 DEBUG: Problematic chunk: \(chunk)")
-                    // Continue processing other chunks
+        for try await chunk in stream {
+            print("📦 Processing chunk from LlamaStack...")
+            do {
+                let chunkResult = try processChunk(chunk, modelId: selectedModel)
+                fullResponse += chunkResult
+                if !chunkResult.isEmpty {
+                    print("📦 Added chunk content: '\(chunkResult.prefix(20))...' (total: \(fullResponse.count))")
                 }
+            } catch {
+                print("⚠️ Error processing individual chunk: \(error)")
+                print("🔍 DEBUG: Problematic chunk: \(chunk)")
+                // Continue processing other chunks
             }
-        } catch {
-            print("❌ Error in stream processing: \(error)")
-            throw error
         }
         
         print("✅ Stream completed, response length: \(fullResponse.count)")
@@ -672,28 +667,17 @@ class ChatViewModel: ObservableObject {
             }
         }
         
-        // Try to access the event field with error handling
-        do {
-            switch (chunk.event.delta) {
-            case .text(let textContent):
-                print("✅ Found text content: '\(textContent.text.prefix(50))...'")
-                return textContent.text
-            case .image(_):
-                print("📸 Found image content (skipping)")
-                return "" // Handle image content if needed
-            case .tool_call(_):
-                print("🔧 Found tool call content (skipping)")
-                return "" // Handle tool calls if needed
-            }
-        } catch {
-            print("❌ Error accessing chunk.event.delta: \(error)")
-            print("🔍 DEBUG: Let's inspect the chunk structure differently...")
-            
-            // Try alternative approach - maybe the structure is different
-            print("🔍 DEBUG: Chunk raw: \(String(describing: chunk))")
-            
-            // For now, return empty string to prevent crash
-            return ""
+        // Access the event delta content directly
+        switch (chunk.event.delta) {
+        case .text(let textContent):
+            print("✅ Found text content: '\(textContent.text.prefix(50))...'")
+            return textContent.text
+        case .image(_):
+            print("📸 Found image content (skipping)")
+            return "" // Handle image content if needed
+        case .tool_call(_):
+            print("🔧 Found tool call content (skipping)")
+            return "" // Handle tool calls if needed
         }
     }
     
@@ -727,22 +711,26 @@ class ChatViewModel: ObservableObject {
         // ENHANCED STRING EXTRACTION - Handle multiple patterns for [INSERT_CODE]
         print("Using enhanced string extraction...")
         
-        // Pattern 1: [INSERT_CODE]```javascript (direct)
-        if let startIndex = response.range(of: "[INSERT_CODE]```javascript")?.upperBound {
-            print("Found direct [INSERT_CODE]```javascript pattern")
-            
-            let remainingString = String(response[startIndex...])
-            if let endIndex = remainingString.range(of: "```")?.lowerBound {
-                let codeRange = startIndex..<response.index(startIndex, offsetBy: remainingString.distance(from: remainingString.startIndex, to: endIndex))
-                let extractedCode = String(response[codeRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+        // Pattern 1: [INSERT_CODE]```javascript or [INSERT_CODE]```typescript (direct)
+        let directPatterns = ["[INSERT_CODE]```javascript", "[INSERT_CODE]```typescript", "[INSERT_CODE]```js", "[INSERT_CODE]```ts"]
+        
+        for pattern in directPatterns {
+            if let startIndex = response.range(of: pattern)?.upperBound {
+                print("Found direct pattern: \(pattern)")
                 
-                if !extractedCode.isEmpty {
-                    print("✅ Extracted code using direct pattern method")
-                    let correctedCode = fixBabylonJSCode(extractedCode)
-                    processedResponse = processedResponse.replacingOccurrences(of: "[INSERT_CODE]```javascript", with: "✅ Code extracted!")
-                    processedResponse = processedResponse.replacingOccurrences(of: "```", with: "")
-                    injectCodeWithBuildSupport(correctedCode)
-                    return processedResponse.trimmingCharacters(in: .whitespacesAndNewlines)
+                let remainingString = String(response[startIndex...])
+                if let endIndex = remainingString.range(of: "```")?.lowerBound {
+                    let codeRange = startIndex..<response.index(startIndex, offsetBy: remainingString.distance(from: remainingString.startIndex, to: endIndex))
+                    let extractedCode = String(response[codeRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+                    
+                    if !extractedCode.isEmpty {
+                        print("✅ Extracted code using direct pattern method: \(pattern)")
+                        let correctedCode = fixBabylonJSCode(extractedCode)
+                        processedResponse = processedResponse.replacingOccurrences(of: pattern, with: "✅ Code extracted!")
+                        processedResponse = processedResponse.replacingOccurrences(of: "```", with: "")
+                        injectCodeWithBuildSupport(correctedCode)
+                        return processedResponse.trimmingCharacters(in: .whitespacesAndNewlines)
+                    }
                 }
             }
         }
@@ -759,40 +747,45 @@ class ChatViewModel: ObservableObject {
             print("🔍 Full INSERT_CODE block:")
             print("'\(fullBlock)'")
             
-            // Now find the ```javascript... part within this block (NO closing ``` expected)
-            print("🔍 Looking for ```javascript in block...")
-            if let jsStart = fullBlock.range(of: "```javascript") {
-                print("✅ Found ```javascript at position in block")
-                
-                // Extract everything after ```javascript until the end of the block
-                let afterJSStart = jsStart.upperBound
-                let extractedCode = String(fullBlock[afterJSStart...]).trimmingCharacters(in: .whitespacesAndNewlines)
-                
-                print("🔍 Raw extracted code length: \(extractedCode.count)")
-                print("🔍 Raw extracted code preview: '\(extractedCode.prefix(100))...'")
-                
-                if !extractedCode.isEmpty {
-                    print("✅ Extracted code using ACTUAL Qwen pattern method")
-                    print("Code length: \(extractedCode.count)")
-                    print("Code preview: \(extractedCode.prefix(300))...")
+            // Now find the ```javascript/typescript... part within this block (NO closing ``` expected)
+            print("🔍 Looking for code language markers in block...")
+            let codeLanguagePatterns = ["```javascript", "```typescript", "```js", "```ts"]
+            
+            for languagePattern in codeLanguagePatterns {
+                if let codeStart = fullBlock.range(of: languagePattern) {
+                    print("✅ Found \(languagePattern) at position in block")
                     
-                    let correctedCode = fixBabylonJSCode(extractedCode)
-                    processedResponse = processedResponse.replacingOccurrences(of: "[INSERT_CODE]", with: "✅ Code extracted!")
-                    processedResponse = processedResponse.replacingOccurrences(of: "[/INSERT_CODE]", with: "")
-                    processedResponse = processedResponse.replacingOccurrences(of: "```javascript", with: "")
-                    processedResponse = processedResponse.replacingOccurrences(of: "```", with: "")
-                    injectCodeWithBuildSupport(correctedCode)
-                    return processedResponse.trimmingCharacters(in: .whitespacesAndNewlines)
-                } else {
-                    print("⚠️ Extracted code is empty after trimming")
+                    // Extract everything after the language marker until the end of the block
+                    let afterCodeStart = codeStart.upperBound
+                    let extractedCode = String(fullBlock[afterCodeStart...]).trimmingCharacters(in: .whitespacesAndNewlines)
+                    
+                    print("🔍 Raw extracted code length: \(extractedCode.count)")
+                    print("🔍 Raw extracted code preview: '\(extractedCode.prefix(100))...'")
+                    
+                    if !extractedCode.isEmpty {
+                        print("✅ Extracted code using ACTUAL Qwen pattern method with \(languagePattern)")
+                        print("Code length: \(extractedCode.count)")
+                        print("Code preview: \(extractedCode.prefix(300))...")
+                        
+                        let correctedCode = fixBabylonJSCode(extractedCode)
+                        processedResponse = processedResponse.replacingOccurrences(of: "[INSERT_CODE]", with: "✅ Code extracted!")
+                        processedResponse = processedResponse.replacingOccurrences(of: "[/INSERT_CODE]", with: "")
+                        processedResponse = processedResponse.replacingOccurrences(of: languagePattern, with: "")
+                        processedResponse = processedResponse.replacingOccurrences(of: "```", with: "")
+                        injectCodeWithBuildSupport(correctedCode)
+                        return processedResponse.trimmingCharacters(in: .whitespacesAndNewlines)
+                    } else {
+                        print("⚠️ Extracted code is empty after trimming")
+                    }
                 }
-            } else {
-                print("❌ Could not find ```javascript in block")
-                // Print debug info
-                print("🔍 Block starts with: '\(fullBlock.prefix(50))...'")
-                print("🔍 Block contains 'javascript': \(fullBlock.contains("javascript"))")
-                print("🔍 Block contains '```': \(fullBlock.contains("```"))")
             }
+            
+            // If no language patterns found, print debug info
+            print("❌ Could not find any code language markers in block")
+            print("🔍 Block starts with: '\(fullBlock.prefix(50))...'")
+            print("🔍 Block contains 'javascript': \(fullBlock.contains("javascript"))")
+            print("🔍 Block contains 'typescript': \(fullBlock.contains("typescript"))")
+            print("🔍 Block contains '```': \(fullBlock.contains("```"))")
         }
         
         // ALWAYS look for regular code blocks as primary method for ALL models
@@ -1054,6 +1047,10 @@ class ChatViewModel: ObservableObject {
         UserDefaults.standard.set(temperature, forKey: "XRAiAssistant_Temperature")
         UserDefaults.standard.set(topP, forKey: "XRAiAssistant_TopP")
         
+        // Save CodeSandbox API key
+        let codeSandboxKey = aiProviderManager.getAPIKey(for: "CodeSandbox")
+        UserDefaults.standard.set(codeSandboxKey, forKey: "XRAiAssistant_CodeSandboxAPIKey")
+        
         // Update AI services with new API key if it changed
         updateAPIKey(apiKey)
         
@@ -1120,6 +1117,13 @@ class ChatViewModel: ObservableObject {
         if let savedTopP = savedTopP {
             topP = savedTopP
             print("🎯 Loaded saved top-p: \(savedTopP)")
+        }
+        
+        // Load CodeSandbox API key
+        let savedCodeSandboxKey = UserDefaults.standard.string(forKey: "XRAiAssistant_CodeSandboxAPIKey") ?? ""
+        aiProviderManager.setAPIKey(for: "CodeSandbox", key: savedCodeSandboxKey)
+        if !savedCodeSandboxKey.isEmpty {
+            print("🏗️ Loaded CodeSandbox API key: \(String(savedCodeSandboxKey.prefix(10)))...")
         }
         
         // Update AI services with loaded API key

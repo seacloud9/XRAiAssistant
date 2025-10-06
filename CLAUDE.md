@@ -388,6 +388,776 @@ The modular architecture supports community contributions in:
 
 ---
 
+## Blog Post Memory Notes
+
+### HTML Blog Formatting for Medium Publication
+
+**IMPORTANT**: When creating blog.html files for Medium publication, use minimal styling to ensure clean copy-paste compatibility:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[Blog Post Title]</title>
+</head>
+<body>
+    <!-- Content with minimal styling -->
+</body>
+</html>
+```
+
+**Medium-Compatible Formatting Guidelines**:
+- **NO custom CSS**: Remove all `<style>` tags and custom styling
+- **Simple HTML only**: Use basic `<h1>`, `<h2>`, `<p>`, `<ul>`, `<li>`, `<pre><code>`
+- **Replace styled divs**: Convert `.feature-card`, `.warning`, `.tags` to simple lists
+- **Keep emojis**: Medium supports Unicode emojis in content
+- **Preserve code blocks**: Use `<pre><code>` for code snippets
+- **Simple links**: Use standard `<a href="">` without custom styling
+
+**Tag Format**: Convert styled tags to simple paragraph:
+```html
+<h3>Tags</h3>
+<p>#XRAiAssistant #NextJS #LocalDevelopment #WebXR #BabylonJS #ThreeJS</p>
+```
+
+**Warning Sections**: Convert styled warnings to bold paragraphs:
+```html
+<p><strong>⚠️ Security Reality</strong>:</p>
+<ul>
+    <li>Point 1</li>
+    <li>Point 2</li>
+</ul>
+```
+
+This ensures the HTML can be copied directly into Medium's editor without formatting issues.
+
+---
+
+## Sandpack WebView Integration Plan
+
+### Overview: CodeSandbox Sandpack Integration for React Three Fiber and React Builds
+
+**Objective**: Implement a WebView component utilizing Sandpack from CodeSandbox to provide in-app execution of React Three Fiber and React builds with live preview, hot reload, and sharing capabilities.
+
+**🔒 CRITICAL: PRESERVE CURRENT IMPLEMENTATION**
+
+**Non-Negotiable Requirements**:
+- ✅ **Keep existing iframe implementation for Three.js, Babylon.js, and A-Frame**
+- ✅ **Maintain current SceneRenderer and CodeEditor components unchanged**
+- ✅ **Preserve existing split-view layout for legacy frameworks**
+- ✅ **No breaking changes to current playground functionality**
+- ✅ **Add Sandpack as OPTIONAL enhancement for React frameworks only**
+
+**Framework-Specific Approach**:
+```typescript
+// PRESERVE: Three.js, Babylon.js, A-Frame → Always use current iframe system
+// ENHANCE: React, React Three Fiber → Add optional Sandpack integration
+
+const FRAMEWORK_RENDERING_STRATEGY = {
+  'babylonjs': 'iframe-only',           // PRESERVE: No changes
+  'threejs': 'iframe-only',             // PRESERVE: No changes  
+  'aframe': 'iframe-only',              // PRESERVE: No changes
+  'react-three-fiber': 'iframe-or-sandpack', // NEW: User choice
+  'react': 'iframe-or-sandpack'               // NEW: User choice
+}
+```
+
+### Phase 1: Research and Architecture (High Priority)
+
+#### Sandpack Integration Analysis
+```typescript
+// Sandpack React components for in-app code execution
+import { 
+  SandpackProvider, 
+  SandpackCodeEditor, 
+  SandpackPreview,
+  SandpackConsole,
+  SandpackLayout 
+} from "@codesandbox/sandpack-react"
+
+// CodeSandbox Define API for programmatic sandbox creation
+interface DefineAPIOptions {
+  files: Record<string, { code: string }>
+  template: string // 'react' | 'react-ts' | 'create-react-app'
+  dependencies?: Record<string, string>
+  devDependencies?: Record<string, string>
+}
+```
+
+#### WebView Architecture Design
+```typescript
+// New component architecture for embedded sandbox execution
+interface SandpackWebViewProps {
+  initialCode: string
+  framework: 'react' | 'react-three-fiber'
+  onCodeChange?: (code: string) => void
+  onSandboxCreated?: (sandboxId: string) => void
+  showConsole?: boolean
+  showPreview?: boolean
+  autoReload?: boolean
+}
+
+// Integration with existing playground system - PRESERVING CURRENT IMPLEMENTATION
+interface PlaygroundViewEnhancement {
+  renderMode: 'iframe' | 'sandpack' // Keep iframe for Three.js, Babylon.js, A-Frame
+  livePreview: boolean
+  hotReload: boolean
+  shareableUrl?: string
+  
+  // Framework-specific rendering strategy
+  renderingStrategy: {
+    'babylonjs': 'iframe'      // PRESERVE: Current iframe implementation
+    'threejs': 'iframe'        // PRESERVE: Current iframe implementation  
+    'aframe': 'iframe'         // PRESERVE: Current iframe implementation
+    'react-three-fiber': 'sandpack' | 'iframe' // NEW: Optional Sandpack
+    'react': 'sandpack' | 'iframe'              // NEW: Optional Sandpack
+  }
+}
+
+// Backwards compatibility interface
+interface LegacyPlaygroundSupport {
+  preserveCurrentRendering: boolean // Always true for non-React frameworks
+  enableSandpackOption: boolean     // Only true for React frameworks
+}
+```
+
+### Phase 2: Core Implementation (High Priority)
+
+#### CodeSandbox API Integration
+```typescript
+// Service for CodeSandbox Define API integration
+class CodeSandboxService {
+  private readonly API_BASE = 'https://codesandbox.io/api/v1'
+  
+  async createSandbox(options: DefineAPIOptions): Promise<string> {
+    const response = await fetch(`${this.API_BASE}/sandboxes/define`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(options)
+    })
+    
+    const { sandbox_id } = await response.json()
+    return `https://codesandbox.io/s/${sandbox_id}`
+  }
+  
+  generateR3FFiles(userCode: string): DefineAPIOptions {
+    return {
+      files: {
+        'src/App.js': { code: this.wrapR3FComponent(userCode) },
+        'src/index.js': { code: this.getReactIndex() },
+        'package.json': { code: JSON.stringify(this.getR3FDependencies()) }
+      },
+      template: 'create-react-app'
+    }
+  }
+  
+  private wrapR3FComponent(userCode: string): string {
+    return `
+import React from 'react'
+import { Canvas } from '@react-three/fiber'
+import { OrbitControls, Environment } from '@react-three/drei'
+
+${userCode}
+
+export default function App() {
+  return (
+    <Canvas camera={{ position: [0, 0, 5] }}>
+      <ambientLight intensity={0.5} />
+      <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} />
+      <pointLight position={[-10, -10, -10]} />
+      <Scene />
+      <OrbitControls />
+      <Environment preset="city" />
+    </Canvas>
+  )
+}
+    `
+  }
+  
+  private getR3FDependencies() {
+    return {
+      name: 'xraiassistant-r3f-scene',
+      dependencies: {
+        '@react-three/fiber': '^8.17.10',
+        '@react-three/drei': '^9.109.0',
+        'react': '^18.2.0',
+        'react-dom': '^18.2.0',
+        'three': '^0.171.0'
+      }
+    }
+  }
+}
+```
+
+#### Sandpack Component Implementation
+```typescript
+// Main Sandpack WebView component
+export function SandpackWebView({ 
+  initialCode, 
+  framework, 
+  onCodeChange, 
+  onSandboxCreated,
+  showConsole = false,
+  showPreview = true,
+  autoReload = true 
+}: SandpackWebViewProps) {
+  const [files, setFiles] = useState<Record<string, string>>({})
+  const [template, setTemplate] = useState<string>('react')
+  const [dependencies, setDependencies] = useState<Record<string, string>>({})
+  
+  useEffect(() => {
+    if (framework === 'react-three-fiber') {
+      const r3fFiles = CodeSandboxService.generateR3FFiles(initialCode)
+      setFiles(r3fFiles.files)
+      setTemplate('create-react-app')
+      setDependencies(r3fFiles.dependencies || {})
+    } else {
+      // Standard React setup
+      setFiles({
+        'src/App.js': initialCode,
+        'src/index.js': getReactIndex()
+      })
+      setTemplate('react')
+      setDependencies(getReactDependencies())
+    }
+  }, [initialCode, framework])
+  
+  const handleCodeChange = (code: string) => {
+    onCodeChange?.(code)
+    if (autoReload) {
+      // Update files state to trigger Sandpack reload
+      setFiles(prev => ({
+        ...prev,
+        'src/App.js': code
+      }))
+    }
+  }
+  
+  const handleCreateSandbox = async () => {
+    try {
+      const sandboxUrl = await CodeSandboxService.createSandbox({
+        files,
+        template,
+        dependencies
+      })
+      onSandboxCreated?.(sandboxUrl)
+      toast.success('Sandbox created! URL copied to clipboard.')
+      copyToClipboard(sandboxUrl)
+    } catch (error) {
+      toast.error('Failed to create sandbox')
+      console.error(error)
+    }
+  }
+  
+  return (
+    <div className="h-full flex flex-col">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between p-3 bg-gray-100 dark:bg-gray-800 border-b">
+        <div className="flex items-center space-x-2">
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {framework === 'react-three-fiber' ? 'React Three Fiber' : 'React'} Sandbox
+          </span>
+          {framework === 'react-three-fiber' && (
+            <span className="px-2 py-1 text-xs bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded">
+              R3F
+            </span>
+          )}
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setShowConsole(!showConsole)}
+            className="px-3 py-1 text-sm rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"
+          >
+            {showConsole ? 'Hide Console' : 'Show Console'}
+          </button>
+          
+          <button
+            onClick={handleCreateSandbox}
+            className="px-3 py-1 text-sm rounded bg-blue-600 text-white hover:bg-blue-700"
+          >
+            Share Sandbox
+          </button>
+        </div>
+      </div>
+      
+      {/* Sandpack Container */}
+      <div className="flex-1">
+        <SandpackProvider
+          template={template}
+          files={files}
+          customSetup={{
+            dependencies
+          }}
+          options={{
+            showNavigator: false,
+            showRefreshButton: true,
+            showOpenInCodeSandbox: true,
+            editorHeight: '100%'
+          }}
+        >
+          <SandpackLayout>
+            <SandpackCodeEditor 
+              showTabs={false}
+              showLineNumbers={true}
+              showInlineErrors={true}
+              wrapContent={true}
+              closableTabs={false}
+              onCodeUpdate={(code) => handleCodeChange(code)}
+            />
+            
+            {showPreview && (
+              <SandpackPreview
+                showNavigator={false}
+                showRefreshButton={true}
+                showOpenInCodeSandbox={true}
+              />
+            )}
+          </SandpackLayout>
+          
+          {showConsole && (
+            <div className="h-48 border-t">
+              <SandpackConsole />
+            </div>
+          )}
+        </SandpackProvider>
+      </div>
+    </div>
+  )
+}
+```
+
+### Phase 3: Template System (Medium Priority)
+
+#### React Three Fiber Templates
+```typescript
+// R3F template system for different scene types
+export const R3F_TEMPLATES = {
+  basic: {
+    name: 'Basic Scene',
+    description: 'Simple mesh with lighting and controls',
+    code: `
+function Scene() {
+  const meshRef = useRef()
+  
+  useFrame((state, delta) => {
+    if (meshRef.current) {
+      meshRef.current.rotation.x += delta
+      meshRef.current.rotation.y += delta * 0.5
+    }
+  })
+  
+  return (
+    <mesh ref={meshRef}>
+      <boxGeometry args={[1, 1, 1]} />
+      <meshStandardMaterial color="orange" />
+    </mesh>
+  )
+}
+    `,
+    dependencies: ['@react-three/fiber', '@react-three/drei', 'three']
+  },
+  
+  interactive: {
+    name: 'Interactive Scene',
+    description: 'Clickable meshes with state management',
+    code: `
+function Scene() {
+  const [active, setActive] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  
+  return (
+    <mesh
+      scale={active ? 1.5 : 1}
+      onClick={() => setActive(!active)}
+      onPointerOver={() => setHovered(true)}
+      onPointerOut={() => setHovered(false)}
+    >
+      <boxGeometry args={[1, 1, 1]} />
+      <meshStandardMaterial color={hovered ? 'hotpink' : 'orange'} />
+    </mesh>
+  )
+}
+    `,
+    dependencies: ['@react-three/fiber', '@react-three/drei', 'three']
+  },
+  
+  physics: {
+    name: 'Physics Scene',
+    description: 'Physics-enabled objects with Cannon.js',
+    code: `
+import { useBox, usePlane, Physics } from '@react-three/cannon'
+
+function Box(props) {
+  const [ref, api] = useBox(() => ({ mass: 1, ...props }))
+  
+  return (
+    <mesh ref={ref} onClick={() => api.velocity.set(0, 5, 0)}>
+      <boxGeometry args={[1, 1, 1]} />
+      <meshStandardMaterial color="orange" />
+    </mesh>
+  )
+}
+
+function Plane(props) {
+  const [ref] = usePlane(() => ({ rotation: [-Math.PI / 2, 0, 0], ...props }))
+  
+  return (
+    <mesh ref={ref}>
+      <planeGeometry args={[100, 100]} />
+      <meshStandardMaterial color="lightblue" />
+    </mesh>
+  )
+}
+
+function Scene() {
+  return (
+    <Physics>
+      <Box position={[0, 5, 0]} />
+      <Plane />
+    </Physics>
+  )
+}
+    `,
+    dependencies: ['@react-three/fiber', '@react-three/drei', '@react-three/cannon', 'cannon', 'three']
+  }
+}
+```
+
+#### Standard React Templates
+```typescript
+// Standard React templates for various UI scenarios
+export const REACT_TEMPLATES = {
+  dashboard: {
+    name: 'Dashboard',
+    description: 'Interactive dashboard with charts and metrics',
+    code: `
+import React, { useState, useEffect } from 'react'
+
+function Dashboard() {
+  const [data, setData] = useState([])
+  const [selectedMetric, setSelectedMetric] = useState('sales')
+  
+  useEffect(() => {
+    // Simulate data fetching
+    setData([
+      { name: 'Sales', value: 12345 },
+      { name: 'Users', value: 8901 },
+      { name: 'Revenue', value: 45678 }
+    ])
+  }, [])
+  
+  return (
+    <div className="p-6 bg-gray-50 min-h-screen">
+      <h1 className="text-3xl font-bold mb-6">Analytics Dashboard</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {data.map((item) => (
+          <div key={item.name} className="bg-white p-6 rounded-lg shadow">
+            <h3 className="text-lg font-semibold mb-2">{item.name}</h3>
+            <p className="text-3xl font-bold text-blue-600">{item.value.toLocaleString()}</p>
+          </div>
+        ))}
+      </div>
+      
+      <div className="bg-white p-6 rounded-lg shadow">
+        <h2 className="text-xl font-semibold mb-4">Detailed Metrics</h2>
+        <select 
+          value={selectedMetric}
+          onChange={(e) => setSelectedMetric(e.target.value)}
+          className="p-2 border rounded"
+        >
+          <option value="sales">Sales</option>
+          <option value="users">Users</option>
+          <option value="revenue">Revenue</option>
+        </select>
+      </div>
+    </div>
+  )
+}
+
+export default Dashboard
+    `,
+    dependencies: ['react', 'react-dom']
+  }
+}
+```
+
+### Phase 4: Integration and Features (Medium Priority)
+
+#### Live Preview and Hot Reload (PRESERVING CURRENT IMPLEMENTATION)
+```typescript
+// Enhanced playground view with Sandpack integration - BACKWARDS COMPATIBLE
+export function EnhancedPlaygroundView() {
+  const { currentCode, setCurrentCode, getCurrentLibrary } = useAppStore()
+  const [renderMode, setRenderMode] = useState<'iframe' | 'sandpack'>('iframe')
+  const [showLivePreview, setShowLivePreview] = useState(true)
+  
+  const library = getCurrentLibrary()
+  const isReactBased = library?.id === 'react-three-fiber' || library?.id === 'react'
+  const isLegacyFramework = library?.id === 'babylonjs' || library?.id === 'threejs' || library?.id === 'aframe'
+  
+  // PRESERVE: Always use iframe for legacy frameworks
+  const effectiveRenderMode = isLegacyFramework ? 'iframe' : renderMode
+  
+  const handleCodeChange = (newCode: string) => {
+    setCurrentCode(newCode)
+    
+    // Auto-save every 2 seconds when using Sandpack
+    if (effectiveRenderMode === 'sandpack') {
+      debounce(() => {
+        // Save to localStorage or backend
+        localStorage.setItem('xrai-current-code', newCode)
+      }, 2000)()
+    }
+  }
+  
+  const handleSandboxCreated = (sandboxUrl: string) => {
+    // Add to app state for sharing
+    useAppStore.setState({ 
+      lastCreatedSandbox: {
+        url: sandboxUrl,
+        code: currentCode,
+        framework: library?.id,
+        createdAt: Date.now()
+      }
+    })
+  }
+  
+  return (
+    <div className="flex flex-col h-full">
+      {/* Enhanced Toolbar */}
+      <div className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 border-b">
+        <div className="flex items-center space-x-4">
+          {/* PRESERVE: Show render mode selector only for React frameworks */}
+          {isReactBased && (
+            <select
+              value={renderMode}
+              onChange={(e) => setRenderMode(e.target.value as 'iframe' | 'sandpack')}
+              className="p-2 border rounded"
+            >
+              <option value="iframe">Iframe Renderer</option>
+              <option value="sandpack">Sandpack Live</option>
+            </select>
+          )}
+          
+          {/* Show current rendering method */}
+          <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded">
+            {isLegacyFramework ? 'Iframe (Optimized)' : effectiveRenderMode}
+          </span>
+          
+          {effectiveRenderMode === 'sandpack' && (
+            <label className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                checked={showLivePreview}
+                onChange={(e) => setShowLivePreview(e.target.checked)}
+              />
+              <span>Live Preview</span>
+            </label>
+          )}
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <span className="text-sm text-gray-600 dark:text-gray-400">
+            {library?.name} v{library?.version}
+          </span>
+          
+          {/* PRESERVE: Show compatibility badge for legacy frameworks */}
+          {isLegacyFramework && (
+            <span className="px-2 py-1 text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded">
+              Native WebGL
+            </span>
+          )}
+        </div>
+      </div>
+      
+      {/* Content Area - CONDITIONAL RENDERING */}
+      <div className="flex-1">
+        {effectiveRenderMode === 'sandpack' && isReactBased ? (
+          // NEW: Sandpack integration for React frameworks only
+          <SandpackWebView
+            initialCode={currentCode}
+            framework={library?.id as 'react' | 'react-three-fiber'}
+            onCodeChange={handleCodeChange}
+            onSandboxCreated={handleSandboxCreated}
+            showPreview={showLivePreview}
+            autoReload={true}
+          />
+        ) : (
+          // PRESERVE: Current iframe implementation for ALL non-React frameworks
+          // This maintains the existing split-view layout and SceneRenderer
+          <div className="flex h-full">
+            <div className="w-1/2 border-r border-gray-200 dark:border-gray-700">
+              <CodeEditor
+                value={currentCode}
+                onChange={handleCodeChange}
+                language={getLanguageForLibrary(library)}
+                library={library}
+              />
+            </div>
+            <div className="w-1/2">
+              <SceneRenderer
+                code={currentCode}
+                library={library}
+                isRunning={true}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Helper function to determine language mode
+function getLanguageForLibrary(library: Library3D | undefined): string {
+  if (!library) return 'javascript'
+  
+  switch (library.id) {
+    case 'react-three-fiber':
+    case 'react':
+      return 'jsx'
+    case 'babylonjs':
+    case 'threejs':
+    case 'aframe':
+    default:
+      return 'javascript'
+  }
+}
+```
+
+#### Sharing and Collaboration Features
+```typescript
+// Sharing service for created sandboxes
+class SharingService {
+  async createShareableLink(code: string, framework: string): Promise<string> {
+    const sandboxUrl = await CodeSandboxService.createSandbox({
+      files: this.generateFiles(code, framework),
+      template: this.getTemplate(framework)
+    })
+    
+    // Store in app history
+    const shareData = {
+      id: generateId(),
+      url: sandboxUrl,
+      code,
+      framework,
+      createdAt: Date.now(),
+      title: this.generateTitle(code)
+    }
+    
+    this.saveToHistory(shareData)
+    return sandboxUrl
+  }
+  
+  generateEmbedCode(sandboxUrl: string): string {
+    const sandboxId = this.extractSandboxId(sandboxUrl)
+    return `<iframe src="https://codesandbox.io/embed/${sandboxId}" 
+             width="100%" height="500px" 
+             title="XRAiAssistant Generated Scene"></iframe>`
+  }
+  
+  async shareToSocialMedia(sandboxUrl: string, platform: 'twitter' | 'linkedin') {
+    const message = this.generateSocialMessage(sandboxUrl, platform)
+    const shareUrl = this.buildShareUrl(platform, message, sandboxUrl)
+    window.open(shareUrl, '_blank')
+  }
+  
+  private generateSocialMessage(sandboxUrl: string, platform: string): string {
+    const baseMessage = "Check out this 3D scene I created with XRAiAssistant! 🚀"
+    const hashtags = "#XRAiAssistant #ReactThreeFiber #WebXR #AI #3D"
+    
+    return platform === 'twitter' 
+      ? `${baseMessage} ${sandboxUrl} ${hashtags}`
+      : `${baseMessage}\n\nCreated with AI-powered XR development tools.\n\n${sandboxUrl}\n\n${hashtags}`
+  }
+}
+```
+
+### Phase 5: Error Handling and Testing (Medium-Low Priority)
+
+#### Comprehensive Error Handling
+```typescript
+// Error handling for Sandpack integration
+interface SandpackError {
+  type: 'compile' | 'runtime' | 'dependency' | 'network'
+  message: string
+  line?: number
+  column?: number
+  file?: string
+  stack?: string
+}
+
+class SandpackErrorHandler {
+  handleError(error: SandpackError): void {
+    switch (error.type) {
+      case 'compile':
+        this.showCompileError(error)
+        break
+      case 'runtime':
+        this.showRuntimeError(error)
+        break
+      case 'dependency':
+        this.showDependencyError(error)
+        break
+      case 'network':
+        this.showNetworkError(error)
+        break
+    }
+  }
+  
+  private showCompileError(error: SandpackError): void {
+    toast.error(`Compile Error: ${error.message}`)
+    // Highlight error line in editor
+    if (error.line) {
+      this.highlightErrorLine(error.line, error.column)
+    }
+  }
+  
+  private showRuntimeError(error: SandpackError): void {
+    toast.error(`Runtime Error: ${error.message}`)
+    console.error('Runtime Error Details:', error.stack)
+  }
+  
+  private showDependencyError(error: SandpackError): void {
+    toast.error(`Dependency Error: ${error.message}`)
+    // Suggest alternative dependencies
+    this.suggestAlternativeDependencies(error.message)
+  }
+  
+  private showNetworkError(error: SandpackError): void {
+    toast.error('Network Error: Unable to create sandbox. Please check your connection.')
+    // Offer offline mode or retry
+    this.offerRetryOption()
+  }
+}
+```
+
+### Implementation Timeline
+
+**Week 1-2**: Research Sandpack APIs, design architecture, implement CodeSandbox service
+**Week 3-4**: Build core Sandpack WebView component, integrate with existing playground
+**Week 5-6**: Implement templates system, add sharing features, comprehensive testing
+**Week 7**: Error handling, performance optimization, documentation
+
+### Dependencies to Add
+
+```json
+{
+  "dependencies": {
+    "@codesandbox/sandpack-react": "^2.13.5",
+    "@codesandbox/sandpack-client": "^2.13.5"
+  }
+}
+```
+
+This implementation will provide a seamless in-app development experience with live preview, hot reload, and instant sharing capabilities for React Three Fiber and React builds.
+
+---
+
 ## XRAiAssistant: The Future of AI-Powered XR Development
 
 **XRAiAssistant** represents the cutting edge of AI-assisted Extended Reality development, combining:

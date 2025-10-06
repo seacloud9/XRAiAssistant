@@ -19,12 +19,16 @@ struct ContentView: View {
     @State private var isInjectingCode = false
     @State private var showingSettings = false
     @State private var settingsSaved = false
+    @State private var useSandpackForR3F = true // Toggle for Sandpack vs local playground
+    @State private var pendingCodeSandboxCode: String?
+    @State private var pendingCodeSandboxFramework: String?
     
     private var settingsView: some View {
         NavigationView {
             Form {
                 apiConfigurationSection
                 modelSettingsSection
+                sandboxSettingsSection
                 systemPromptSection
                 saveSettingsSection
             }
@@ -41,10 +45,11 @@ struct ContentView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save") {
                         chatViewModel.saveSettings()
+                        saveContentViewSettings()
                         withAnimation(.easeInOut(duration: 0.3)) {
                             settingsSaved = true
                         }
-                        
+
                         // Auto-dismiss after showing confirmation
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                             withAnimation(.easeInOut(duration: 0.3)) {
@@ -83,6 +88,9 @@ struct ContentView: View {
                     description: "Get your API key from console.anthropic.com",
                     color: .purple
                 )
+                
+                // CodeSandbox API Key (Optional)
+                codeSandboxAPIKeyView()
             }
             .padding(.vertical, 4)
         }
@@ -129,6 +137,51 @@ struct ContentView: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 8)
         .background(color.opacity(0.05))
+        .cornerRadius(8)
+    }
+    
+    private func codeSandboxAPIKeyView() -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("CodeSandbox API Key (Optional)")
+                .font(.headline)
+                .foregroundColor(.primary)
+            
+            SecureField("Enter your CodeSandbox API key", text: Binding(
+                get: { chatViewModel.getAPIKey(for: "CodeSandbox") },
+                set: { chatViewModel.setAPIKey(for: "CodeSandbox", key: $0) }
+            ))
+            .textFieldStyle(RoundedBorderTextFieldStyle())
+            
+            HStack {
+                Text("Enables advanced CodeSandbox features and deployment")
+                    .font(.caption)
+                    .foregroundColor(.gray)
+                
+                Spacer()
+                
+                let codeSandboxKey = chatViewModel.getAPIKey(for: "CodeSandbox")
+                if !codeSandboxKey.isEmpty {
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.orange)
+                        Text("Configured")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                } else {
+                    HStack {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(.blue)
+                        Text("Optional - basic features work without API key")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 8)
+        .background(Color.orange.opacity(0.05))
         .cornerRadius(8)
     }
     
@@ -370,7 +423,114 @@ struct ContentView: View {
                 .cornerRadius(8)
         }
     }
-    
+
+    private var sandboxSettingsSection: some View {
+        Section("Sandbox & Deployment") {
+            VStack(alignment: .leading, spacing: 12) {
+                // Sandpack toggle for React Three Fiber
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "globe")
+                            .foregroundColor(.orange)
+                            .font(.caption)
+                        Text("React Three Fiber Rendering")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        Spacer()
+                    }
+
+                    Toggle(isOn: $useSandpackForR3F) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Use CodeSandbox Live")
+                                .font(.subheadline)
+                                .foregroundColor(.primary)
+                            Text(useSandpackForR3F ?
+                                "Real CodeSandbox projects with sharing & npm packages" :
+                                "Local playground with offline support")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        }
+                    }
+                    .toggleStyle(SwitchToggleStyle(tint: .orange))
+
+                    // Description based on current setting
+                    HStack {
+                        Image(systemName: useSandpackForR3F ? "cloud.circle.fill" : "desktopcomputer")
+                            .foregroundColor(useSandpackForR3F ? .blue : .green)
+                            .font(.caption)
+
+                        Text(useSandpackForR3F ?
+                            "Online: Real CodeSandbox environment with full npm ecosystem" :
+                            "Offline: Fast local rendering, no network required")
+                            .font(.caption)
+                            .foregroundColor(useSandpackForR3F ? .blue : .green)
+
+                        Spacer()
+                    }
+                    .padding(.top, 4)
+
+                    // Benefits info
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Benefits:")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                            .fontWeight(.semibold)
+
+                        if useSandpackForR3F {
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack {
+                                    Text("• Instant deployment to CodeSandbox")
+                                        .font(.caption2)
+                                        .foregroundColor(.gray)
+                                    Spacer()
+                                }
+                                HStack {
+                                    Text("• Social sharing with direct links")
+                                        .font(.caption2)
+                                        .foregroundColor(.gray)
+                                    Spacer()
+                                }
+                                HStack {
+                                    Text("• Live collaboration and embedding")
+                                        .font(.caption2)
+                                        .foregroundColor(.gray)
+                                    Spacer()
+                                }
+                            }
+                        } else {
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack {
+                                    Text("• Works completely offline")
+                                        .font(.caption2)
+                                        .foregroundColor(.gray)
+                                    Spacer()
+                                }
+                                HStack {
+                                    Text("• Faster local rendering")
+                                        .font(.caption2)
+                                        .foregroundColor(.gray)
+                                    Spacer()
+                                }
+                                HStack {
+                                    Text("• No external dependencies")
+                                        .font(.caption2)
+                                        .foregroundColor(.gray)
+                                    Spacer()
+                                }
+                            }
+                        }
+                    }
+                    .padding(.top, 4)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
+                    .background(Color.gray.opacity(0.05))
+                    .cornerRadius(6)
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
     private var systemPromptSection: some View {
         Section("System Prompt") {
             VStack(alignment: .leading, spacing: 8) {
@@ -685,22 +845,53 @@ struct ContentView: View {
                         .background(Color(.systemGray6))
                     }
                 } else {
-                    // Scene View - Full screen WebView with Monaco editor + 3D rendering
+                    // Scene View - Conditional WebView: Sandpack for R3F or local playground
                     ZStack {
-                        PlaygroundWebView(
-                            webView: $webView,
-                            playgroundTemplate: chatViewModel.getPlaygroundTemplate(),
-                            onWebViewLoaded: {
-                                print("WebView loaded successfully")
-                            },
-                            onWebViewError: { error in
-                                errorMessage = error.localizedDescription
-                                showingError = true
-                            },
-                            onJavaScriptMessage: { action, data in
-                                handleWebViewMessage(action: action, data: data)
-                            }
-                        )
+                        // Check if we should use CodeSandbox for React Three Fiber or Reactylon
+                        if useSandpackForR3F && (chatViewModel.getCurrentLibrary().id == "reactThreeFiber" || chatViewModel.getCurrentLibrary().id == "reactylon") {
+                            CodeSandboxWebView(
+                                webView: $webView,
+                                framework: chatViewModel.getCurrentLibrary().id,
+                                onWebViewLoaded: {
+                                    print("✅ CodeSandbox WebView loaded successfully")
+
+                                    // Check if we have a pending CodeSandbox URL to load
+                                    if let pendingURL = pendingCodeSandboxCode,
+                                       pendingURL.hasPrefix("https://codesandbox.io"),
+                                       let webView = webView,
+                                       let url = URL(string: pendingURL) {
+                                        print("🌐 Loading pending CodeSandbox URL: \(pendingURL)")
+                                        webView.load(URLRequest(url: url))
+                                        pendingCodeSandboxCode = nil // Clear after loading
+                                    }
+                                },
+                                onWebViewError: { error in
+                                    print("❌ CodeSandbox WebView error: \(error)")
+                                    errorMessage = error.localizedDescription
+                                    showingError = true
+                                },
+                                onSandboxCreated: { url in
+                                    print("🎉 CodeSandbox created: \(url)")
+                                    // Show success message or copy URL to clipboard
+                                }
+                            )
+                        } else {
+                            // Use traditional local playground
+                            PlaygroundWebView(
+                                webView: $webView,
+                                playgroundTemplate: chatViewModel.getPlaygroundTemplate(),
+                                onWebViewLoaded: {
+                                    print("Local playground WebView loaded successfully")
+                                },
+                                onWebViewError: { error in
+                                    errorMessage = error.localizedDescription
+                                    showingError = true
+                                },
+                                onJavaScriptMessage: { action, data in
+                                    handleWebViewMessage(action: action, data: data)
+                                }
+                            )
+                        }
                         
                         // Code injection overlay
                         if isInjectingCode {
@@ -708,7 +899,8 @@ struct ContentView: View {
                                 ProgressView()
                                     .scaleEffect(1.5)
                                     .tint(.blue)
-                                Text("Injecting AI Code...")
+                                Text(useSandpackForR3F && chatViewModel.getCurrentLibrary().id == "reactThreeFiber" ?
+                                    "Deploying to Sandpack..." : "Injecting AI Code...")
                                     .font(.headline)
                                     .foregroundColor(.blue)
                                     .padding(.top, 8)
@@ -748,16 +940,23 @@ struct ContentView: View {
                         currentView = .scene
                     }
                     
-                    // Inject AI-generated code and automatically run it
-                    if !lastGeneratedCode.isEmpty {
+                    // Inject AI-generated code and automatically run it (but skip for CodeSandbox mode)
+                    let shouldUseCodeSandbox = useSandpackForR3F && (
+                        chatViewModel.getCurrentLibrary().id == "reactThreeFiber" ||
+                        chatViewModel.getCurrentLibrary().id == "reactylon"
+                    )
+
+                    if !lastGeneratedCode.isEmpty && !shouldUseCodeSandbox {
                         print("Injecting AI code into Scene tab and running...")
                         isInjectingCode = true
-                        
+
                         // Wait longer for Scene tab to be visible and WebView to be ready
                         // Increased delay and retries for better reliability across all playground templates
                         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                             self.injectCodeWithRetry(lastGeneratedCode, maxRetries: 6)
                         }
+                    } else if shouldUseCodeSandbox {
+                        print("CodeSandbox mode enabled - using CodeSandbox instead of local injection")
                     } else {
                         print("No AI-generated code available, running default scene")
                         runScene()
@@ -820,6 +1019,7 @@ struct ContentView: View {
         }
         .onAppear {
             setupChatCallbacks()
+            loadContentViewSettings()
         }
         .alert("Error", isPresented: $showingError) {
             Button("OK") { }
@@ -993,56 +1193,87 @@ struct ContentView: View {
             return
         }
         
-        // Enhanced readiness check that works across all playground templates
-        let checkReadinessJS = """
-        (function() {
-            // Check Monaco editor readiness
-            const monacoReady = window.editor && 
-                               typeof window.editor.setValue === 'function' && 
-                               typeof window.editor.getValue === 'function' &&
-                               typeof window.editor.layout === 'function';
-            
-            // Check editor ready flag (set by all playground templates)
-            const editorFlagReady = window.editorReady === true;
-            
-            // Check if the DOM is fully loaded
-            const domReady = document.readyState === 'complete';
-            
-            // Check if setFullEditorContent function exists (our injection function)
-            const injectionFuncReady = typeof window.setFullEditorContent === 'function';
-            
-            console.log('Readiness check:', {
-                monaco: monacoReady,
-                flag: editorFlagReady, 
-                dom: domReady,
-                injection: injectionFuncReady
-            });
-            
-            if (monacoReady && editorFlagReady && domReady) {
-                return "READY";
-            } else {
-                return "NOT_READY";
-            }
-        })();
-        """
+        // Use different readiness checks based on Sandpack vs regular playground
+        let isUsingSandpack = useSandpackForR3F && chatViewModel.getCurrentLibrary().id == "reactThreeFiber"
+
+        let checkReadinessJS: String
+
+        if isUsingSandpack {
+            // Sandpack readiness check - uses our new simple approach
+            checkReadinessJS = """
+            (function() {
+                // Check if Sandpack environment is ready
+                const sandpackReady = typeof window.isReady === 'function' && window.isReady();
+
+                // Check if DOM is loaded
+                const domReady = document.readyState === 'complete';
+
+                // Check if injection function exists
+                const injectionFuncReady = typeof window.setFullEditorContent === 'function';
+
+                console.log('Sandpack readiness check:', {
+                    sandpack: sandpackReady,
+                    dom: domReady,
+                    injection: injectionFuncReady
+                });
+
+                return sandpackReady && domReady && injectionFuncReady;
+            })();
+            """
+        } else {
+            // Legacy Monaco playground readiness check
+            checkReadinessJS = """
+            (function() {
+                // Check Monaco editor readiness
+                const monacoReady = window.editor &&
+                                   typeof window.editor.setValue === 'function' &&
+                                   typeof window.editor.getValue === 'function' &&
+                                   typeof window.editor.layout === 'function';
+
+                // Check editor ready flag (set by all playground templates)
+                const editorFlagReady = window.editorReady === true;
+
+                // Check if the DOM is fully loaded
+                const domReady = document.readyState === 'complete';
+
+                // Check if setFullEditorContent function exists (our injection function)
+                const injectionFuncReady = typeof window.setFullEditorContent === 'function';
+
+                console.log('Monaco readiness check:', {
+                    monaco: monacoReady,
+                    flag: editorFlagReady,
+                    dom: domReady,
+                    injection: injectionFuncReady
+                });
+
+                if (monacoReady && editorFlagReady && domReady) {
+                    return "READY";
+                } else {
+                    return "NOT_READY";
+                }
+            })();
+            """
+        }
         
         webView.evaluateJavaScript(checkReadinessJS) { result, error in
             DispatchQueue.main.async {
-                if let result = result as? String, result == "READY" {
-                    print("✅ Monaco editor is ready, proceeding with injection")
+                let isReady = isUsingSandpack ? (result as? Bool == true) : (result as? String == "READY")
+
+                if isReady {
+                    print("✅ \(isUsingSandpack ? "Sandpack" : "Monaco") editor is ready, proceeding with injection")
                     self.insertCodeInWebView(code)
-                    
+
                     // JavaScript function will handle auto-run, just clear the loading state
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                         self.isInjectingCode = false
                     }
                 } else {
-                    print("⏳ Monaco not ready yet, retries left: \(maxRetries)")
+                    print("⏳ \(isUsingSandpack ? "Sandpack" : "Monaco") not ready yet, retries left: \(maxRetries)")
                     print("🔍 Current readiness result: \(result ?? "nil")")
                     if let error = error {
                         print("🔍 Readiness check error: \(error)")
                     }
-                    
+
                     if maxRetries > 0 {
                         // Retry after delay - longer delay for first few retries to allow full initialization
                         let delay = maxRetries > 3 ? 2.0 : 1.0
@@ -1052,10 +1283,10 @@ struct ContentView: View {
                     } else {
                         print("❌ Max retries reached, injection failed")
                         print("🔍 Final check - trying emergency injection...")
-                        
+
                         // Emergency injection attempt - try even if not completely ready
                         self.insertCodeInWebView(code)
-                        
+
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                             self.isInjectingCode = false
                         }
@@ -1233,7 +1464,20 @@ struct ContentView: View {
     
     private func buildAndRunCode(code: String, framework: FrameworkKind) async {
         print("🏗️ Building and running \(framework.displayName) code")
-        
+
+        // Check if we should use CodeSandbox for supported frameworks
+        let shouldUseCodeSandbox = useSandpackForR3F && (
+            chatViewModel.getCurrentLibrary().id == "reactThreeFiber" ||
+            chatViewModel.getCurrentLibrary().id == "reactylon"
+        )
+
+        if shouldUseCodeSandbox {
+            print("🌐 Using CodeSandbox for \(framework.displayName)")
+            await handleCodeSandboxInjection(code: code, framework: framework)
+            return
+        }
+
+        // Traditional build and injection for other frameworks
         await chatViewModel.buildSystem.buildCode(
             code: code,
             framework: framework
@@ -1252,6 +1496,50 @@ struct ContentView: View {
                     self.showingError = true
                 }
             }
+        }
+    }
+
+    private func handleCodeSandboxInjection(code: String, framework: FrameworkKind) async {
+        print("🌐 Creating CodeSandbox with user code...")
+
+        // Store the code for CodeSandbox creation
+        await MainActor.run {
+            self.pendingCodeSandboxCode = code
+            self.pendingCodeSandboxFramework = framework.rawValue
+
+            // Switch to scene view to ensure CodeSandboxWebView is loaded
+            self.currentView = .scene
+        }
+
+        // Wait a moment for the view to switch and CodeSandboxWebView to load
+        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+
+        // Trigger the sandbox creation
+        await createCodeSandboxFromCode(code: code, framework: framework)
+    }
+
+    private func createCodeSandboxFromCode(code: String, framework: FrameworkKind) async {
+        // Use secure CodeSandbox service (bypasses CORS issues)
+        let sandboxURL = SecureCodeSandboxService.shared.createTemplateBasedSandbox(
+            code: code,
+            framework: framework.rawValue
+        )
+
+        await MainActor.run {
+            print("🛡️ Secure CodeSandbox URL created: \(sandboxURL)")
+
+            // Load the sandbox URL in the WebView if available
+            if let webView = self.webView, let url = URL(string: sandboxURL) {
+                print("🌐 Loading secure CodeSandbox in WebView: \(sandboxURL)")
+                webView.load(URLRequest(url: url))
+            } else {
+                print("⏳ WebView not available yet, will load when ready")
+                // Store the URL for loading when WebView becomes available
+                self.pendingCodeSandboxCode = sandboxURL
+            }
+
+            // Ensure we're on the scene view
+            self.currentView = .scene
         }
     }
     
@@ -1281,6 +1569,20 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Settings Persistence
+
+    private func saveContentViewSettings() {
+        print("💾 Saving ContentView settings...")
+        UserDefaults.standard.set(useSandpackForR3F, forKey: "XRAiAssistant_UseSandpackForR3F")
+        print("✅ Sandpack setting saved: \(useSandpackForR3F)")
+    }
+
+    private func loadContentViewSettings() {
+        print("📁 Loading ContentView settings...")
+        useSandpackForR3F = UserDefaults.standard.bool(forKey: "XRAiAssistant_UseSandpackForR3F")
+        print("✅ Sandpack setting loaded: \(useSandpackForR3F)")
     }
 }
 

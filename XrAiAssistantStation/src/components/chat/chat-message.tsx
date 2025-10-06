@@ -44,11 +44,12 @@ export function ChatMessage({ message, onExtractCode, onCopy, onDownload }: Chat
             <div className="prose prose-sm dark:prose-invert max-w-none">
               <ReactMarkdown
                 components={{
-                  code({ node, inline, className, children, ...props }) {
+                  code({ className, children, ...props }: any) {
                     const match = /language-(\w+)/.exec(className || '')
                     const language = match ? match[1] : ''
+                    const isInline = !props.node || props.node.tagName === 'code'
                     
-                    if (!inline && language) {
+                    if (!isInline && language) {
                       return (
                         <SyntaxHighlighter
                           style={theme === 'dark' ? oneDark : oneLight}

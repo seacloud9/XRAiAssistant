@@ -122,8 +122,8 @@ public class BuildServiceFactory: ObservableObject {
         // Phase 2: Check for Node.js Mobile availability asynchronously
         Task {
             let nodeService = NodeBuildService()
-            let available = await nodeService.isNodeAvailable()
-            
+            let available = nodeService.isNodeAvailable()
+
             await MainActor.run {
                 self.isNodeAvailable = available
                 print("📱 Node.js availability: \(available ? "✅ Available" : "❌ Not available")")

@@ -23,7 +23,9 @@
       "Bash(open:*)",
       "Bash(npm run dev:*)",
       "Bash(pnpm install:*)",
-      "Bash(pnpm run dev:*)"
+      "Bash(pnpm run dev:*)",
+      "Bash(timeout 10 pnpm dev)",
+      "Bash(pnpm build:*)"
     ],
     "deny": []
   }
