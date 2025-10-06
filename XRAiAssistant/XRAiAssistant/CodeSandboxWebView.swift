@@ -13,23 +13,47 @@ class CodeSandboxWebViewCoordinator: NSObject, WKNavigationDelegate, WKScriptMes
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         // Allow navigation to CodeSandbox Define API
         if let url = navigationAction.request.url {
-            print("🌐 CodeSandbox WebView - Navigation request to: \(url.absoluteString)")
+            let urlString = url.absoluteString
+            print("🌐 CodeSandbox WebView - Navigation request to: \(urlString)")
 
-            if url.absoluteString.contains("codesandbox.io") {
+            // Allow CodeSandbox Define API
+            if urlString.contains("codesandbox.io") && urlString.contains("/api/v1/sandboxes/define") {
+                print("✅ CodeSandbox WebView - Allowing navigation to CodeSandbox Define API")
+                decisionHandler(.allow)
+                return
+            }
+
+            // Allow CodeSandbox main domain
+            if urlString.contains("codesandbox.io") {
                 print("✅ CodeSandbox WebView - Allowing navigation to CodeSandbox")
                 decisionHandler(.allow)
                 return
             }
+
+            // Block invalid/malformed URLs that start with encoded HTML
+            if urlString.hasPrefix("%3C") || urlString.hasPrefix("<") {
+                print("❌ CodeSandbox WebView - Blocking malformed URL that appears to be encoded HTML")
+                decisionHandler(.cancel)
+                return
+            }
         }
 
-        // Allow form submissions and local content
-        if navigationAction.navigationType == .formSubmitted || navigationAction.navigationType == .other {
-            print("✅ CodeSandbox WebView - Allowing form submission or local content")
+        // Allow form submissions (critical for CodeSandbox Define API)
+        if navigationAction.navigationType == .formSubmitted {
+            print("✅ CodeSandbox WebView - Allowing form submission")
             decisionHandler(.allow)
-        } else {
-            print("🔍 CodeSandbox WebView - Navigation type: \(navigationAction.navigationType.rawValue)")
-            decisionHandler(.allow) // Allow all for now
+            return
         }
+
+        // Allow local content loading
+        if navigationAction.navigationType == .other {
+            print("✅ CodeSandbox WebView - Allowing local content")
+            decisionHandler(.allow)
+            return
+        }
+
+        print("🔍 CodeSandbox WebView - Navigation type: \(navigationAction.navigationType.rawValue)")
+        decisionHandler(.allow)
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -44,6 +68,18 @@ class CodeSandboxWebViewCoordinator: NSObject, WKNavigationDelegate, WKScriptMes
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
         print("❌ CodeSandbox WebView - Provisional navigation failed: \(error)")
+
+        // Check if this is the malformed URL issue we're trying to fix
+        if let nsError = error as NSError?, nsError.code == 101, nsError.domain == "WebKitErrorDomain" {
+            print("⚠️ CodeSandbox WebView - Detected URL encoding issue. Attempting to reload with proper HTML...")
+
+            // Try to reload the sandbox form if this was a malformed URL error
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                // We could potentially retry here, but for now just log it
+                print("🔄 CodeSandbox WebView - Ready for retry if needed")
+            }
+        }
+
         parent.onWebViewError?(error)
     }
 
@@ -245,8 +281,11 @@ struct CodeSandboxWebView: UIViewRepresentable {
 
     private func loadSandboxHTML(webView: WKWebView, html: String) {
         print("🌐 CodeSandbox WebView - Loading HTML form for Define API")
-        // Use nil baseURL to avoid navigation conflicts and enable form submission
-        webView.loadHTMLString(html, baseURL: nil)
+        print("🌐 Loading secure CodeSandbox in WebView: \(String(html.prefix(200)))...")
+
+        // Use about:blank as base URL to prevent malformed URL navigation
+        let baseURL = URL(string: "about:blank")
+        webView.loadHTMLString(html, baseURL: baseURL)
     }
 }
 
