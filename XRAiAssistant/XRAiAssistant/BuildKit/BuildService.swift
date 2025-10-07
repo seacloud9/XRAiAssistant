@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Framework Types
 
-public enum FrameworkKind: String, CaseIterable {
+public enum FrameworkKind: String, CaseIterable, Sendable {
     case babylon = "babylon"
     case aFrame = "aFrame"
     case reactThreeFiber = "reactThreeFiber"

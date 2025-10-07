@@ -21,8 +21,6 @@ class CodeSandboxService {
     // MARK: - Core API Implementation
 
     private func createSandbox(files: [String: CodeSandboxFile]) async throws -> String {
-        let parameters = createParameters(files: files)
-
         var request = URLRequest(url: URL(string: defineAPIURL)!)
         request.httpMethod = "POST"
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")

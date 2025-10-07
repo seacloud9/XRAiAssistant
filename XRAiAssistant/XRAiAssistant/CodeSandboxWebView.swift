@@ -121,7 +121,7 @@ struct CodeSandboxWebView: UIViewRepresentable {
     var onWebViewError: ((Error) -> Void)?
     var onSandboxCreated: ((String) -> Void)?
 
-    @State private var currentSandboxURL: String?
+    @State var currentSandboxURL: String?
     @State private var isCreatingSandbox = false
 
     func makeCoordinator() -> CodeSandboxWebViewCoordinator {
