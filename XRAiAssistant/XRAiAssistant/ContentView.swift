@@ -1,13 +1,46 @@
 import SwiftUI
 import WebKit
+import Combine
 
 enum AppView {
     case chat
     case scene
 }
 
+// MARK: - Keyboard Management
+class KeyboardObserver: ObservableObject {
+    @Published var isKeyboardVisible = false
+    @Published var keyboardHeight: CGFloat = 0
+
+    private var cancellables = Set<AnyCancellable>()
+
+    init() {
+        NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)
+            .compactMap { notification in
+                (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue
+            }
+            .sink { frame in
+                DispatchQueue.main.async {
+                    self.keyboardHeight = frame.height
+                    self.isKeyboardVisible = true
+                }
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)
+            .sink { _ in
+                DispatchQueue.main.async {
+                    self.keyboardHeight = 0
+                    self.isKeyboardVisible = false
+                }
+            }
+            .store(in: &cancellables)
+    }
+}
+
 struct ContentView: View {
     @StateObject private var chatViewModel = ChatViewModel()
+    @StateObject private var keyboardObserver = KeyboardObserver()
     @State private var webView: WKWebView?
     @State private var currentCode = ""
     @State private var lastGeneratedCode = ""
@@ -543,6 +576,8 @@ struct ContentView: View {
                     .font(.system(size: 14).monospaced())
                     .padding(8)
                     .disableAutocorrection(true)
+                    .autocapitalization(.none)
+                    .textInputAutocapitalization(.never)
                     .background(Color(.systemGray6))
                     .cornerRadius(8)
                 
@@ -833,6 +868,8 @@ struct ContentView: View {
                                 }
                                 .disableAutocorrection(true)
                                 .keyboardType(.default)
+                                .autocapitalization(.none)
+                                .textInputAutocapitalization(.never)
                             
                             Button(action: sendMessage) {
                                 Image(systemName: "paperplane.fill")
@@ -1040,6 +1077,9 @@ struct ContentView: View {
             // Dismiss keyboard when tapping outside text fields
             UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         }
+        .padding(.bottom, keyboardObserver.isKeyboardVisible ? max(0, keyboardObserver.keyboardHeight - 34) : 0)
+        .animation(.easeInOut(duration: 0.3), value: keyboardObserver.keyboardHeight)
+        .ignoresSafeArea(.keyboard, edges: .bottom)
     }
     
     private func setupChatCallbacks() {

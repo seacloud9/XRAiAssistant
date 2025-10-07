@@ -187,8 +187,8 @@ struct CodeSandboxWebView: UIViewRepresentable {
             // Don't set currentSandboxURL to HTML content - leave it empty for now
             self.currentSandboxURL = ""
 
-            // Load the HTML form submission content
-            self.loadSandboxHTML(webView: webView, html: sandboxHTML)
+            // Try JavaScript form creation approach to avoid URL encoding issues
+            self.createSandboxWithJavaScript(webView: webView, html: sandboxHTML)
 
             // For onSandboxCreated callback, we'll need to generate a placeholder URL
             // since we don't have the actual CodeSandbox URL until after form submission
@@ -315,6 +315,97 @@ struct CodeSandboxWebView: UIViewRepresentable {
         // Use about:blank as base URL to prevent malformed URL navigation
         let baseURL = URL(string: "about:blank")
         webView.loadHTMLString(html, baseURL: baseURL)
+    }
+
+    private func createSandboxWithJavaScript(webView: WKWebView, html: String) {
+        print("🔧 CodeSandbox WebView - Using JavaScript form creation approach")
+
+        // First, load a minimal HTML page
+        let minimalHTML = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>Creating CodeSandbox...</title>
+            <style>
+                body {
+                    font-family: system-ui, -apple-system, sans-serif;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100vh;
+                    margin: 0;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    text-align: center;
+                }
+                .spinner {
+                    border: 3px solid rgba(255,255,255,0.3);
+                    border-radius: 50%;
+                    border-top: 3px solid white;
+                    width: 32px;
+                    height: 32px;
+                    animation: spin 1s linear infinite;
+                    margin: 20px auto;
+                }
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            </style>
+        </head>
+        <body>
+            <div>
+                <h2>🚀 Creating CodeSandbox...</h2>
+                <div class="spinner"></div>
+                <p>Redirecting to your React Three Fiber environment...</p>
+            </div>
+        </body>
+        </html>
+        """
+
+        // Load the minimal page first
+        webView.loadHTMLString(minimalHTML, baseURL: URL(string: "about:blank"))
+
+        // Extract the parameters from the original HTML
+        if let startRange = html.range(of: "value=\""),
+           let endRange = html.range(of: "\">", range: startRange.upperBound..<html.endIndex) {
+            let parameters = String(html[startRange.upperBound..<endRange.lowerBound])
+
+            // After a delay, create and submit the form via JavaScript
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                let jsCode = """
+                console.log('Creating CodeSandbox form programmatically...');
+                var form = document.createElement('form');
+                form.method = 'POST';
+                form.action = 'https://codesandbox.io/api/v1/sandboxes/define';
+                form.target = '_self';
+
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'parameters';
+                input.value = '\(parameters)';
+
+                form.appendChild(input);
+                document.body.appendChild(form);
+
+                console.log('Submitting form...');
+                form.submit();
+                """
+
+                webView.evaluateJavaScript(jsCode) { result, error in
+                    if let error = error {
+                        print("❌ CodeSandbox WebView - JavaScript form creation failed: \(error)")
+                    } else {
+                        print("✅ CodeSandbox WebView - JavaScript form created and submitted")
+                    }
+                }
+            }
+        } else {
+            print("❌ CodeSandbox WebView - Could not extract parameters from HTML")
+            // Fallback to original method
+            self.loadSandboxHTML(webView: webView, html: html)
+        }
     }
 }
 

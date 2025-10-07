@@ -74,7 +74,17 @@ class SecureCodeSandboxService {
                 <input type="hidden" name="parameters" value="\(parameters)">
             </form>
             <script>
-                document.getElementById('codeform').submit();
+                // Give WebView time to fully load before submission
+                window.addEventListener('DOMContentLoaded', function() {
+                    setTimeout(function() {
+                        try {
+                            console.log('Submitting CodeSandbox form...');
+                            document.getElementById('codeform').submit();
+                        } catch (error) {
+                            console.error('Form submission failed:', error);
+                        }
+                    }, 500);
+                });
             </script>
         </body>
         </html>
