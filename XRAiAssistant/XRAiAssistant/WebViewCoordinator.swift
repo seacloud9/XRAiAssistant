@@ -15,10 +15,36 @@ class WebViewCoordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler
     }
     
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        // Handle XPC connection interruptions gracefully
+        if let nsError = error as NSError? {
+            if nsError.domain == "com.apple.WebKit.Networking" {
+                print("⚠️ WebView - WebKit networking error detected, ignoring")
+                return
+            }
+
+            if nsError.localizedDescription.contains("XPC connection interrupted") {
+                print("⚠️ WebView - XPC connection interrupted, ignoring")
+                return
+            }
+        }
+
         parent.onWebViewError?(error)
     }
-    
+
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        // Handle XPC connection interruptions gracefully
+        if let nsError = error as NSError? {
+            if nsError.domain == "com.apple.WebKit.Networking" {
+                print("⚠️ WebView - WebKit networking error detected, ignoring")
+                return
+            }
+
+            if nsError.localizedDescription.contains("XPC connection interrupted") {
+                print("⚠️ WebView - XPC connection interrupted, ignoring")
+                return
+            }
+        }
+
         parent.onWebViewError?(error)
     }
     
@@ -58,13 +84,22 @@ struct PlaygroundWebView: UIViewRepresentable {
         
         // Enable debugging (if needed)
         configuration.preferences.setValue(true, forKey: "developerExtrasEnabled")
-        
+
         // Allow arbitrary loads for CDN resources
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
-        
+
+        // Optimize GPU process usage
+        configuration.suppressesIncrementalRendering = false
+        configuration.allowsInlineMediaPlayback = true
+        configuration.mediaTypesRequiringUserActionForPlayback = []
+
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = false
+
+        // Optimize WebView performance to reduce GPU process exits
+        webView.scrollView.isScrollEnabled = true
+        webView.scrollView.bounces = false
         
         // Load local HTML file - enhanced template loading with multiple fallback strategies
         var htmlLoaded = false

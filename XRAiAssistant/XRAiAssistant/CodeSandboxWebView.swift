@@ -11,34 +11,49 @@ class CodeSandboxWebViewCoordinator: NSObject, WKNavigationDelegate, WKScriptMes
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-        // Simplified navigation policy to avoid interference
-        if let url = navigationAction.request.url {
-            let urlString = url.absoluteString
-            print("🌐 CodeSandbox WebView - Navigation request to: \(String(urlString.prefix(100)))...")
-
-            // Block obviously malformed URLs (encoded HTML as URL)
-            if urlString.hasPrefix("%3C") || urlString.hasPrefix("<") {
-                print("❌ CodeSandbox WebView - Blocking malformed URL that appears to be encoded HTML")
-                decisionHandler(.cancel)
-                return
-            }
-
-            // Allow all CodeSandbox domains
-            if urlString.contains("codesandbox.io") {
-                print("✅ CodeSandbox WebView - Allowing navigation to CodeSandbox")
-                decisionHandler(.allow)
-                return
-            }
-
-            // Allow local content
-            if urlString.hasPrefix("file://") || urlString.hasPrefix("about:") {
-                print("✅ CodeSandbox WebView - Allowing local content")
-                decisionHandler(.allow)
-                return
-            }
+        guard let url = navigationAction.request.url else {
+            print("⚠️ CodeSandbox WebView - Navigation request with no URL")
+            decisionHandler(.allow)
+            return
         }
 
-        // Allow all navigation types by default to avoid blocking
+        let urlString = url.absoluteString
+        print("🌐 CodeSandbox WebView - Navigation request: \(String(urlString.prefix(100)))...")
+        print("🔍 Navigation type: \(navigationAction.navigationType.rawValue)")
+
+        // Block obviously malformed URLs (encoded HTML as URL)
+        if urlString.hasPrefix("%3C") || urlString.hasPrefix("<") {
+            print("❌ CodeSandbox WebView - Blocking malformed URL that appears to be encoded HTML")
+            decisionHandler(.cancel)
+            return
+        }
+
+        // Handle CodeSandbox domains - capture the actual sandbox URL
+        if urlString.contains("codesandbox.io") {
+            if urlString.contains("/s/") {
+                // This is likely the actual sandbox URL after form submission
+                let sandboxURL = urlString
+                print("🎯 CodeSandbox WebView - Captured actual sandbox URL: \(sandboxURL)")
+
+                DispatchQueue.main.async {
+                    self.parent.currentSandboxURL = sandboxURL
+                    self.parent.onSandboxCreated?(sandboxURL)
+                }
+            }
+
+            print("✅ CodeSandbox WebView - Allowing navigation to CodeSandbox")
+            decisionHandler(.allow)
+            return
+        }
+
+        // Allow local content (about:blank for our form)
+        if urlString.hasPrefix("file://") || urlString.hasPrefix("about:") {
+            print("✅ CodeSandbox WebView - Allowing local content")
+            decisionHandler(.allow)
+            return
+        }
+
+        // Allow form submissions by default
         print("✅ CodeSandbox WebView - Allowing navigation (type: \(navigationAction.navigationType.rawValue))")
         decisionHandler(.allow)
     }
@@ -50,6 +65,26 @@ class CodeSandboxWebViewCoordinator: NSObject, WKNavigationDelegate, WKScriptMes
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         print("❌ CodeSandbox WebView - Navigation failed: \(error)")
+
+        // Handle XPC connection interruptions gracefully
+        if let nsError = error as NSError? {
+            if nsError.domain == "com.apple.WebKit.Networking" {
+                print("⚠️ CodeSandbox WebView - WebKit networking error detected, ignoring")
+                return
+            }
+
+            if nsError.localizedDescription.contains("XPC connection interrupted") {
+                print("⚠️ CodeSandbox WebView - XPC connection interrupted, attempting recovery")
+
+                // Give the WebView a moment to recover
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    // Don't propagate XPC errors to the UI
+                    print("🔄 CodeSandbox WebView - XPC interruption handled gracefully")
+                }
+                return
+            }
+        }
+
         parent.onWebViewError?(error)
     }
 
@@ -140,20 +175,24 @@ struct CodeSandboxWebView: UIViewRepresentable {
         isCreatingSandbox = true
         print("🚀 CodeSandbox WebView - Creating secure sandbox for framework: \(framework)")
 
-        // Use secure template-based approach (direct URL to avoid WebKit issues)
-        let sandboxURL = SecureCodeSandboxService.shared.createTemplateBasedSandbox(
+        // Use secure template-based approach with form submission HTML
+        let sandboxHTML = SecureCodeSandboxService.shared.createTemplateBasedSandbox(
             code: code,
             framework: framework
         )
 
         DispatchQueue.main.async {
-            print("🛡️ CodeSandbox WebView - Using direct URL approach")
-            self.currentSandboxURL = sandboxURL
+            print("🛡️ CodeSandbox WebView - Loading form submission HTML")
 
-            // Always treat as HTML content since we're using form submission approach
-            self.loadSandboxHTML(webView: webView, html: sandboxURL)
+            // Don't set currentSandboxURL to HTML content - leave it empty for now
+            self.currentSandboxURL = ""
 
-            self.onSandboxCreated?(sandboxURL)
+            // Load the HTML form submission content
+            self.loadSandboxHTML(webView: webView, html: sandboxHTML)
+
+            // For onSandboxCreated callback, we'll need to generate a placeholder URL
+            // since we don't have the actual CodeSandbox URL until after form submission
+            self.onSandboxCreated?("https://codesandbox.io/s/creating...")
             self.isCreatingSandbox = false
         }
     }

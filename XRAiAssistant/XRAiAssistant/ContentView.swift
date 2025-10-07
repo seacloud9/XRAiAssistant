@@ -542,6 +542,7 @@ struct ContentView: View {
                     .frame(minHeight: 200)
                     .font(.system(size: 14).monospaced())
                     .padding(8)
+                    .disableAutocorrection(true)
                     .background(Color(.systemGray6))
                     .cornerRadius(8)
                 
@@ -830,6 +831,8 @@ struct ContentView: View {
                                 .onSubmit {
                                     sendMessage()
                                 }
+                                .disableAutocorrection(true)
+                                .keyboardType(.default)
                             
                             Button(action: sendMessage) {
                                 Image(systemName: "paperplane.fill")
@@ -1032,6 +1035,10 @@ struct ContentView: View {
             }
         } message: {
             Text(chatViewModel.errorMessage ?? "")
+        }
+        .onTapGesture {
+            // Dismiss keyboard when tapping outside text fields
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         }
     }
     
