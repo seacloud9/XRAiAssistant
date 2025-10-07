@@ -1573,17 +1573,13 @@ struct ContentView: View {
         )
 
         await MainActor.run {
-            print("🛡️ Secure CodeSandbox URL created: \(sandboxURL)")
+            print("🛡️ Secure CodeSandbox HTML created: length \(sandboxURL.count)")
 
-            // Load the sandbox URL in the WebView if available
-            if let webView = self.webView, let url = URL(string: sandboxURL) {
-                print("🌐 Loading secure CodeSandbox in WebView: \(sandboxURL)")
-                webView.load(URLRequest(url: url))
-            } else {
-                print("⏳ WebView not available yet, will load when ready")
-                // Store the URL for loading when WebView becomes available
-                self.pendingCodeSandboxCode = sandboxURL
-            }
+            // Note: sandboxURL is actually HTML content, not a URL!
+            // The CodeSandbox WebView will handle the form submission properly
+            // We don't need to do anything here since the CodeSandbox WebView
+            // has already been configured to handle this content
+            print("✅ CodeSandbox HTML ready for WebView form submission")
 
             // Ensure we're on the scene view
             self.currentView = .scene

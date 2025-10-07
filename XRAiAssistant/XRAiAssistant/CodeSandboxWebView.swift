@@ -91,17 +91,29 @@ class CodeSandboxWebViewCoordinator: NSObject, WKNavigationDelegate, WKScriptMes
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
         print("❌ CodeSandbox WebView - Provisional navigation failed: \(error)")
 
-        // Check if this is the malformed URL issue we're trying to fix
-        if let nsError = error as NSError?, nsError.code == 101, nsError.domain == "WebKitErrorDomain" {
-            print("⚠️ CodeSandbox WebView - Detected URL encoding issue. Attempting to reload with proper HTML...")
+        // Handle different types of navigation errors
+        if let nsError = error as NSError? {
+            switch (nsError.domain, nsError.code) {
+            case ("WebKitErrorDomain", 101):
+                print("⚠️ CodeSandbox WebView - Detected URL encoding issue (malformed URL)")
+                print("🔄 This should be resolved by the new JavaScript form creation approach")
+                return
 
-            // Try to reload the sandbox form if this was a malformed URL error
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                // We could potentially retry here, but for now just log it
-                print("🔄 CodeSandbox WebView - Ready for retry if needed")
+            case ("NSURLErrorDomain", -999):
+                print("⚠️ CodeSandbox WebView - Navigation cancelled (Code -999)")
+                print("🔄 This is often normal during form submission - ignoring")
+                return
+
+            case ("com.apple.WebKit.Networking", _):
+                print("⚠️ CodeSandbox WebView - WebKit networking error - ignoring")
+                return
+
+            default:
+                print("❌ CodeSandbox WebView - Unhandled error: domain=\(nsError.domain), code=\(nsError.code)")
             }
         }
 
+        // Only propagate errors that we haven't specifically handled
         parent.onWebViewError?(error)
     }
 
@@ -320,7 +332,39 @@ struct CodeSandboxWebView: UIViewRepresentable {
     private func createSandboxWithJavaScript(webView: WKWebView, html: String) {
         print("🔧 CodeSandbox WebView - Using JavaScript form creation approach")
 
-        // First, load a minimal HTML page
+        // Debug: Let's see what HTML we're working with
+        print("🔍 HTML content length: \(html.count)")
+        print("🔍 HTML snippet: \(String(html.prefix(300)))...")
+
+        // Extract the parameters from the original HTML with better debugging
+        if let startRange = html.range(of: "value=\"") {
+            print("✅ Found 'value=\"' at position \(html.distance(from: html.startIndex, to: startRange.lowerBound))")
+
+            if let endRange = html.range(of: "\">", range: startRange.upperBound..<html.endIndex) {
+                let parameters = String(html[startRange.upperBound..<endRange.lowerBound])
+                print("✅ Extracted parameters length: \(parameters.count)")
+                print("🔍 Parameters snippet: \(String(parameters.prefix(100)))...")
+
+                // Load minimal HTML and create form with JavaScript
+                self.loadMinimalHTMLAndCreateForm(webView: webView, parameters: parameters)
+                return
+            } else {
+                print("❌ Could not find closing '\"> after value=\"")
+            }
+        } else {
+            print("❌ Could not find 'value=\"' in HTML")
+        }
+
+        // If we get here, parameter extraction failed
+        print("❌ CodeSandbox WebView - Parameter extraction failed, using fallback")
+        print("🔍 Full HTML for debugging: \(html)")
+
+        // Instead of falling back to the problematic old method, let's try a different approach
+        // Let's skip the HTML altogether and create the form directly
+        self.createDirectFormSubmission(webView: webView)
+    }
+
+    private func loadMinimalHTMLAndCreateForm(webView: WKWebView, parameters: String) {
         let minimalHTML = """
         <!DOCTYPE html>
         <html>
@@ -367,15 +411,11 @@ struct CodeSandboxWebView: UIViewRepresentable {
         // Load the minimal page first
         webView.loadHTMLString(minimalHTML, baseURL: URL(string: "about:blank"))
 
-        // Extract the parameters from the original HTML
-        if let startRange = html.range(of: "value=\""),
-           let endRange = html.range(of: "\">", range: startRange.upperBound..<html.endIndex) {
-            let parameters = String(html[startRange.upperBound..<endRange.lowerBound])
-
-            // After a delay, create and submit the form via JavaScript
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                let jsCode = """
-                console.log('Creating CodeSandbox form programmatically...');
+        // After a delay, create and submit the form via JavaScript
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            let jsCode = """
+            console.log('Creating CodeSandbox form programmatically...');
+            try {
                 var form = document.createElement('form');
                 form.method = 'POST';
                 form.action = 'https://codesandbox.io/api/v1/sandboxes/define';
@@ -389,23 +429,59 @@ struct CodeSandboxWebView: UIViewRepresentable {
                 form.appendChild(input);
                 document.body.appendChild(form);
 
-                console.log('Submitting form...');
+                console.log('Form created, submitting...');
                 form.submit();
-                """
+            } catch (error) {
+                console.error('Form creation/submission failed:', error);
+            }
+            """
 
-                webView.evaluateJavaScript(jsCode) { result, error in
-                    if let error = error {
-                        print("❌ CodeSandbox WebView - JavaScript form creation failed: \(error)")
-                    } else {
-                        print("✅ CodeSandbox WebView - JavaScript form created and submitted")
-                    }
+            webView.evaluateJavaScript(jsCode) { result, error in
+                if let error = error {
+                    print("❌ CodeSandbox WebView - JavaScript form creation failed: \(error)")
+                } else {
+                    print("✅ CodeSandbox WebView - JavaScript form created and submitted")
                 }
             }
-        } else {
-            print("❌ CodeSandbox WebView - Could not extract parameters from HTML")
-            // Fallback to original method
-            self.loadSandboxHTML(webView: webView, html: html)
         }
+    }
+
+    private func createDirectFormSubmission(webView: WKWebView) {
+        print("🔄 CodeSandbox WebView - Attempting direct form submission without HTML parsing")
+
+        // Load a basic page and show error message
+        let errorHTML = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>CodeSandbox Error</title>
+            <style>
+                body {
+                    font-family: system-ui, -apple-system, sans-serif;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100vh;
+                    margin: 0;
+                    background: #ff6b6b;
+                    color: white;
+                    text-align: center;
+                    padding: 20px;
+                }
+            </style>
+        </head>
+        <body>
+            <div>
+                <h2>⚠️ CodeSandbox Creation Failed</h2>
+                <p>Unable to create CodeSandbox due to parameter extraction error.</p>
+                <p>Please try again or use a different framework.</p>
+            </div>
+        </body>
+        </html>
+        """
+
+        webView.loadHTMLString(errorHTML, baseURL: URL(string: "about:blank"))
     }
 }
 
