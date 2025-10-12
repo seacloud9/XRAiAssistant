@@ -160,3 +160,20 @@ config.json
 # XRAiAssistant specific
 # Note: localStorage automatically handles persistence
 # No additional ignore patterns needed for local storage data
+
+# Temporary documentation (consolidated into PROJECT_STATUS.md)
+BUILD_COMPLETE.md
+BUILD_FIXES_COMPLETE.md
+IMPLEMENTATION_COMPLETE.md
+CODESANDBOX_FIX.md
+CODESANDBOX_NATIVE_API_FIX.md
+SESSION_SUMMARY.md
+FINAL_SESSION_STATUS.md
+SOLUTION_COMPLETE.md
+BUG_FIX_SUMMARY.md
+LINTING.md
+XCODE_CORRUPTION_POSTMORTEM.md
+TYPE_CONFLICT_FIX.md
+
+# Build logs
+build.log

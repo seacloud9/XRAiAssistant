@@ -11,6 +11,16 @@
 		BAD367AA2D84AED7000EB786 /* AIProxy in Frameworks */ = {isa = PBXBuildFile; productRef = BAD367AB2D84AED7000EB786 /* AIProxy */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		26BF958C2D3D743A00168182 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 26AF956C2D3D743800168181 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 26AF95732D3D743800168181;
+			remoteInfo = XRAiAssistant;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		26AF95742D3D743800168181 /* XRAiAssistant.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = XRAiAssistant.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		26BF95842D3D743A00168182 /* XRAiAssistantTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = XRAiAssistantTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -207,16 +217,6 @@
 			targetProxy = 26BF958C2D3D743A00168182 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
-
-/* Begin PBXContainerItemProxy section */
-		26BF958C2D3D743A00168182 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 26AF956C2D3D743800168181 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 26AF95732D3D743800168181;
-			remoteInfo = XRAiAssistant;
-		};
-/* End PBXContainerItemProxy section */
 
 /* Begin XCBuildConfiguration section */
 		26AF95802D3D743A00168181 /* Debug */ = {

@@ -25,7 +25,11 @@
       "Bash(pnpm install:*)",
       "Bash(pnpm run dev:*)",
       "Bash(timeout 10 pnpm dev)",
-      "Bash(pnpm build:*)"
+      "Bash(pnpm build:*)",
+      "Bash(swiftc:*)",
+      "Bash(./scripts/xcode_recovery.sh:*)",
+      "Bash(killall:*)",
+      "Bash(git restore:*)"
     ],
     "deny": []
   }

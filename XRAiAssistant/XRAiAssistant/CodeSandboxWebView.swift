@@ -120,8 +120,15 @@ class CodeSandboxWebViewCoordinator: NSObject, WKNavigationDelegate, WKScriptMes
     // MARK: - WKScriptMessageHandler
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        if message.name == "codeSandboxDebug" {
-            print("📱 CodeSandbox WebView - JavaScript message: \(message.body)")
+        switch message.name {
+        case "codeSandboxDebug":
+            print("📱 CodeSandbox WebView - JavaScript: \(message.body)")
+        case "consoleLog":
+            print("🟦 WebView console.log: \(message.body)")
+        case "consoleError":
+            print("🟥 WebView console.error: \(message.body)")
+        default:
+            print("📱 WebView message [\(message.name)]: \(message.body)")
         }
     }
 }
@@ -132,6 +139,7 @@ struct CodeSandboxWebView: UIViewRepresentable {
     var onWebViewLoaded: (() -> Void)?
     var onWebViewError: ((Error) -> Void)?
     var onSandboxCreated: ((String) -> Void)?
+    var onTriggerCreate: (@escaping (String) -> Void) -> Void  // Callback that provides a creation function
 
     @State var currentSandboxURL: String?
     @State private var isCreatingSandbox = false
@@ -153,20 +161,60 @@ struct CodeSandboxWebView: UIViewRepresentable {
             configuration.preferences.javaScriptEnabled = true
         }
 
-        // Add message handler for debugging
+        // Add message handlers for debugging
         configuration.userContentController.add(context.coordinator, name: "codeSandboxDebug")
+        configuration.userContentController.add(context.coordinator, name: "consoleLog")
+        configuration.userContentController.add(context.coordinator, name: "consoleError")
+        
+        // Inject console.log/error interceptors for debugging
+        let consoleScript = """
+        (function() {
+            const originalLog = console.log;
+            const originalError = console.error;
+            const originalWarn = console.warn;
+            
+            console.log = function(...args) {
+                window.webkit.messageHandlers.consoleLog.postMessage(args.join(' '));
+                originalLog.apply(console, args);
+            };
+            
+            console.error = function(...args) {
+                window.webkit.messageHandlers.consoleError.postMessage(args.join(' '));
+                originalError.apply(console, args);
+            };
+            
+            console.warn = function(...args) {
+                window.webkit.messageHandlers.consoleLog.postMessage('[WARN] ' + args.join(' '));
+                originalWarn.apply(console, args);
+            };
+            
+            // Catch unhandled errors
+            window.addEventListener('error', function(e) {
+                window.webkit.messageHandlers.consoleError.postMessage('Uncaught error: ' + e.message + ' at ' + e.filename + ':' + e.lineno);
+            });
+        })();
+        """
+        
+        let userScript = WKUserScript(source: consoleScript, injectionTime: .atDocumentStart, forMainFrameOnly: false)
+        configuration.userContentController.addUserScript(userScript)
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = false
 
-        print("🌐 CodeSandbox WebView - Created with configuration")
+        print("🌐 CodeSandbox WebView - Created with configuration and console logging")
 
         // Load initial placeholder
         loadPlaceholder(webView: webView)
 
         DispatchQueue.main.async {
             self.webView = webView
+            
+            // Provide the creation function via callback
+            self.onTriggerCreate { code in
+                // This closure will be called from ContentView when code is ready
+                self.createAndLoadSandbox(code: code)
+            }
         }
 
         return webView
@@ -185,27 +233,41 @@ struct CodeSandboxWebView: UIViewRepresentable {
         }
 
         isCreatingSandbox = true
-        print("🚀 CodeSandbox WebView - Creating secure sandbox for framework: \(framework)")
+        print("🚀 CodeSandbox WebView - Creating sandbox using NATIVE API CLIENT")
+        print("🔧 Framework: \(framework)")
+        print("📝 Code length: \(code.count) characters")
 
-        // Use secure template-based approach with form submission HTML
-        let sandboxHTML = SecureCodeSandboxService.shared.createTemplateBasedSandbox(
-            code: code,
-            framework: framework
-        )
+        // Show loading state immediately
+        showLoadingState(webView: webView, message: "Creating CodeSandbox via native API...")
 
-        DispatchQueue.main.async {
-            print("🛡️ CodeSandbox WebView - Loading form submission HTML")
-
-            // Don't set currentSandboxURL to HTML content - leave it empty for now
-            self.currentSandboxURL = ""
-
-            // Try JavaScript form creation approach to avoid URL encoding issues
-            self.createSandboxWithJavaScript(webView: webView, html: sandboxHTML)
-
-            // For onSandboxCreated callback, we'll need to generate a placeholder URL
-            // since we don't have the actual CodeSandbox URL until after form submission
-            self.onSandboxCreated?("https://codesandbox.io/s/creating...")
-            self.isCreatingSandbox = false
+        // Use native Swift HTTP client instead of WKWebView form submission
+        Task {
+            do {
+                print("📡 Making native URLSession request to CodeSandbox API...")
+                let sandboxURL = try await CodeSandboxAPIClient.shared.createSandbox(
+                    code: code,
+                    framework: framework
+                )
+                
+                print("✅ CodeSandbox created successfully: \(sandboxURL)")
+                
+                // Update UI on main thread
+                await MainActor.run {
+                    self.currentSandboxURL = sandboxURL
+                    self.loadSandbox(webView: webView, url: sandboxURL)
+                    self.onSandboxCreated?(sandboxURL)
+                    self.isCreatingSandbox = false
+                }
+            } catch {
+                print("❌ CodeSandbox creation failed: \(error.localizedDescription)")
+                
+                // Show error in WebView
+                await MainActor.run {
+                    self.showError(webView: webView, error: error)
+                    self.onWebViewError?(error)
+                    self.isCreatingSandbox = false
+                }
+            }
         }
     }
 
@@ -309,180 +371,225 @@ struct CodeSandboxWebView: UIViewRepresentable {
 
         webView.loadHTMLString(placeholderHTML, baseURL: Bundle.main.bundleURL)
     }
-
-    private func loadSandbox(webView: WKWebView, url: String) {
-        guard let sandboxURL = URL(string: url) else {
-            print("❌ CodeSandbox WebView - Invalid sandbox URL: \(url)")
-            return
-        }
-
-        print("🌐 CodeSandbox WebView - Loading sandbox: \(url)")
-        webView.load(URLRequest(url: sandboxURL))
-    }
-
-    private func loadSandboxHTML(webView: WKWebView, html: String) {
-        print("🌐 CodeSandbox WebView - Loading HTML form for Define API")
-        print("🌐 Loading secure CodeSandbox in WebView: \(String(html.prefix(200)))...")
-
-        // Use about:blank as base URL to prevent malformed URL navigation
-        let baseURL = URL(string: "about:blank")
-        webView.loadHTMLString(html, baseURL: baseURL)
-    }
-
-    private func createSandboxWithJavaScript(webView: WKWebView, html: String) {
-        print("🔧 CodeSandbox WebView - Using JavaScript form creation approach")
-
-        // Debug: Let's see what HTML we're working with
-        print("🔍 HTML content length: \(html.count)")
-        print("🔍 HTML snippet: \(String(html.prefix(300)))...")
-
-        // Extract the parameters from the original HTML with better debugging
-        if let startRange = html.range(of: "value=\"") {
-            print("✅ Found 'value=\"' at position \(html.distance(from: html.startIndex, to: startRange.lowerBound))")
-
-            if let endRange = html.range(of: "\">", range: startRange.upperBound..<html.endIndex) {
-                let parameters = String(html[startRange.upperBound..<endRange.lowerBound])
-                print("✅ Extracted parameters length: \(parameters.count)")
-                print("🔍 Parameters snippet: \(String(parameters.prefix(100)))...")
-
-                // Load minimal HTML and create form with JavaScript
-                self.loadMinimalHTMLAndCreateForm(webView: webView, parameters: parameters)
-                return
-            } else {
-                print("❌ Could not find closing '\"> after value=\"")
-            }
-        } else {
-            print("❌ Could not find 'value=\"' in HTML")
-        }
-
-        // If we get here, parameter extraction failed
-        print("❌ CodeSandbox WebView - Parameter extraction failed, using fallback")
-        print("🔍 Full HTML for debugging: \(html)")
-
-        // Instead of falling back to the problematic old method, let's try a different approach
-        // Let's skip the HTML altogether and create the form directly
-        self.createDirectFormSubmission(webView: webView)
-    }
-
-    private func loadMinimalHTMLAndCreateForm(webView: WKWebView, parameters: String) {
-        let minimalHTML = """
+    
+    private func showLoadingState(webView: WKWebView, message: String) {
+        let loadingHTML = """
         <!DOCTYPE html>
         <html>
         <head>
-            <meta charset="utf-8">
             <title>Creating CodeSandbox...</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                
                 body {
-                    font-family: system-ui, -apple-system, sans-serif;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    height: 100vh;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    height: 100vh;
-                    margin: 0;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    color: white;
                     text-align: center;
                 }
-                .spinner {
-                    border: 3px solid rgba(255,255,255,0.3);
-                    border-radius: 50%;
-                    border-top: 3px solid white;
-                    width: 32px;
-                    height: 32px;
-                    animation: spin 1s linear infinite;
-                    margin: 20px auto;
+                
+                .container {
+                    max-width: 400px;
+                    padding: 40px 20px;
                 }
+                
+                .spinner {
+                    border: 4px solid rgba(255, 255, 255, 0.3);
+                    border-radius: 50%;
+                    border-top-color: white;
+                    width: 48px;
+                    height: 48px;
+                    animation: spin 1s linear infinite;
+                    margin: 0 auto 24px;
+                }
+                
                 @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
+                    to { transform: rotate(360deg); }
+                }
+                
+                h2 {
+                    font-size: 24px;
+                    margin-bottom: 12px;
+                }
+                
+                p {
+                    font-size: 16px;
+                    opacity: 0.9;
                 }
             </style>
         </head>
         <body>
-            <div>
-                <h2>🚀 Creating CodeSandbox...</h2>
+            <div class="container">
                 <div class="spinner"></div>
-                <p>Redirecting to your React Three Fiber environment...</p>
+                <h2>🚀 Creating CodeSandbox...</h2>
+                <p>\(message)</p>
             </div>
         </body>
         </html>
         """
-
-        // Load the minimal page first
-        webView.loadHTMLString(minimalHTML, baseURL: URL(string: "about:blank"))
-
-        // After a delay, create and submit the form via JavaScript
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            let jsCode = """
-            console.log('Creating CodeSandbox form programmatically...');
-            try {
-                var form = document.createElement('form');
-                form.method = 'POST';
-                form.action = 'https://codesandbox.io/api/v1/sandboxes/define';
-                form.target = '_self';
-
-                var input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'parameters';
-                input.value = '\(parameters)';
-
-                form.appendChild(input);
-                document.body.appendChild(form);
-
-                console.log('Form created, submitting...');
-                form.submit();
-            } catch (error) {
-                console.error('Form creation/submission failed:', error);
-            }
-            """
-
-            webView.evaluateJavaScript(jsCode) { result, error in
-                if let error = error {
-                    print("❌ CodeSandbox WebView - JavaScript form creation failed: \(error)")
-                } else {
-                    print("✅ CodeSandbox WebView - JavaScript form created and submitted")
-                }
-            }
-        }
+        
+        webView.loadHTMLString(loadingHTML, baseURL: nil)
     }
-
-    private func createDirectFormSubmission(webView: WKWebView) {
-        print("🔄 CodeSandbox WebView - Attempting direct form submission without HTML parsing")
-
-        // Load a basic page and show error message
+    
+    private func showError(webView: WKWebView, error: Error) {
         let errorHTML = """
         <!DOCTYPE html>
         <html>
         <head>
-            <meta charset="utf-8">
             <title>CodeSandbox Error</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                
                 body {
-                    font-family: system-ui, -apple-system, sans-serif;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+                    color: white;
+                    height: 100vh;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    height: 100vh;
-                    margin: 0;
-                    background: #ff6b6b;
-                    color: white;
                     text-align: center;
                     padding: 20px;
+                }
+                
+                .container {
+                    max-width: 500px;
+                    background: rgba(0, 0, 0, 0.2);
+                    padding: 32px;
+                    border-radius: 12px;
+                }
+                
+                .icon {
+                    font-size: 48px;
+                    margin-bottom: 16px;
+                }
+                
+                h2 {
+                    font-size: 24px;
+                    margin-bottom: 12px;
+                }
+                
+                .error-message {
+                    font-size: 14px;
+                    opacity: 0.9;
+                    margin-bottom: 24px;
+                    font-family: 'Courier New', monospace;
+                    background: rgba(0, 0, 0, 0.2);
+                    padding: 12px;
+                    border-radius: 6px;
+                }
+                
+                .suggestions {
+                    text-align: left;
+                    font-size: 14px;
+                    line-height: 1.6;
+                }
+                
+                .suggestions li {
+                    margin-bottom: 8px;
                 }
             </style>
         </head>
         <body>
-            <div>
-                <h2>⚠️ CodeSandbox Creation Failed</h2>
-                <p>Unable to create CodeSandbox due to parameter extraction error.</p>
-                <p>Please try again or use a different framework.</p>
+            <div class="container">
+                <div class="icon">⚠️</div>
+                <h2>Failed to Create CodeSandbox</h2>
+                <div class="error-message">\(error.localizedDescription)</div>
+                <div class="suggestions">
+                    <strong>Troubleshooting:</strong>
+                    <ul>
+                        <li>Check your internet connection</li>
+                        <li>Verify CodeSandbox API key in Settings</li>
+                        <li>Try regenerating the code</li>
+                        <li>Check the Xcode console for detailed logs</li>
+                    </ul>
+                </div>
             </div>
         </body>
         </html>
         """
-
-        webView.loadHTMLString(errorHTML, baseURL: URL(string: "about:blank"))
+        
+        webView.loadHTMLString(errorHTML, baseURL: nil)
     }
+
+    private func loadSandbox(webView: WKWebView, url: String) {
+        // Extract sandbox ID from the URL
+        var sandboxID: String?
+
+        if url.contains("/s/") {
+            // URL format: https://codesandbox.io/s/abc123
+            if let range = url.range(of: "/s/") {
+                let afterSlash = url[range.upperBound...]
+                sandboxID = String(afterSlash.split(separator: "/").first ?? "")
+            }
+        } else if url.contains("/p/sandbox/") {
+            // URL format: https://codesandbox.io/p/sandbox/abc123
+            if let range = url.range(of: "/p/sandbox/") {
+                let afterSlash = url[range.upperBound...]
+                sandboxID = String(afterSlash.split(separator: "/").first ?? "")
+            }
+        }
+
+        guard let id = sandboxID, !id.isEmpty else {
+            print("❌ CodeSandbox WebView - Could not extract sandbox ID from: \(url)")
+            return
+        }
+
+        print("🌐 CodeSandbox WebView - Loading sandbox with Sandpack: \(id)")
+        print("✅ Using Sandpack embed (designed for WebView)")
+
+        // Create Sandpack HTML that loads the sandbox
+        let sandpackHTML = createSandpackHTML(sandboxID: id)
+        webView.loadHTMLString(sandpackHTML, baseURL: URL(string: "https://codesandbox.io"))
+    }
+
+    private func createSandpackHTML(sandboxID: String) -> String {
+        return """
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>React Three Fiber Preview</title>
+            <style>
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }
+                html, body {
+                    width: 100%;
+                    height: 100%;
+                    overflow: hidden;
+                    background: #000;
+                }
+                iframe {
+                    width: 100%;
+                    height: 100%;
+                    border: none;
+                }
+            </style>
+        </head>
+        <body>
+            <iframe
+                src="https://codesandbox.io/embed/\(sandboxID)?fontsize=14&hidenavigation=1&theme=dark&view=preview&module=/src/App.js"
+                allow="accelerometer; ambient-light-sensor; camera; encrypted-media; geolocation; gyroscope; hid; microphone; midi; payment; usb; vr; xr-spatial-tracking"
+                sandbox="allow-forms allow-modals allow-popups allow-presentation allow-same-origin allow-scripts"
+            ></iframe>
+        </body>
+        </html>
+        """
+    }
+
+
+
+
 }
 
 // MARK: - API Compatibility Layer

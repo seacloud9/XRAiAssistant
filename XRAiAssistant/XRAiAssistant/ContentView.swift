@@ -55,6 +55,7 @@ struct ContentView: View {
     @State private var useSandpackForR3F = true // Toggle for Sandpack vs local playground
     @State private var pendingCodeSandboxCode: String?
     @State private var pendingCodeSandboxFramework: String?
+    @State private var codeSandboxCreateFunction: ((String) -> Void)?
     
     private var settingsView: some View {
         NavigationView {
@@ -626,32 +627,58 @@ struct ContentView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Main content area
-            Group {
-                if currentView == .chat {
-                    // Chat View - Clean chat-only interface
-                    VStack(spacing: 0) {
-                        // Chat header
-                        VStack(spacing: 0) {
-                            // Top row with title and loading
-                            HStack {
-                                Image(systemName: "brain")
-                                    .foregroundColor(.blue)
-                                Text("AI Assistant")
-                                    .font(.headline)
-                                    .foregroundColor(.primary)
-                                
-                                Spacer()
-                                
-                                if chatViewModel.isLoading {
-                                    ProgressView()
-                                        .scaleEffect(0.8)
-                                }
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.top, 12)
-                            
-                            // Model and Library selector row
-                            HStack {
+            if currentView == .chat {
+                chatView
+            } else {
+                sceneView
+            }
+            
+            // Bottom tab bar
+            bottomTabBar
+        }
+        .alert("Error", isPresented: $showingError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(errorMessage)
+        }
+        .sheet(isPresented: $showingSettings) {
+            settingsView
+        }
+    }
+    
+    // MARK: - Chat View
+    private var chatView: some View {
+        VStack(spacing: 0) {
+            chatHeader
+            chatMessages
+            chatCodeBanner
+            chatInputView
+        }
+    }
+    
+    // MARK: - Chat Header
+    private var chatHeader: some View {
+        VStack(spacing: 0) {
+            // Top row with title and loading
+            HStack {
+                Image(systemName: "brain")
+                    .foregroundColor(.blue)
+                Text("AI Assistant")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                
+                Spacer()
+                
+                if chatViewModel.isLoading {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            
+            // Model and Library selector row
+            HStack {
                                 // Model selector
                                 Image(systemName: "cpu")
                                     .foregroundColor(.gray)
@@ -790,11 +817,13 @@ struct ContentView: View {
                             }
                             .padding(.horizontal, 16)
                             .padding(.bottom, 8)
-                        }
-                        .background(Color(.systemGray6))
-                        
-                        // Chat messages - Takes full available space
-                        ScrollViewReader { proxy in
+        }
+        .background(Color(.systemGray6))
+    }
+    
+    // MARK: - Chat Messages
+    private var chatMessages: some View {
+        ScrollViewReader { proxy in
                             ScrollView {
                                 LazyVStack(alignment: .leading, spacing: 8) {
                                     ForEach(chatViewModel.messages) { message in
@@ -826,10 +855,13 @@ struct ContentView: View {
                                     }
                                 }
                             }
-                        }
-                        
-                        // AI Code Status Banner
-                        if !lastGeneratedCode.isEmpty {
+        }
+    }
+    
+    // MARK: - Chat Code Banner
+    private var chatCodeBanner: some View {
+        Group {
+            if !lastGeneratedCode.isEmpty {
                             VStack {
                                 HStack {
                                     Image(systemName: "checkmark.circle.fill")
@@ -857,10 +889,13 @@ struct ContentView: View {
                                     alignment: .top
                                 )
                             }
-                        }
-                        
-                        // Chat input
-                        HStack {
+            }
+        }
+    }
+    
+    // MARK: - Chat Input
+    private var chatInputView: some View {
+        HStack {
                             TextField("Ask me to create a 3D scene...", text: $chatInput)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
                                 .onSubmit {
@@ -883,10 +918,11 @@ struct ContentView: View {
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
                         .background(Color(.systemGray6))
-                    }
-                } else {
-                    // Scene View - Conditional WebView: Sandpack for R3F or local playground
-                    ZStack {
+    }
+    
+    // MARK: - Scene View
+    private var sceneView: some View {
+        ZStack {
                         // Check if we should use CodeSandbox for React Three Fiber or Reactylon
                         if useSandpackForR3F && (chatViewModel.getCurrentLibrary().id == "reactThreeFiber" || chatViewModel.getCurrentLibrary().id == "reactylon") {
                             CodeSandboxWebView(
@@ -895,14 +931,37 @@ struct ContentView: View {
                                 onWebViewLoaded: {
                                     print("✅ CodeSandbox WebView loaded successfully")
 
-                                    // Check if we have a pending CodeSandbox URL to load
-                                    if let pendingURL = pendingCodeSandboxCode,
-                                       pendingURL.hasPrefix("https://codesandbox.io"),
-                                       let webView = webView,
-                                       let url = URL(string: pendingURL) {
-                                        print("🌐 Loading pending CodeSandbox URL: \(pendingURL)")
-                                        webView.load(URLRequest(url: url))
-                                        pendingCodeSandboxCode = nil // Clear after loading
+                                    // Check the current URL to determine what page we're on
+                                    if let currentURL = self.webView?.url?.absoluteString {
+                                        print("🔍 Current WebView URL: \(currentURL)")
+
+                                        if currentURL.contains("codesandbox.io") && !currentURL.contains("/api/v1/sandboxes/define") {
+                                            // We're on the actual CodeSandbox page - success!
+                                            print("🎉 Successfully navigated to CodeSandbox!")
+                                            print("✅ CodeSandbox integration complete")
+                                            return
+                                        }
+                                    }
+
+                                    // Check if we have pending CodeSandbox code to create
+                                    if let pendingCode = pendingCodeSandboxCode,
+                                       !pendingCode.isEmpty {
+                                        print("🌐 Have pending CodeSandbox code: \(pendingCode.count) characters")
+                                        print("🔍 Framework: \(pendingCodeSandboxFramework ?? "unknown")")
+
+                                        // Wait a moment for WebView to be fully ready
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                            print("🚀 Creating CodeSandbox using native API client")
+                                            
+                                            // Call the creation function provided by CodeSandboxWebView
+                                            self.codeSandboxCreateFunction?(pendingCode)
+
+                                            // Clear pending content
+                                            self.pendingCodeSandboxCode = nil
+                                            self.pendingCodeSandboxFramework = nil
+                                        }
+                                    } else {
+                                        print("ℹ️ No pending CodeSandbox content to load")
                                     }
                                 },
                                 onWebViewError: { error in
@@ -912,7 +971,16 @@ struct ContentView: View {
                                 },
                                 onSandboxCreated: { url in
                                     print("🎉 CodeSandbox created: \(url)")
-                                    // Show success message or copy URL to clipboard
+
+                                    // Show success message
+                                    DispatchQueue.main.async {
+                                        // You could add a success toast or notification here
+                                        print("✅ React Three Fiber scene deployed to CodeSandbox successfully!")
+                                    }
+                                },
+                                onTriggerCreate: { createFunction in
+                                    // Store the creation function for later use
+                                    self.codeSandboxCreateFunction = createFunction
                                 }
                             )
                         } else {
@@ -950,11 +1018,11 @@ struct ContentView: View {
                             .cornerRadius(12)
                         }
                     }
-                }
             }
-            
-            // Bottom tab bar
-            HStack {
+    
+    // MARK: - Bottom Tab Bar
+    private var bottomTabBar: some View {
+        HStack {
                 // Code Tab (Chat)
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.3)) {
@@ -996,7 +1064,14 @@ struct ContentView: View {
                             self.injectCodeWithRetry(lastGeneratedCode, maxRetries: 6)
                         }
                     } else if shouldUseCodeSandbox {
-                        print("CodeSandbox mode enabled - using CodeSandbox instead of local injection")
+                        print("CodeSandbox mode enabled - using native API client")
+                        print("🌐 Creating CodeSandbox for \(chatViewModel.getCurrentLibrary().id)")
+
+                        // Store the code for CodeSandbox creation using native API
+                        pendingCodeSandboxCode = lastGeneratedCode
+                        pendingCodeSandboxFramework = chatViewModel.getCurrentLibrary().id
+                        print("✅ Code stored for native API CodeSandbox creation")
+                        print("🔍 Code length: \(lastGeneratedCode.count) characters")
                     } else {
                         print("No AI-generated code available, running default scene")
                         runScene()
@@ -1048,11 +1123,7 @@ struct ContentView: View {
                     .foregroundColor(.gray.opacity(0.3)),
                 alignment: .top
             )
-        }
-        .sheet(isPresented: $showingSettings) {
-            settingsView
-        }
-        .onChange(of: showingSettings) { _, isShowing in
+            .onChange(of: showingSettings) { _, isShowing in
             if !isShowing {
                 settingsSaved = false
             }
@@ -1206,7 +1277,7 @@ struct ContentView: View {
                     self.errorMessage = "Error running scene: \(error.localizedDescription)"
                     self.showingError = true
                 }
-                print("Error running scene: \(error)")
+                print("Error running scene: \(error?.localizedDescription ?? "unknown error")")
             }
         }
     }
@@ -1226,7 +1297,7 @@ struct ContentView: View {
                     self.errorMessage = "Error formatting code: \(error.localizedDescription)"
                     self.showingError = true
                 }
-                print("Error formatting code: \(error)")
+                print("Error formatting code: \(error?.localizedDescription ?? "unknown error")")
             }
         }
     }
@@ -1547,12 +1618,15 @@ struct ContentView: View {
     }
 
     private func handleCodeSandboxInjection(code: String, framework: FrameworkKind) async {
-        print("🌐 Creating CodeSandbox with user code...")
+        print("🌐 Creating CodeSandbox with user code using native API...")
 
-        // Store the code for CodeSandbox creation
+        // Store the raw code - CodeSandboxWebView will use native API client
         await MainActor.run {
+            print("🔍 User code length: \(code.count)")
+
             self.pendingCodeSandboxCode = code
             self.pendingCodeSandboxFramework = framework.rawValue
+            print("✅ Stored code for native API CodeSandbox creation")
 
             // Switch to scene view to ensure CodeSandboxWebView is loaded
             self.currentView = .scene
@@ -1561,30 +1635,9 @@ struct ContentView: View {
         // Wait a moment for the view to switch and CodeSandboxWebView to load
         try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
 
-        // Trigger the sandbox creation
-        await createCodeSandboxFromCode(code: code, framework: framework)
+        print("✅ Code ready for native API CodeSandbox creation")
     }
 
-    private func createCodeSandboxFromCode(code: String, framework: FrameworkKind) async {
-        // Use secure CodeSandbox service (bypasses CORS issues)
-        let sandboxURL = SecureCodeSandboxService.shared.createTemplateBasedSandbox(
-            code: code,
-            framework: framework.rawValue
-        )
-
-        await MainActor.run {
-            print("🛡️ Secure CodeSandbox HTML created: length \(sandboxURL.count)")
-
-            // Note: sandboxURL is actually HTML content, not a URL!
-            // The CodeSandbox WebView will handle the form submission properly
-            // We don't need to do anything here since the CodeSandbox WebView
-            // has already been configured to handle this content
-            print("✅ CodeSandbox HTML ready for WebView form submission")
-
-            // Ensure we're on the scene view
-            self.currentView = .scene
-        }
-    }
     
     private func injectBuiltCode(_ bundleCode: String, framework: FrameworkKind) {
         guard let webView = self.webView else {
@@ -1626,6 +1679,75 @@ struct ContentView: View {
         print("📁 Loading ContentView settings...")
         useSandpackForR3F = UserDefaults.standard.bool(forKey: "XRAiAssistant_UseSandpackForR3F")
         print("✅ Sandpack setting loaded: \(useSandpackForR3F)")
+    }
+
+    // MARK: - CodeSandbox HTML Loading
+
+    private func loadCodeSandboxHTMLInWebView(webView: WKWebView, html: String) {
+        print("🔧 ContentView - Loading CodeSandbox HTML directly (new self-contained approach)")
+        print("🔍 HTML content length: \(html.count)")
+
+        // The HTML approach can be either:
+        // 1. Self-contained with base64 encoded parameters (legacy)
+        // 2. Direct API approach with fetch() calls (new)
+        // Both handle submission internally via JavaScript
+
+        let isLegacyBase64Approach = html.contains("base64Params") && html.contains("atob")
+        let isDirectAPIApproach = html.contains("fetch(") && html.contains("codesandbox.io/api/v1/sandboxes/define")
+        let isFormSubmissionApproach = html.contains("form.submit") && html.contains("codesandbox.io/api/v1/sandboxes/define")
+
+        if isLegacyBase64Approach {
+            print("✅ HTML contains self-contained base64 parameter handling")
+            print("✅ Loading HTML directly - no parameter extraction needed")
+            webView.loadHTMLString(html, baseURL: URL(string: "about:blank"))
+        } else if isDirectAPIApproach {
+            print("✅ HTML contains direct API approach with fetch()")
+            print("✅ Loading HTML directly - will use fetch() to create sandbox")
+            webView.loadHTMLString(html, baseURL: URL(string: "about:blank"))
+        } else if isFormSubmissionApproach {
+            print("✅ HTML contains form submission approach")
+            print("✅ Loading HTML directly - will use form submission to create sandbox")
+            webView.loadHTMLString(html, baseURL: URL(string: "about:blank"))
+        } else {
+            print("❌ HTML doesn't contain expected CodeSandbox integration")
+            print("🔍 HTML snippet: \(String(html.prefix(500)))")
+            loadCodeSandboxErrorPage(webView: webView)
+        }
+    }
+
+    private func loadCodeSandboxErrorPage(webView: WKWebView) {
+        let errorHTML = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>CodeSandbox Error</title>
+            <style>
+                body {
+                    font-family: system-ui, -apple-system, sans-serif;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100vh;
+                    margin: 0;
+                    background: #ff6b6b;
+                    color: white;
+                    text-align: center;
+                    padding: 20px;
+                }
+            </style>
+        </head>
+        <body>
+            <div>
+                <h2>⚠️ CodeSandbox Creation Failed</h2>
+                <p>Unable to create CodeSandbox due to parameter extraction error.</p>
+                <p>Please try generating the code again.</p>
+            </div>
+        </body>
+        </html>
+        """
+
+        webView.loadHTMLString(errorHTML, baseURL: URL(string: "about:blank"))
     }
 }
 
