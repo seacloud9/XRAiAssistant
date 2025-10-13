@@ -304,12 +304,33 @@ class CodeSandboxAPIClient {
         }
 
         // Remove type annotations from function parameters
-        // (param: Type) → (param), (param: Type, → (param,
+        // This handles ALL patterns including object literal types
         let beforeParamTypes = cleanedCode
+
+        // Pattern 1: Remove object literal type annotations like: { prop: type, prop2: type }
+        // Example: ({ position, color }: { position: [number, number, number], color: string })
+        cleanedCode = cleanedCode.replacingOccurrences(of: #":\s*\{[^}]+\}"#, with: "", options: .regularExpression)
+
+        // Pattern 2: Remove capital-letter types (React.FC, THREE.Mesh, etc.)
         cleanedCode = cleanedCode.replacingOccurrences(of: #":\s*[A-Z][a-zA-Z0-9<>\.\[\]|&\s]*([,)])"#, with: "$1", options: .regularExpression)
+
+        // Pattern 3: Remove any remaining type annotation
         cleanedCode = cleanedCode.replacingOccurrences(of: #":\s*any([,)])"#, with: "$1", options: .regularExpression)
+
+        // Pattern 4: Remove primitive types (number, string, boolean, any, void, etc.)
+        cleanedCode = cleanedCode.replacingOccurrences(of: #":\s*(number|string|boolean|any|void|null|undefined|symbol|bigint)([,)])"#, with: "$2", options: .regularExpression)
+
+        // Pattern 5: Remove array types like string[], number[]
+        cleanedCode = cleanedCode.replacingOccurrences(of: #":\s*(number|string|boolean|any)\[\]([,)])"#, with: "$2", options: .regularExpression)
+
+        // Pattern 6: Remove return type annotations from arrow functions (: Type => becomes =>)
+        cleanedCode = cleanedCode.replacingOccurrences(of: #"\)\s*:\s*[A-Za-z][a-zA-Z0-9<>\.\[\]|&\s]*\s*=>"#, with: ") =>", options: .regularExpression)
+
+        // Pattern 7: Remove return type annotations from regular functions (: Type { becomes {)
+        cleanedCode = cleanedCode.replacingOccurrences(of: #"\)\s*:\s*[A-Za-z][a-zA-Z0-9<>\.\[\]|&\s]*\s*\{"#, with: ") {", options: .regularExpression)
+
         if cleanedCode != beforeParamTypes {
-            print("  ✂️ Removed type annotations from function parameters")
+            print("  ✂️ Removed type annotations from function parameters (including object literals)")
         }
 
         // Remove React.FC type annotations
@@ -319,6 +340,19 @@ class CodeSandboxAPIClient {
         // Remove THREE imports
         cleanedCode = cleanedCode.replacingOccurrences(of: "import * as THREE from 'three'\n", with: "")
         cleanedCode = cleanedCode.replacingOccurrences(of: "import * as THREE from \"three\"\n", with: "")
+
+        // Remove unused React imports (useRef, useState, useEffect, etc.) if they're not used
+        // This prevents React bundler confusion
+        if !cleanedCode.contains("useRef(") {
+            cleanedCode = cleanedCode.replacingOccurrences(of: #", useRef"#, with: "")
+            cleanedCode = cleanedCode.replacingOccurrences(of: #"useRef, "#, with: "")
+            cleanedCode = cleanedCode.replacingOccurrences(of: #"\{ useRef \}"#, with: "{}", options: .regularExpression)
+        }
+        if !cleanedCode.contains("useState(") {
+            cleanedCode = cleanedCode.replacingOccurrences(of: #", useState"#, with: "")
+            cleanedCode = cleanedCode.replacingOccurrences(of: #"useState, "#, with: "")
+            cleanedCode = cleanedCode.replacingOccurrences(of: #"\{ useState \}"#, with: "{}", options: .regularExpression)
+        }
 
         print("✅ TypeScript syntax cleaning complete")
 
@@ -425,6 +459,7 @@ class CodeSandboxAPIClient {
             "react-scripts": "5.0.1",
             "@react-three/fiber": "^8.17.10",
             "@react-three/drei": "^9.114.3",
+            "@react-three/postprocessing": "^2.16.3",
             "three": "^0.171.0"
           },
           "scripts": {
@@ -621,9 +656,372 @@ class CodeSandboxAPIClient {
         ]
     }
     
+    private func cleanReactylonCode(_ code: String) -> String {
+        var cleanedCode = code
+
+        print("🧹 Cleaning Reactylon code (original length: \(code.count))")
+
+        // Remove ALL rendering-related code that should be in index.js
+        let patternsToRemove = [
+            // Remove entire lines with createRoot imports
+            #"import\s+\{\s*createRoot\s*\}\s+from\s+['"]react-dom/client['"][\s\S]*?\n"#,
+            // Remove createRoot calls (multiline with any content)
+            #"const\s+root\s*=\s*createRoot\s*\([^)]*\)!?\s*\n?"#,
+            // Remove root.render calls (multiline)
+            #"root\.render\s*\([\s\S]*?\)\s*\n?"#,
+            // Remove document.getElementById with non-null assertion
+            #"const\s+rootElement\s*=\s*document\.getElementById\s*\([^)]*\)!?\s*\n?"#,
+            // Remove ReactDOM.render (old React 17 pattern)
+            #"ReactDOM\.render\s*\([\s\S]*?\)\s*\n?"#,
+            // Remove StrictMode imports
+            #"import\s+\{\s*StrictMode\s*\}\s+from\s+['"]react['"][\s\S]*?\n"#,
+            // Remove StrictMode wrapper
+            #"<StrictMode>[\s\S]*?</StrictMode>"#
+        ]
+
+        for pattern in patternsToRemove {
+            if let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive, .dotMatchesLineSeparators]) {
+                let range = NSRange(cleanedCode.startIndex..., in: cleanedCode)
+                let before = cleanedCode
+                cleanedCode = regex.stringByReplacingMatches(in: cleanedCode, options: [], range: range, withTemplate: "")
+                if before != cleanedCode {
+                    print("✂️ Pattern matched and removed: \(pattern)")
+                }
+            }
+        }
+
+        // STEP 2: AGGRESSIVE TypeScript syntax removal
+        print("🔧 Step 2: Removing TypeScript syntax...")
+
+        // Remove ! after any closing parenthesis (function calls)
+        let beforeNonNull = cleanedCode
+        cleanedCode = cleanedCode.replacingOccurrences(of: #"\)!"#, with: ")", options: .regularExpression)
+        if cleanedCode != beforeNonNull {
+            print("  ✂️ Removed non-null assertions after function calls")
+        }
+
+        // Remove ! after any property access
+        cleanedCode = cleanedCode.replacingOccurrences(of: #"([a-zA-Z0-9_\])\"\'])\s*!"#, with: "$1", options: .regularExpression)
+
+        // Remove ALL generic type parameters from any identifier
+        let beforeGenerics = cleanedCode
+
+        // First pass: Remove simple generics like useRef<Type>
+        cleanedCode = cleanedCode.replacingOccurrences(of: #"([a-zA-Z_][a-zA-Z0-9_]*)<[^<>]+>"#, with: "$1", options: .regularExpression)
+
+        // Second pass: Remove nested generics like useRef<Array<Type>>
+        // Keep removing until no more patterns match (handles any nesting depth)
+        var previousCode = ""
+        while previousCode != cleanedCode {
+            previousCode = cleanedCode
+            cleanedCode = cleanedCode.replacingOccurrences(of: #"([a-zA-Z_][a-zA-Z0-9_]*)<[^<>]*>"#, with: "$1", options: .regularExpression)
+        }
+
+        if cleanedCode != beforeGenerics {
+            print("  ✂️ Removed generic type parameters (e.g., useRef<Type>)")
+        }
+
+        // Remove type annotations from variable declarations
+        let beforeVarTypes = cleanedCode
+        cleanedCode = cleanedCode.replacingOccurrences(of: #"(const|let|var)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*[^=]+=\s*"#, with: "$1 $2 = ", options: .regularExpression)
+        if cleanedCode != beforeVarTypes {
+            print("  ✂️ Removed type annotations from variable declarations")
+        }
+
+        // Remove type annotations from function parameters (ALL types including primitives)
+        let beforeParamTypes = cleanedCode
+        // Pattern 1: Remove capital-letter types (React.FC, THREE.Mesh, etc.)
+        cleanedCode = cleanedCode.replacingOccurrences(of: #":\s*[A-Z][a-zA-Z0-9<>\.\[\]|&\s]*([,)])"#, with: "$1", options: .regularExpression)
+        // Pattern 2: Remove primitive types (number, string, boolean, any, void, etc.)
+        cleanedCode = cleanedCode.replacingOccurrences(of: #":\s*(number|string|boolean|any|void|null|undefined|symbol|bigint)([,)])"#, with: "$2", options: .regularExpression)
+        // Pattern 3: Remove array types like string[], number[]
+        cleanedCode = cleanedCode.replacingOccurrences(of: #":\s*(number|string|boolean|any)\[\]([,)])"#, with: "$2", options: .regularExpression)
+        // Pattern 4: Remove return type annotations from arrow functions (: Type => becomes =>)
+        cleanedCode = cleanedCode.replacingOccurrences(of: #"\)\s*:\s*[A-Za-z][a-zA-Z0-9<>\.\[\]|&\s]*\s*=>"#, with: ") =>", options: .regularExpression)
+        // Pattern 5: Remove return type annotations from regular functions (: Type { becomes {)
+        cleanedCode = cleanedCode.replacingOccurrences(of: #"\)\s*:\s*[A-Za-z][a-zA-Z0-9<>\.\[\]|&\s]*\s*\{"#, with: ") {", options: .regularExpression)
+        if cleanedCode != beforeParamTypes {
+            print("  ✂️ Removed type annotations from function parameters")
+        }
+
+        // Remove React.FC type annotations
+        cleanedCode = cleanedCode.replacingOccurrences(of: ": React.FC", with: "")
+        cleanedCode = cleanedCode.replacingOccurrences(of: ": React.FC<", with: "")
+
+        // Remove JSX.Element type annotations
+        cleanedCode = cleanedCode.replacingOccurrences(of: ": JSX.Element", with: "")
+        cleanedCode = cleanedCode.replacingOccurrences(of: ": React.ReactNode", with: "")
+        cleanedCode = cleanedCode.replacingOccurrences(of: ": React.ReactElement", with: "")
+
+        // Remove Babylon.js namespace imports (if any)
+        cleanedCode = cleanedCode.replacingOccurrences(of: "import * as BABYLON from '@babylonjs/core'\n", with: "")
+        cleanedCode = cleanedCode.replacingOccurrences(of: "import * as BABYLON from \"@babylonjs/core\"\n", with: "")
+
+        // Replace 'reactylon' with 'react-babylonjs' (AI sometimes uses wrong package name)
+        if cleanedCode.contains("from 'reactylon'") || cleanedCode.contains("from \"reactylon\"") {
+            cleanedCode = cleanedCode.replacingOccurrences(of: "from 'reactylon'", with: "from 'react-babylonjs'")
+            cleanedCode = cleanedCode.replacingOccurrences(of: "from \"reactylon\"", with: "from 'react-babylonjs'")
+            print("  🔄 Replaced 'reactylon' imports with 'react-babylonjs'")
+        }
+
+        // Remove unused React imports (useRef, useState, useEffect, etc.) if they're not used
+        // This prevents React bundler confusion
+        if !cleanedCode.contains("useRef(") {
+            cleanedCode = cleanedCode.replacingOccurrences(of: #", useRef"#, with: "")
+            cleanedCode = cleanedCode.replacingOccurrences(of: #"useRef, "#, with: "")
+        }
+        if !cleanedCode.contains("useState(") {
+            cleanedCode = cleanedCode.replacingOccurrences(of: #", useState"#, with: "")
+            cleanedCode = cleanedCode.replacingOccurrences(of: #"useState, "#, with: "")
+        }
+
+        // Fix empty import braces: import React, {} from 'react' -> import React from 'react'
+        cleanedCode = cleanedCode.replacingOccurrences(of: #", \{\}"#, with: "")
+        cleanedCode = cleanedCode.replacingOccurrences(of: #", \{ \}"#, with: "")
+
+        // Remove Ground from imports (it doesn't exist in react-babylonjs)
+        cleanedCode = cleanedCode.replacingOccurrences(of: #", Ground"#, with: "")
+        cleanedCode = cleanedCode.replacingOccurrences(of: #"Ground, "#, with: "")
+
+        // Remove undefined components that don't exist in react-babylonjs
+        // Ground component doesn't exist - remove it from JSX including comments and nested props
+        // Use [\s\S]*? instead of [^>]* to properly handle multi-line JSX with nested components
+        print("  🧹 Removing Ground component (with multi-line support)...")
+
+        // First, remove JSX comments about Ground
+        cleanedCode = cleanedCode.replacingOccurrences(of: #"\{/\*\s*Ground\s*\*/\}[\s\n]*"#, with: "", options: .regularExpression)
+
+        // Remove self-closing Ground tags with multi-line props: <Ground ... />
+        cleanedCode = cleanedCode.replacingOccurrences(of: #"<Ground[\s\S]*?/>[\s\n]*"#, with: "", options: .regularExpression)
+
+        // Remove Ground tags with children: <Ground ...>...</Ground>
+        cleanedCode = cleanedCode.replacingOccurrences(of: #"<Ground[\s\S]*?>[\s\S]*?</Ground>[\s\n]*"#, with: "", options: .regularExpression)
+
+        print("  ✅ Ground component removal complete")
+
+        print("✅ TypeScript syntax cleaning complete")
+
+        // Clean up multiple blank lines
+        while cleanedCode.contains("\n\n\n") {
+            cleanedCode = cleanedCode.replacingOccurrences(of: "\n\n\n", with: "\n\n")
+        }
+
+        // Ensure we have necessary imports
+        let hasReactImport = cleanedCode.contains("import React")
+        // Check for imports from EITHER react-babylonjs OR reactylon (AI may use either name)
+        let hasEngineImport = cleanedCode.contains("from 'react-babylonjs'") ||
+                              cleanedCode.contains("from \"react-babylonjs\"") ||
+                              cleanedCode.contains("from 'reactylon'") ||
+                              cleanedCode.contains("from \"reactylon\"")
+
+        var finalCode = ""
+
+        // Add React import if missing
+        if !hasReactImport {
+            finalCode += "import React from 'react';\n"
+            print("➕ Added missing React import")
+        }
+
+        // Add Engine import if missing (but only if Engine is used AND no imports exist)
+        if !hasEngineImport && cleanedCode.contains("<Engine") {
+            finalCode += "import { Engine, Scene } from 'react-babylonjs';\n"
+            print("➕ Added missing Engine import")
+        }
+
+        // Add the cleaned user code
+        finalCode += cleanedCode.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Clean up any orphaned closing parentheses or brackets at the end
+        var trimmedFinalCode = finalCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        while trimmedFinalCode.hasSuffix(")") || trimmedFinalCode.hasSuffix("]") || trimmedFinalCode.hasSuffix("}") {
+            let lastChar = trimmedFinalCode.last!
+
+            // Count opening and closing brackets to see if this is orphaned
+            let openCount = trimmedFinalCode.filter { $0 == Character(String(lastChar).replacingOccurrences(of: ")", with: "(").replacingOccurrences(of: "]", with: "[").replacingOccurrences(of: "}", with: "{")) }.count
+            let closeCount = trimmedFinalCode.filter { $0 == lastChar }.count
+
+            if closeCount > openCount {
+                // Orphaned closing bracket - remove it
+                trimmedFinalCode = String(trimmedFinalCode.dropLast()).trimmingCharacters(in: .whitespacesAndNewlines)
+                print("  🧹 Removed orphaned closing bracket: \(lastChar)")
+            } else {
+                break
+            }
+        }
+
+        finalCode = trimmedFinalCode
+
+        // Ensure we export default App
+        if !finalCode.contains("export default") {
+            // ALWAYS export App for Reactylon scenes
+            // The App component must contain the Engine, so we can't export inner components
+            if finalCode.contains("function App()") {
+                finalCode += "\n\nexport default App;"
+                print("➕ Added default export: App")
+            } else {
+                // If no App function, try to find any Engine-containing component
+                if let funcMatch = finalCode.range(of: #"function\s+([A-Z][a-zA-Z0-9]*)\(\)[^{]*\{[^}]*<Engine"#, options: .regularExpression) {
+                    let funcName = String(finalCode[funcMatch])
+                        .replacingOccurrences(of: #"function\s+"#, with: "", options: .regularExpression)
+                        .replacingOccurrences(of: #"\(\).*"#, with: "", options: .regularExpression)
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    finalCode += "\n\nexport default \(funcName);"
+                    print("➕ Added default export: \(funcName) (contains Engine)")
+                } else {
+                    // Fallback: export App
+                    finalCode += "\n\nexport default App;"
+                    print("➕ Added default export: App (fallback)")
+                }
+            }
+        }
+
+        print("✅ Code cleaning complete (final length: \(finalCode.count))")
+        print("📝 First 500 chars of cleaned code:")
+        print(String(finalCode.prefix(500)))
+        print("...")
+
+        // Log the entire cleaned code for debugging
+        print("================================================================================")
+        print("COMPLETE CLEANED CODE (src/App.js):")
+        print("================================================================================")
+        print(finalCode)
+        print("================================================================================")
+
+        return finalCode
+    }
+
     private func generateReactylonFiles(code: String) -> [String: CodeSandboxAPIFile] {
-        // Similar to React Three Fiber but with Babylon.js/Reactylon packages
-        return generateBabylonJSFiles(code: code)
+        // Clean the AI-generated code with Reactylon-specific cleaning
+        let cleanedCode = cleanReactylonCode(code)
+
+        let packageJson = """
+        {
+          "name": "reactylon-xraiassistant-scene",
+          "version": "1.0.0",
+          "description": "Reactylon scene generated by XRAiAssistant",
+          "keywords": ["react", "babylonjs", "3d", "reactylon", "react-babylonjs"],
+          "main": "src/index.js",
+          "dependencies": {
+            "react": "^18.3.1",
+            "react-dom": "^18.3.1",
+            "react-scripts": "5.0.1",
+            "react-babylonjs": "^3.2.0",
+            "@babylonjs/core": "^7.42.1",
+            "@babylonjs/loaders": "^7.42.1",
+            "@babylonjs/gui": "^7.42.1",
+            "@babylonjs/materials": "^7.42.1"
+          },
+          "scripts": {
+            "start": "react-scripts start",
+            "build": "react-scripts build",
+            "test": "react-scripts test",
+            "eject": "react-scripts eject"
+          },
+          "eslintConfig": {
+            "extends": ["react-app"]
+          },
+          "browserslist": {
+            "production": [">0.2%", "not dead", "not op_mini all"],
+            "development": ["last 1 chrome version", "last 1 firefox version", "last 1 safari version"]
+          }
+        }
+        """
+
+        let indexHtml = """
+        <!DOCTYPE html>
+        <html lang="en">
+          <head>
+            <meta charset="utf-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+            <meta name="theme-color" content="#000000" />
+            <title>XRAiAssistant - Reactylon</title>
+          </head>
+          <body>
+            <noscript>You need to enable JavaScript to run this app.</noscript>
+            <div id="root"></div>
+          </body>
+        </html>
+        """
+
+        let indexJs = """
+        import React, { StrictMode } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import './index.css';
+        import App from './App';
+
+        const rootElement = document.getElementById('root');
+        if (!rootElement) throw new Error('Root element not found');
+
+        const root = createRoot(rootElement);
+        root.render(
+          <StrictMode>
+            <App />
+          </StrictMode>
+        );
+        """
+
+        let gitignore = """
+        # dependencies
+        /node_modules
+        /.pnp
+        .pnp.js
+
+        # testing
+        /coverage
+
+        # production
+        /build
+
+        # misc
+        .DS_Store
+        .env.local
+        .env.development.local
+        .env.test.local
+        .env.production.local
+
+        npm-debug.log*
+        yarn-debug.log*
+        yarn-error.log*
+        """
+
+        let css = """
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+
+        html,
+        body,
+        #root {
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
+        }
+
+        body {
+          background: #000;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+            'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+            sans-serif;
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+        }
+
+        canvas {
+          display: block;
+          touch-action: none;
+        }
+        """
+
+        return [
+            "package.json": CodeSandboxAPIFile(content: packageJson),
+            "public/index.html": CodeSandboxAPIFile(content: indexHtml),
+            "src/index.js": CodeSandboxAPIFile(content: indexJs),
+            "src/App.js": CodeSandboxAPIFile(content: cleanedCode),
+            "src/index.css": CodeSandboxAPIFile(content: css),
+            ".gitignore": CodeSandboxAPIFile(content: gitignore)
+        ]
     }
 }
 

@@ -1123,7 +1123,7 @@ struct ContentView: View {
                     .foregroundColor(.gray.opacity(0.3)),
                 alignment: .top
             )
-            .onChange(of: showingSettings) { _, isShowing in
+            .onChange(of: showingSettings) { isShowing in
             if !isShowing {
                 settingsSaved = false
             }

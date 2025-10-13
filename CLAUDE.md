@@ -11,13 +11,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
-## ✅ RESOLVED: CodeSandbox WebView Issue - Native Swift HTTP Client + iframe Embed
+## ✅ RESOLVED: CodeSandbox React Three Fiber & Reactylon Integration
 
-### Resolution Status: FULLY FIXED ✅ (October 12, 2025)
+### Resolution Status: FULLY FIXED ✅ (October 13, 2025)
 
-**Issue**: React Three Fiber code generation was creating CodeSandbox submissions that would hang in WebView at `about:blank` or show runtime errors due to WKWebView security policies and TypeScript/JavaScript mismatches.
+**Issue**: React Three Fiber and Reactylon code generation was failing with CodeSandbox API 400 timeout errors due to incomplete TypeScript syntax removal, specifically object literal type annotations in destructured parameters.
 
-**Final Solution**: Combined native Swift URLSession HTTP client with simple iframe embed approach for maximum compatibility.
+**Final Solution**: Enhanced TypeScript syntax cleaning with comprehensive object literal type annotation removal, multi-line JSX component removal for Reactylon, and added @react-three/postprocessing dependency for R3F.
 
 #### What Was Fixed:
 1. ✅ **Created CodeSandboxAPIClient.swift**: Native Swift HTTP client using URLSession
@@ -26,34 +26,41 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 4. ✅ **Fixed package.json**: Added react-scripts and proper dependencies for Create React App (6 files total)
 5. ✅ **Fixed file structure**: Proper React 18 rendering in index.js with StrictMode
 6. ✅ **Removed sandbox.config.json**: Was causing 422 "Invalid template" errors
-7. ✅ **Added comprehensive code cleaning**: Strips TypeScript syntax from AI-generated code
-8. ✅ **Added src/index.css**: Full viewport styling for 3D canvas
-9. ✅ **Added .gitignore**: Prevents npm build errors
-10. ✅ **Implemented iframe embed**: Uses CodeSandbox official embed URL for WKWebView compatibility
-11. ✅ **Added proper error handling**: Detailed logging and user-friendly error messages
-12. ✅ **Added console logging**: WKWebView console.log/error interception for debugging
+7. ✅ **Enhanced TypeScript cleaning - R3F**: Removes object literal type annotations (`{ prop: type }`)
+8. ✅ **Enhanced TypeScript cleaning - Reactylon**: Removes primitive types, return types, and JSX types
+9. ✅ **Fixed Ground component removal**: Multi-line JSX support with nested props for Reactylon
+10. ✅ **Added @react-three/postprocessing**: Post-processing effects for R3F (Bloom, DepthOfField, etc.)
+11. ✅ **Added src/index.css**: Full viewport styling for 3D canvas
+12. ✅ **Added .gitignore**: Prevents npm build errors
+13. ✅ **Added proper error handling**: Detailed logging and user-friendly error messages
+14. ✅ **Added console logging**: WKWebView console.log/error interception for debugging
 
 #### How It Works Now:
 ```
-AI generates code
-  → cleanReactThreeFiberCode() strips TypeScript syntax
+AI generates code with TypeScript (e.g., "({ position, color }: { position: [number, number, number], color: string })")
+  → cleanReactThreeFiberCode() or cleanReactylonCode() strips ALL TypeScript syntax
+  → Pattern 1: Remove object literal type annotations (: { prop: type })
+  → Pattern 2-7: Remove capital-letter types, primitives, arrays, return types
+  → Remove THREE/BABYLON imports, unused React hooks, Ground component (Reactylon)
   → Generate 6 files: package.json, index.html, index.js, App.js, index.css, .gitignore
   → Native URLSession POST to CodeSandbox API
-  → API returns 200 with HTML response
-  → Extract sandbox ID from og:url meta tag
+  → API returns 200 with HTML response or 302 redirect
+  → Extract sandbox ID from og:url meta tag or Location header
   → Create HTML with iframe embed: https://codesandbox.io/embed/{sandboxId}
   → Load HTML in WKWebView
-  → CodeSandbox loads and renders React Three Fiber scene
+  → CodeSandbox loads, installs dependencies, and renders scene
   → SUCCESS ✅
 ```
 
-#### Current Status (October 12, 2025):
+#### Current Status (October 13, 2025):
 - ✅ **Sandbox Creation**: Working perfectly, IDs extracted correctly
 - ✅ **Navigation**: WKWebView successfully loads CodeSandbox embed
-- ✅ **Code Cleaning**: TypeScript syntax stripped, pure JavaScript generated
+- ✅ **Code Cleaning - R3F**: Object literal types, generics, all TypeScript removed
+- ✅ **Code Cleaning - Reactylon**: Primitive types, return types, Ground component removed
 - ✅ **File Structure**: Complete 6-file CRA structure with CSS and gitignore
-- ✅ **iframe Embed**: Simple, reliable approach using official CodeSandbox embed URL
-- 🎯 **Ready for Testing**: All components in place, awaiting user validation
+- ✅ **Dependencies - R3F**: react, react-dom, react-scripts, @react-three/fiber, @react-three/drei, @react-three/postprocessing, three
+- ✅ **Dependencies - Reactylon**: react-babylonjs, @babylonjs/core, @babylonjs/loaders, @babylonjs/gui, @babylonjs/materials
+- 🎯 **Ready for Testing**: Enhanced cleaning fixes API 400 timeout errors
 
 #### Implementation Details:
 - **New File**: `XRAiAssistant/XRAiAssistant/CodeSandboxAPIClient.swift`
@@ -63,8 +70,9 @@ AI generates code
 - **Request Method**: HTTP POST with JSON body containing files structure
 - **Response Format**: HTML (200 OK) with sandbox ID embedded in meta tags
 - **ID Extraction**: Regex pattern `(?<=codesandbox\.io/s/)[a-zA-Z0-9-]+` from og:url
-- **File Generation**: Creates package.json, public/index.html, src/index.js, src/App.js
-- **Dependencies**: react, react-dom, react-scripts, @react-three/fiber, @react-three/drei, three
+- **File Generation**: Creates package.json, public/index.html, src/index.js, src/App.js, src/index.css, .gitignore
+- **Dependencies - R3F**: react, react-dom, react-scripts, @react-three/fiber, @react-three/drei, @react-three/postprocessing, three
+- **Dependencies - Reactylon**: react-babylonjs, @babylonjs/core, @babylonjs/loaders, @babylonjs/gui, @babylonjs/materials
 
 #### Technical Architecture:
 ```swift

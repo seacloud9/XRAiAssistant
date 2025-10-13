@@ -29,7 +29,10 @@
       "Bash(swiftc:*)",
       "Bash(./scripts/xcode_recovery.sh:*)",
       "Bash(killall:*)",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "Read(//private/tmp/**)",
+      "Bash(tee:*)",
+      "Bash(timeout 120 xcodebuild:*)"
     ],
     "deny": []
   }
