@@ -32,7 +32,8 @@
       "Bash(git restore:*)",
       "Read(//private/tmp/**)",
       "Bash(tee:*)",
-      "Bash(timeout 120 xcodebuild:*)"
+      "Bash(timeout 120 xcodebuild:*)",
+      "Bash(xcrun simctl list:*)"
     ],
     "deny": []
   }

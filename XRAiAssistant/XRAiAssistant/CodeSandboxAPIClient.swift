@@ -753,15 +753,14 @@ class CodeSandboxAPIClient {
         cleanedCode = cleanedCode.replacingOccurrences(of: ": React.ReactNode", with: "")
         cleanedCode = cleanedCode.replacingOccurrences(of: ": React.ReactElement", with: "")
 
-        // Remove Babylon.js namespace imports (if any)
-        cleanedCode = cleanedCode.replacingOccurrences(of: "import * as BABYLON from '@babylonjs/core'\n", with: "")
-        cleanedCode = cleanedCode.replacingOccurrences(of: "import * as BABYLON from \"@babylonjs/core\"\n", with: "")
+        // PRESERVE Babylon.js imports - Reactylon requires them!
+        // (Previously removed, but this was wrong - Reactylon needs Color3, Vector3, etc.)
 
-        // Replace 'reactylon' with 'react-babylonjs' (AI sometimes uses wrong package name)
-        if cleanedCode.contains("from 'reactylon'") || cleanedCode.contains("from \"reactylon\"") {
-            cleanedCode = cleanedCode.replacingOccurrences(of: "from 'reactylon'", with: "from 'react-babylonjs'")
-            cleanedCode = cleanedCode.replacingOccurrences(of: "from \"reactylon\"", with: "from 'react-babylonjs'")
-            print("  🔄 Replaced 'reactylon' imports with 'react-babylonjs'")
+        // Replace 'react-babylonjs' with 'reactylon' (AI sometimes uses wrong package name)
+        if cleanedCode.contains("from 'react-babylonjs'") || cleanedCode.contains("from \"react-babylonjs\"") {
+            cleanedCode = cleanedCode.replacingOccurrences(of: "from 'react-babylonjs'", with: "from 'reactylon'")
+            cleanedCode = cleanedCode.replacingOccurrences(of: "from \"react-babylonjs\"", with: "from 'reactylon'")
+            print("  🔄 Replaced 'react-babylonjs' imports with 'reactylon'")
         }
 
         // Remove unused React imports (useRef, useState, useEffect, etc.) if they're not used
@@ -797,39 +796,359 @@ class CodeSandboxAPIClient {
         // Remove Ground tags with children: <Ground ...>...</Ground>
         cleanedCode = cleanedCode.replacingOccurrences(of: #"<Ground[\s\S]*?>[\s\S]*?</Ground>[\s\n]*"#, with: "", options: .regularExpression)
 
+        // Remove any orphaned </Ground> closing tags that might be left
+        cleanedCode = cleanedCode.replacingOccurrences(of: #"</Ground>[\s\n]*"#, with: "", options: .regularExpression)
+
+        // Remove JSX comments for Ground
+        cleanedCode = cleanedCode.replacingOccurrences(of: #"\{/\*\s*Ground\s*\*/\}"#, with: "", options: .regularExpression)
+
         print("  ✅ Ground component removal complete")
 
+        // CRITICAL: PRESERVE Babylon.js imports and usage
+        // Reactylon REQUIRES Babylon.js classes like Color3, Vector3, etc.
+        // DO NOT remove or convert these - they are essential for Reactylon to work!
+        print("  ✅ Preserving Babylon.js imports (Color3, Vector3, etc.) - REQUIRED by Reactylon")
+
         print("✅ TypeScript syntax cleaning complete")
+
+        // STEP 2.5: Convert capital-case Reactylon components to lowercase
+        print("  🔤 Converting capital-case Reactylon components to lowercase...")
+
+        let componentCaseConversions: [String: String] = [
+            "Box": "box",
+            "Sphere": "sphere",
+            "Cylinder": "cylinder",
+            "Plane": "plane",
+            "Torus": "torus",
+            "TorusKnot": "torusKnot",
+            "Ground": "ground",
+            "HemisphericLight": "hemisphericLight",
+            "PointLight": "pointLight",
+            "DirectionalLight": "directionalLight",
+            "SpotLight": "spotLight",
+            "StandardMaterial": "standardMaterial",
+            "PBRMaterial": "pBRMaterial",  // CRITICAL: Capital BR, not lowercase br
+            "PBRMetallicRoughnessMaterial": "pBRMetallicRoughnessMaterial"
+        ]
+
+        for (capitalCase, lowerCase) in componentCaseConversions {
+            // Convert opening tags: <CapitalCase -> <lowercase
+            let openingPattern = "<\(capitalCase)([\\s/>])"
+            if let regex = try? NSRegularExpression(pattern: openingPattern, options: []) {
+                cleanedCode = regex.stringByReplacingMatches(
+                    in: cleanedCode,
+                    options: [],
+                    range: NSRange(location: 0, length: cleanedCode.utf16.count),
+                    withTemplate: "<\(lowerCase)$1"
+                )
+            }
+
+            // Convert closing tags: </CapitalCase> -> </lowercase>
+            let closingPattern = "</\(capitalCase)>"
+            cleanedCode = cleanedCode.replacingOccurrences(of: closingPattern, with: "</\(lowerCase)>")
+
+            if cleanedCode.contains(lowerCase) {
+                print("    🔄 Converted \(capitalCase) → \(lowerCase)")
+            }
+        }
+
+        // CRITICAL: Remove XRExperience component (doesn't exist - use useXrExperience() hook instead)
+        print("  🚫 Removing XRExperience component (use useXrExperience() hook)...")
+
+        // Remove self-closing XRExperience tags
+        cleanedCode = cleanedCode.replacingOccurrences(
+            of: #"<XRExperience[^>]*?/>"#,
+            with: "",
+            options: .regularExpression
+        )
+
+        // Remove opening and closing XRExperience tags
+        cleanedCode = cleanedCode.replacingOccurrences(
+            of: #"<XRExperience[^>]*?>"#,
+            with: "",
+            options: .regularExpression
+        )
+        cleanedCode = cleanedCode.replacingOccurrences(
+            of: #"</XRExperience>"#,
+            with: "",
+            options: .regularExpression
+        )
+
+        print("  ✅ XRExperience component removed")
+
+        // CRITICAL: Fix material prop JSX pattern - materials must be children, not props
+        // Convert: <Sphere ... material={<Material .../>} /> → <Sphere ...><Material .../></Sphere>
+        print("  🔧 Converting material prop to child components...")
+
+        // Pattern: Find self-closing mesh tags with material props
+        // Example: <sphere ... material={<standardMaterial ... />} />
+        let meshWithMaterialPattern = #"<(sphere|box|cylinder|plane|torus|torusKnot|mesh)([^>]*?)material=\{<(standardMaterial|pBRMaterial|pBRMetallicRoughnessMaterial)([^>]*?)/>\}([^>]*?)/>"#
+
+        if let regex = try? NSRegularExpression(pattern: meshWithMaterialPattern, options: [.dotMatchesLineSeparators]) {
+            let nsString = cleanedCode as NSString
+            let matches = regex.matches(in: cleanedCode, options: [], range: NSRange(location: 0, length: nsString.length))
+
+            var mutableCode = cleanedCode
+            for match in matches.reversed() {
+                if match.numberOfRanges >= 6,
+                   let matchRange = Range(match.range, in: cleanedCode),
+                   let meshTypeRange = Range(match.range(at: 1), in: cleanedCode),
+                   let meshPropsBeforeRange = Range(match.range(at: 2), in: cleanedCode),
+                   let materialTypeRange = Range(match.range(at: 3), in: cleanedCode),
+                   let materialPropsRange = Range(match.range(at: 4), in: cleanedCode),
+                   let meshPropsAfterRange = Range(match.range(at: 5), in: cleanedCode) {
+
+                    let meshType = String(cleanedCode[meshTypeRange])
+                    let meshPropsBefore = String(cleanedCode[meshPropsBeforeRange])
+                    let materialType = String(cleanedCode[materialTypeRange])
+                    let materialProps = String(cleanedCode[materialPropsRange])
+                    let meshPropsAfter = String(cleanedCode[meshPropsAfterRange])
+
+                    // Reconstruct as nested JSX: <Mesh props><Material props /></Mesh>
+                    let fixedJSX = "<\(meshType)\(meshPropsBefore)\(meshPropsAfter)><\(materialType)\(materialProps)/></\(meshType)>"
+
+                    print("    🎨 Converting material prop: <\(meshType) material={...} /> → <\(meshType)><\(materialType)/></\(meshType)>")
+
+                    if let mutableRange = Range(match.range, in: mutableCode) {
+                        mutableCode.replaceSubrange(mutableRange, with: fixedJSX)
+                    }
+                }
+            }
+            cleanedCode = mutableCode
+        }
 
         // Clean up multiple blank lines
         while cleanedCode.contains("\n\n\n") {
             cleanedCode = cleanedCode.replacingOccurrences(of: "\n\n\n", with: "\n\n")
         }
 
-        // Ensure we have necessary imports
-        let hasReactImport = cleanedCode.contains("import React")
-        // Check for imports from EITHER react-babylonjs OR reactylon (AI may use either name)
-        let hasEngineImport = cleanedCode.contains("from 'react-babylonjs'") ||
-                              cleanedCode.contains("from \"react-babylonjs\"") ||
-                              cleanedCode.contains("from 'reactylon'") ||
-                              cleanedCode.contains("from \"reactylon\"")
+        // STEP 3: Scan JSX for missing reactylon component imports
+        print("🔧 Step 3: Scanning JSX for reactylon components...")
 
+        // Extract existing imports from reactylon
+        var reactylonImports: Set<String> = []
+        let importPattern = #"import\s+\{([^}]+)\}\s+from\s+['"]reactylon['"]"#
+
+        if let regex = try? NSRegularExpression(pattern: importPattern, options: []) {
+            let nsString = cleanedCode as NSString
+            let matches = regex.matches(in: cleanedCode, options: [], range: NSRange(location: 0, length: nsString.length))
+
+            for match in matches {
+                if match.numberOfRanges >= 2 {
+                    let importsRange = match.range(at: 1)
+                    let imports = nsString.substring(with: importsRange)
+                    let components = imports.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    reactylonImports.formUnion(components)
+                }
+            }
+
+            if !reactylonImports.isEmpty {
+                print("  📦 Found existing imports: \(reactylonImports.sorted().joined(separator: ", "))")
+            }
+        }
+
+        // Common reactylon components that might be used in JSX (lowercase = declarative JSX components)
+        let reactylonComponents = [
+            "Engine", "Scene", "useScene", "useXrExperience",  // Core components and hooks
+            "box", "sphere", "cylinder", "plane", "torus", "ground",  // Mesh components (lowercase!)
+            "hemisphericLight", "pointLight", "directionalLight", "spotLight",  // Light components (lowercase!)
+            "standardMaterial", "pBRMaterial"  // Material components (CRITICAL: pBRMaterial has capital BR!)
+        ]
+
+        // CRITICAL: Components that do NOT exist in reactylon or are utility classes
+        // These should NEVER be imported (they either don't exist or aren't React components)
+        let nonExistentOrUtilityClasses = [
+            "Color3", "Color4", "Vector2", "Vector3", "Vector4", "Matrix", "Quaternion",
+            "Space", "Axis", "Observable", "Tools", "SceneLoader", "VertexData",
+            "Texture", "DynamicTexture", "CubeTexture", "RawTexture",
+            // Camera components DO NOT exist as declarative JSX - must use scene.createDefaultCameraOrLight()
+            "ArcRotateCamera", "FreeCamera", "UniversalCamera", "TargetCamera", "WebXRCamera",
+            // XRExperience is NOT a component - use useXrExperience() hook instead
+            "XRExperience",
+            // Capital-case mesh/material components (Reactylon uses lowercase)
+            "Box", "Sphere", "Cylinder", "Plane", "Torus", "TorusKnot", "Ground",
+            "HemisphericLight", "PointLight", "DirectionalLight", "SpotLight",
+            "StandardMaterial", "PBRMaterial", "PBRMetallicRoughnessMaterial",
+            "Mesh", "TransformNode", "Model", "Skybox", "Environment",
+            "GUI3DManager", "Button3D", "HolographicButton", "MeshButton3D"
+        ]
+
+        // Scan the code for JSX usage of these components
+        for component in reactylonComponents {
+            let jsxPattern = "<\(component)[\\s>/]"  // Matches <ComponentName or <ComponentName> or <ComponentName/
+            if cleanedCode.range(of: jsxPattern, options: .regularExpression) != nil {
+                reactylonImports.insert(component)
+            }
+        }
+
+        // Remove any non-existent components or utility classes that may have been accidentally added
+        for invalidClass in nonExistentOrUtilityClasses {
+            if reactylonImports.contains(invalidClass) {
+                reactylonImports.remove(invalidClass)
+                print("  🚫 Removed invalid/utility class from imports: \(invalidClass) (not a valid React component)")
+            }
+        }
+
+        print("  📦 Total components after JSX scan: \(reactylonImports.sorted().joined(separator: ", "))")
+
+        // Remove all existing reactylon import statements
+        if let regex = try? NSRegularExpression(pattern: importPattern, options: []) {
+            let nsString = cleanedCode as NSString
+            cleanedCode = regex.stringByReplacingMatches(in: cleanedCode, options: [], range: NSRange(location: 0, length: nsString.length), withTemplate: "")
+            print("  🗑️ Removed existing reactylon imports (will consolidate)")
+        }
+
+        // STEP 1: Extract React import from code body first
+        let codeWithoutImports = cleanedCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lines = codeWithoutImports.components(separatedBy: "\n")
+        var reactImportLine: String?
+        var nonImportLines: [String] = []
+
+        for line in lines {
+            let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+
+            // EXTRACT: React imports with hooks (useEffect, useState, useRef, etc.)
+            if trimmedLine.starts(with: "import React") || (trimmedLine.starts(with: "import {") && trimmedLine.contains("from 'react'")) {
+                if reactImportLine == nil {
+                    reactImportLine = line
+                    print("  ✅ Found React import with hooks: \(trimmedLine.prefix(60))...")
+                } else {
+                    print("  🗑️ Removed duplicate React import: \(trimmedLine.prefix(60))...")
+                }
+            }
+            // REMOVE: reactylon imports (will be consolidated) - both 'reactylon' and 'reactylon/web'
+            else if trimmedLine.contains("from 'reactylon'") || trimmedLine.contains("from \"reactylon\"") ||
+                    trimmedLine.contains("from 'reactylon/web'") || trimmedLine.contains("from \"reactylon/web\"") {
+                print("  🗑️ Removed reactylon import (will consolidate): \(trimmedLine.prefix(60))...")
+            }
+            // KEEP: Everything else
+            else if !trimmedLine.isEmpty {
+                nonImportLines.append(line)
+            }
+        }
+
+        // STEP 2: Build final code with proper import ordering
         var finalCode = ""
 
-        // Add React import if missing
-        if !hasReactImport {
+        // Add React import first (extracted from code OR fallback)
+        if let reactImport = reactImportLine {
+            finalCode += reactImport + "\n"
+            print("➕ Added React import with hooks at top")
+        } else {
+            // Fallback: add basic React import if none found
             finalCode += "import React from 'react';\n"
-            print("➕ Added missing React import")
+            print("➕ Added fallback React import")
         }
 
-        // Add Engine import if missing (but only if Engine is used AND no imports exist)
-        if !hasEngineImport && cleanedCode.contains("<Engine") {
-            finalCode += "import { Engine, Scene } from 'react-babylonjs';\n"
-            print("➕ Added missing Engine import")
+        // CRITICAL: Engine must be imported from 'reactylon/web', all others from 'reactylon'
+        var hasEngine = false
+        var otherComponents: Set<String> = []
+
+        for component in reactylonImports {
+            if component == "Engine" {
+                hasEngine = true
+            } else {
+                otherComponents.insert(component)
+            }
         }
 
-        // Add the cleaned user code
-        finalCode += cleanedCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Add Engine import from reactylon/web if needed
+        if hasEngine {
+            finalCode += "import { Engine } from 'reactylon/web';\n"
+            print("➕ Added Engine import from 'reactylon/web'")
+        } else if cleanedCode.contains("<Engine") {
+            // Fallback: if Engine is used in JSX but not in imports
+            finalCode += "import { Engine } from 'reactylon/web';\n"
+            print("➕ Added fallback Engine import from 'reactylon/web'")
+        }
+
+        // Add consolidated reactylon import for all other components
+        if !otherComponents.isEmpty {
+            let sortedImports = otherComponents.sorted().joined(separator: ", ")
+            finalCode += "import { \(sortedImports) } from 'reactylon';\n"
+            print("➕ Added consolidated reactylon import with \(otherComponents.count) components")
+        } else if cleanedCode.contains("<Scene") {
+            // Fallback: if Scene is used but no imports detected
+            finalCode += "import { Scene } from 'reactylon';\n"
+            print("➕ Added fallback Scene import")
+        }
+
+        // Add the cleaned code body (without any import lines)
+        let cleanCodeBody = nonImportLines.joined(separator: "\n")
+        finalCode += cleanCodeBody
+
+        // STEP 4: Fix malformed JSX tags (components with > instead of />)
+        print("🔧 Step 4: Fixing malformed JSX self-closing tags...")
+
+        // Find React/Babylon components that should be self-closing but aren't
+        // Pattern: <ComponentName ...props > (has > but missing / before it)
+        // This is a common AI code generation error
+        let selfClosingComponentPattern = #"<([A-Z][a-zA-Z0-9]*)\s+([^>]*)\s+>"#
+        if let regex = try? NSRegularExpression(pattern: selfClosingComponentPattern, options: []) {
+            let range = NSRange(finalCode.startIndex..., in: finalCode)
+            let matches = regex.matches(in: finalCode, options: [], range: range)
+
+            // Process matches in reverse to avoid index issues
+            var mutableCode = finalCode
+            for match in matches.reversed() {
+                if let matchRange = Range(match.range, in: finalCode) {
+                    let matchedText = String(finalCode[matchRange])
+
+                    // Extract component name
+                    if match.numberOfRanges > 1, let componentRange = Range(match.range(at: 1), in: finalCode) {
+                        let componentName = String(finalCode[componentRange])
+
+                        // Check if this component appears to have no closing tag nearby
+                        // Look ahead up to 200 characters to see if there's a </ComponentName>
+                        let searchStart = matchRange.upperBound
+                        let searchEnd = finalCode.index(searchStart, offsetBy: min(200, finalCode.distance(from: searchStart, to: finalCode.endIndex)), limitedBy: finalCode.endIndex) ?? finalCode.endIndex
+                        let searchRange = searchStart..<searchEnd
+                        let closingTag = "</\(componentName)>"
+
+                        if !finalCode[searchRange].contains(closingTag) {
+                            // No closing tag found - this should be self-closing
+                            let fixedTag = matchedText.replacingOccurrences(of: #"\s+>"#, with: " />", options: .regularExpression)
+                            if let mutableRange = Range(match.range, in: mutableCode) {
+                                mutableCode.replaceSubrange(mutableRange, with: fixedTag)
+                                print("  🔧 Fixed malformed tag: \(componentName) (added self-closing />)")
+                            }
+                        }
+                    }
+                }
+            }
+            finalCode = mutableCode
+        }
+
+        // STEP 5: Clean up orphaned closing tags throughout the entire code
+        print("🔧 Step 5: Removing orphaned closing tags from code body...")
+
+        // IMPORTANT: Be VERY conservative here - only remove truly orphaned tags
+        // DO NOT remove legitimate JSX self-closing tags (e.g., <Component />)
+        var codeLines = finalCode.components(separatedBy: "\n")
+        var cleanedLines: [String] = []
+
+        for (index, line) in codeLines.enumerated() {
+            let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+
+            // Only check for STANDALONE closing braces (not self-closing JSX tags)
+            // A standalone "}" on its own line after a semicolon or another closing brace is likely orphaned
+            if trimmedLine == "}" {
+                if index > 0 {
+                    let previousLine = codeLines[index - 1].trimmingCharacters(in: .whitespaces)
+
+                    // Very specific check: only remove if previous line ends with `;` AND followed by blank line
+                    // This catches orphaned braces from map functions or removed code blocks
+                    if previousLine.hasSuffix(";") && (index + 1 >= codeLines.count || codeLines[index + 1].trimmingCharacters(in: .whitespaces).isEmpty) {
+                        print("  🧹 Removed orphaned closing brace at line \(index + 1)")
+                        continue // Skip adding this line
+                    }
+                }
+            }
+
+            cleanedLines.append(line)
+        }
+
+        finalCode = cleanedLines.joined(separator: "\n")
 
         // Clean up any orphaned closing parentheses or brackets at the end
         var trimmedFinalCode = finalCode.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -843,7 +1162,7 @@ class CodeSandboxAPIClient {
             if closeCount > openCount {
                 // Orphaned closing bracket - remove it
                 trimmedFinalCode = String(trimmedFinalCode.dropLast()).trimmingCharacters(in: .whitespacesAndNewlines)
-                print("  🧹 Removed orphaned closing bracket: \(lastChar)")
+                print("  🧹 Removed orphaned closing bracket at end: \(lastChar)")
             } else {
                 break
             }
@@ -899,17 +1218,18 @@ class CodeSandboxAPIClient {
           "name": "reactylon-xraiassistant-scene",
           "version": "1.0.0",
           "description": "Reactylon scene generated by XRAiAssistant",
-          "keywords": ["react", "babylonjs", "3d", "reactylon", "react-babylonjs"],
+          "keywords": ["react", "babylonjs", "3d", "reactylon"],
           "main": "src/index.js",
           "dependencies": {
             "react": "^18.3.1",
             "react-dom": "^18.3.1",
             "react-scripts": "5.0.1",
-            "react-babylonjs": "^3.2.0",
-            "@babylonjs/core": "^7.42.1",
-            "@babylonjs/loaders": "^7.42.1",
-            "@babylonjs/gui": "^7.42.1",
-            "@babylonjs/materials": "^7.42.1"
+            "reactylon": "^3.2.1",
+            "react-reconciler": "^0.29.0",
+            "@babylonjs/core": "^8.0.0",
+            "@babylonjs/gui": "^8.0.0",
+            "@babylonjs/loaders": "^8.0.0",
+            "@babylonjs/materials": "^8.0.0"
           },
           "scripts": {
             "start": "react-scripts start",

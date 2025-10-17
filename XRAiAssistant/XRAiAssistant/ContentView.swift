@@ -952,7 +952,7 @@ struct ContentView: View {
                                         // Wait a moment for WebView to be fully ready
                                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                                             print("🚀 Creating CodeSandbox using native API client")
-                                            
+
                                             // Call the creation function provided by CodeSandboxWebView
                                             self.codeSandboxCreateFunction?(pendingCode)
 
@@ -1268,9 +1268,9 @@ struct ContentView: View {
             showingError = true
             return
         }
-        
+
         let jsCode = "if (typeof runCode === 'function') { runCode(); } else { console.error('runCode function not found'); }"
-        
+
         webView.evaluateJavaScript(jsCode) { result, error in
             DispatchQueue.main.async {
                 if let error = error {

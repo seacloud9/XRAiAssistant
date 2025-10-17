@@ -33,67 +33,95 @@ struct ReactylonLibrary: Library3D {
         - Always provide COMPLETE working TSX code that creates a React app
         - Your code must follow this exact structure:
         
-        import React, { useRef, useState } from 'react'
+        import React, { useState } from 'react'
         import { createRoot } from 'react-dom/client'
-        import {
-          Engine, Scene, ArcRotateCamera, HemisphericLight,
-          Box, Sphere, Ground, StandardMaterial, PBRMaterial,
-          XRExperience, WebXRCamera
-        } from 'reactylon'
-        
-        function XRScene() {
-          // Component logic here
+        import { Engine } from 'reactylon/web'
+        import { Scene, box, sphere, ground, hemisphericLight, standardMaterial } from 'reactylon'
+        import { Color3, Vector3, createDefaultCameraOrLight } from '@babylonjs/core'
+
+        function App() {
           return (
             <Engine antialias adaptToDeviceRatio canvasId="canvas">
-              <Scene clearColor="#2c2c54">
-                <ArcRotateCamera 
-                  target={[0, 0, 0]} 
-                  alpha={Math.PI / 4} 
-                  beta={Math.PI / 3} 
-                  radius={10} 
+              <Scene
+                clearColor="#2c2c54"
+                onSceneReady={(scene) => createDefaultCameraOrLight(scene, true, true, true)}
+              >
+                <hemisphericLight
+                  name="light1"
+                  direction={new Vector3(0, 1, 0)}
+                  intensity={0.9}
+                  diffuse={Color3.White()}
                 />
-                <HemisphericLight direction={[0, 1, 0]} intensity={0.9} />
-                
-                {/* Your XR components here */}
-                
-                <XRExperience 
-                  baseExperience={true}
-                  floorMeshes={["ground"]}
-                />
+
+                {/* Meshes with materials as children - use Babylon.js objects */}
+                <box name="box1" position={new Vector3(0, 1, 0)} options={{ size: 2 }}>
+                  <standardMaterial name="boxMat" diffuseColor={Color3.Red()} />
+                </box>
               </Scene>
             </Engine>
           )
         }
-        
-        function App() {
-          return <XRScene />
-        }
-        
+
         const root = createRoot(document.getElementById('root')!)
         root.render(<App />)
         
         CRITICAL RULES:
         - ALWAYS use TypeScript syntax with proper type annotations
         - Import React components and hooks from 'react'
-        - Import Reactylon components from 'reactylon'
-        - Use functional components with hooks (useRef, useState, useEffect, etc.)
+        - Import Engine from 'reactylon/web' (NOT from 'reactylon')
+        - Import Scene and all other components from 'reactylon'
+        - Import Babylon.js classes from '@babylonjs/core' (Color3, Vector3, createDefaultCameraOrLight)
+        - Use functional components with hooks (useState, etc.)
         - Mount to the existing #root div element
-        - Always include XRExperience for WebXR capabilities
         - Use canvasId="canvas" for the Engine component
-        
+
+        🚨 CRITICAL COLOR/POSITION/BABYLON.JS RULES:
+        - ALWAYS import Babylon.js classes: import { Color3, Vector3 } from '@babylonjs/core'
+        - ALWAYS use Babylon.js objects for colors: Color3.Red(), Color3.Blue(), new Color3(1, 0, 0)
+        - ALWAYS use Babylon.js objects for positions: new Vector3(0, 1, 0)
+        - Materials are CHILDREN of meshes, NOT props
+        - Example: <sphere position={new Vector3(0, 1, 0)}><standardMaterial diffuseColor={Color3.Red()} /></sphere> ✅
+        - Example: <box position={new Vector3(0, 1, 0)}><pBRMaterial albedoColor={Color3.Green()} /></box> ✅
+        - NEVER use: material={<standardMaterial />} ❌
+        - NEVER use plain arrays: position={[0, 1, 0]} ❌
+        - NEVER use hex strings: diffuseColor="#ff0000" ❌
+        - Common Babylon.js classes to import: Color3, Vector3, Quaternion, Tools, Axis
+
+        🚨 CRITICAL CAMERA SETUP:
+        - ALWAYS import createDefaultCameraOrLight from '@babylonjs/core'
+        - ALWAYS use onSceneReady callback on <Scene> component
+        - Example: <Scene onSceneReady={(scene) => createDefaultCameraOrLight(scene, true, true, true)}>
+        - NEVER use declarative camera components like <ArcRotateCamera /> ❌
+        - NEVER use useScene() hook with useEffect for camera setup ❌
+        - NEVER import camera components from reactylon ❌
+
+        🚨 CRITICAL MESH/MATERIAL STRUCTURE:
+        - Materials must be nested INSIDE mesh components as children
+        - Correct structure:
+          <sphere position={new Vector3(0, 1, 0)} options={{ diameter: 2 }}>
+            <standardMaterial name="mat1" diffuseColor={Color3.Red()} />
+          </sphere>
+        - Another correct example:
+          <box name="myBox" position={new Vector3(0, 1, 0)}>
+            <pBRMaterial albedoColor={Color3.Blue()} metallic={0.5} roughness={0.3} />
+          </box>
+        - WRONG structure:
+          <sphere material={<standardMaterial />} /> ❌
+          <box position={[0, 1, 0]} /> ❌ (use Vector3, not arrays)
+
         IMPORTANT REACTYLON PATTERNS:
         - Use <Engine> as the root component with canvas configuration
-        - Use <Scene> to define the 3D world with lighting and camera
-        - Use declarative mesh components: <Box>, <Sphere>, <Ground>
-        - Use material components: <StandardMaterial>, <PBRMaterial>
-        - Use camera components: <ArcRotateCamera>, <WebXRCamera>
-        - Use light components: <HemisphericLight>, <DirectionalLight>
-        - Use <XRExperience> for WebXR/AR/VR functionality
-        - Position objects with position={[x, y, z]} props
-        - Apply materials with material references or inline props
-        
+        - Use <Scene> with onSceneReady callback for camera setup
+        - Use lowercase mesh components: <box>, <sphere>, <cylinder>, <ground>, <plane>
+        - Use lowercase light components: <hemisphericLight>, <directionalLight>, <pointLight>, <spotLight>
+        - Use lowercase material components: <standardMaterial>, <pBRMaterial>
+        - 🚨 CRITICAL: <pBRMaterial> has capital BR, not lowercase (pBRMaterial is CORRECT)
+        - Position objects with position={new Vector3(x, y, z)} props (NOT arrays!)
+        - Use options prop for mesh configuration: options={{ size: 2, diameter: 3 }}
+        - Import createDefaultCameraOrLight from '@babylonjs/core' for camera setup
+
         XR-SPECIFIC GUIDELINES:
-        - Always include XRExperience for immersive capabilities
+        - XR capabilities are available through useXrExperience() hook (NOT <XRExperience> component)
         - Consider hand tracking and controller interactions
         - Design for both VR headsets and AR on mobile
         - Use spatial audio and haptic feedback where appropriate
@@ -132,97 +160,93 @@ struct ReactylonLibrary: Library3D {
         // Welcome to Reactylon!
         // Create immersive XR experiences with React and Babylon.js
 
-        import React, { useRef, useState } from 'react'
+        import React, { useState } from 'react'
         import { createRoot } from 'react-dom/client'
-        import {
-          Engine, Scene, ArcRotateCamera, HemisphericLight,
-          Box, Sphere, Ground, StandardMaterial,
-          XRExperience
-        } from 'reactylon'
+        import { Engine } from 'reactylon/web'
+        import { Scene, box, sphere, ground, hemisphericLight, standardMaterial } from 'reactylon'
+        import { Color3, Vector3, createDefaultCameraOrLight } from '@babylonjs/core'
 
-        function InteractiveXRScene() {
-          const [cubeColor, setCubeColor] = useState("#ff6b6b")
-          const [cubePosition, setCubePosition] = useState([0, 1, 0])
-          
+        function App() {
+          const [cubeColor, setCubeColor] = useState(Color3.FromHexString("#ff6b6b"))
+          const [cubePosition, setCubePosition] = useState(new Vector3(0, 1, 0))
+
           const handleCubeClick = () => {
-            const colors = ["#ff6b6b", "#4ecdc4", "#45b7d1", "#96ceb4", "#ffeaa7"]
+            const colors = [
+              Color3.FromHexString("#ff6b6b"),
+              Color3.FromHexString("#4ecdc4"),
+              Color3.FromHexString("#45b7d1"),
+              Color3.FromHexString("#96ceb4"),
+              Color3.FromHexString("#ffeaa7")
+            ]
             const randomColor = colors[Math.floor(Math.random() * colors.length)]
             setCubeColor(randomColor)
-            
+
             // Add a little bounce animation
             const randomY = 1 + Math.random() * 2
-            setCubePosition([0, randomY, 0])
-            
-            setTimeout(() => setCubePosition([0, 1, 0]), 500)
+            setCubePosition(new Vector3(0, randomY, 0))
+
+            setTimeout(() => setCubePosition(new Vector3(0, 1, 0)), 500)
           }
-          
+
           return (
             <Engine antialias adaptToDeviceRatio canvasId="canvas">
-              <Scene clearColor="#2c2c54">
-                <ArcRotateCamera 
-                  target={[0, 0, 0]} 
-                  alpha={Math.PI / 4} 
-                  beta={Math.PI / 3} 
-                  radius={8} 
+              <Scene
+                clearColor="#2c2c54"
+                onSceneReady={(scene) => createDefaultCameraOrLight(scene, true, true, true)}
+              >
+                <hemisphericLight
+                  name="light1"
+                  direction={new Vector3(0, 1, 0)}
+                  intensity={0.9}
+                  diffuse={Color3.White()}
                 />
-                <HemisphericLight direction={[0, 1, 0]} intensity={0.9} />
-                
+
                 {/* Interactive cube */}
-                <Box 
+                <box
                   name="interactiveCube"
-                  size={1.5}
                   position={cubePosition}
-                  onClick={handleCubeClick}
+                  options={{ size: 1.5 }}
+                  onPick={handleCubeClick}
                 >
-                  <StandardMaterial 
+                  <standardMaterial
+                    name="cubeMat"
                     diffuseColor={cubeColor}
-                    specularColor="#ffffff"
+                    specularColor={Color3.White()}
                     specularPower={64}
                   />
-                </Box>
-                
+                </box>
+
                 {/* Floating spheres */}
-                <Sphere 
+                <sphere
                   name="sphere1"
-                  diameter={0.8}
-                  position={[-3, 2, 0]}
+                  position={new Vector3(-3, 2, 0)}
+                  options={{ diameter: 0.8 }}
                 >
-                  <StandardMaterial diffuseColor="#4ecdc4" />
-                </Sphere>
-                
-                <Sphere 
+                  <standardMaterial name="sphere1Mat" diffuseColor={Color3.FromHexString("#4ecdc4")} />
+                </sphere>
+
+                <sphere
                   name="sphere2"
-                  diameter={0.6}
-                  position={[3, 1.5, -1]}
+                  position={new Vector3(3, 1.5, -1)}
+                  options={{ diameter: 0.6 }}
                 >
-                  <StandardMaterial diffuseColor="#45b7d1" />
-                </Sphere>
-                
+                  <standardMaterial name="sphere2Mat" diffuseColor={Color3.FromHexString("#45b7d1")} />
+                </sphere>
+
                 {/* Ground plane */}
-                <Ground 
+                <ground
                   name="ground"
-                  width={10}
-                  height={10}
-                  subdivisions={20}
+                  options={{ width: 10, height: 10, subdivisions: 20 }}
                 >
-                  <StandardMaterial 
-                    diffuseColor="#34495e"
-                    specularColor="#2c3e50"
+                  <standardMaterial
+                    name="groundMat"
+                    diffuseColor={Color3.FromHexString("#34495e")}
+                    specularColor={Color3.FromHexString("#2c3e50")}
                   />
-                </Ground>
-                
-                {/* WebXR Experience */}
-                <XRExperience 
-                  baseExperience={true}
-                  floorMeshes={["ground"]}
-                />
+                </ground>
               </Scene>
             </Engine>
           )
-        }
-
-        function App() {
-          return <InteractiveXRScene />
         }
 
         const root = createRoot(document.getElementById('root')!)
