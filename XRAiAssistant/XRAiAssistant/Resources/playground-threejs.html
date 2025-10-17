@@ -68,25 +68,30 @@
         }
         
         .editor-container {
-            flex: 0 0 50%;
-            width: 50%;
+            width: 0%;
             background: #1e1e1e;
             border-right: 1px solid #3e3e42;
             position: relative;
             overflow: hidden;
-            box-sizing: border-box;
+            transition: width 0.3s ease-in-out;
         }
-        
-        .canvas-container {
-            flex: 0 0 50%;
+
+        .editor-container.open {
             width: 50%;
+        }
+
+        .canvas-container {
+            width: 100%;
             background: #252526;
             position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
-            overflow: hidden;
-            box-sizing: border-box;
+            transition: width 0.3s ease-in-out;
+        }
+
+        .canvas-container.editor-open {
+            width: 50%;
         }
         
         #renderCanvas {
@@ -108,10 +113,54 @@
             background: #3e3e42;
             cursor: col-resize;
             z-index: 10;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
         }
-        
+
+        .editor-container.open .resize-handle {
+            opacity: 1;
+        }
+
         .resize-handle:hover {
             background: #ff6b35;
+        }
+
+        .editor-toggle-btn {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #ff6b35;
+            color: white;
+            border: none;
+            border-radius: 0 4px 4px 0;
+            padding: 12px 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 20;
+            transition: all 0.3s ease-in-out;
+            box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.3);
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .editor-toggle-btn:hover {
+            background: #ff8c1a;
+            padding-left: 12px;
+        }
+
+        .editor-toggle-btn:active {
+            background: #ff5722;
+        }
+
+        .editor-toggle-btn.editor-open {
+            left: -60px;
+            opacity: 0;
+            pointer-events: none;
         }
         
         .footer {
@@ -180,31 +229,8 @@
             font-size: 14px;
         }
         
-        @media (max-width: 768px) {
-            .main-container {
-                flex-direction: column;
-            }
-            
-            .editor-container {
-                width: 100%;
-                height: 50%;
-                border-right: none;
-                border-bottom: 1px solid #3e3e42;
-            }
-            
-            .canvas-container {
-                width: 100%;
-                height: 50%;
-            }
-            
-            .resize-handle {
-                top: -2px;
-                right: 0;
-                width: 100%;
-                height: 4px;
-                cursor: row-resize;
-            }
-        }
+        /* Remove media query - same behavior across all devices per requirements */
+        /* The editor starts hidden (width: 0%) on all screen sizes */
     </style>
 </head>
 <body>
@@ -227,11 +253,12 @@
     </div>
     
     <div class="main-container">
-        <div class="editor-container">
+        <div class="editor-container" id="editorContainer">
             <div id="monaco-editor" style="width: 100%; height: 100%;"></div>
-            <div class="resize-handle"></div>
+            <div class="resize-handle" id="resizeHandle"></div>
         </div>
-        <div class="canvas-container">
+        <div class="canvas-container" id="canvasContainer">
+            <button class="editor-toggle-btn" id="editorToggleBtn" onclick="toggleEditor()">CODE</button>
             <canvas id="renderCanvas"></canvas>
             <div class="loading" id="loading">Loading Three.js...</div>
         </div>
@@ -261,6 +288,130 @@
         let animationId;
         let isResizing = false;
         let consoleMessages = [];
+        let isEditorOpen = false;
+
+        // Editor toggle and resize functionality
+        function toggleEditor() {
+            isEditorOpen = !isEditorOpen;
+            const editorContainer = document.getElementById('editorContainer');
+            const canvasContainer = document.getElementById('canvasContainer');
+            const toggleBtn = document.getElementById('editorToggleBtn');
+
+            if (isEditorOpen) {
+                editorContainer.classList.add('open');
+                canvasContainer.classList.add('editor-open');
+                toggleBtn.classList.add('editor-open');
+
+                // Trigger Monaco layout after transition completes
+                setTimeout(() => {
+                    if (editor && typeof editor.layout === 'function') {
+                        editor.layout();
+                    }
+                }, 300);
+            } else {
+                editorContainer.classList.remove('open');
+                canvasContainer.classList.remove('editor-open');
+                toggleBtn.classList.remove('editor-open');
+            }
+
+            // Resize canvas and renderer
+            if (renderer && camera) {
+                setTimeout(() => {
+                    const canvas = document.getElementById('renderCanvas');
+                    if (canvas) {
+                        camera.aspect = canvas.clientWidth / canvas.clientHeight;
+                        camera.updateProjectionMatrix();
+                        renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+                    }
+                }, 350);
+            }
+        }
+
+        // Draggable divider functionality with touch support
+        function initResizeHandle() {
+            const resizeHandle = document.getElementById('resizeHandle');
+            const editorContainer = document.getElementById('editorContainer');
+            const canvasContainer = document.getElementById('canvasContainer');
+            const mainContainer = document.querySelector('.main-container');
+
+            let startX = 0;
+            let startEditorWidth = 0;
+
+            function startResize(e) {
+                if (!isEditorOpen) return;
+
+                isResizing = true;
+                startX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                startEditorWidth = editorContainer.offsetWidth;
+
+                // Disable transitions during drag
+                editorContainer.style.transition = 'none';
+                canvasContainer.style.transition = 'none';
+
+                e.preventDefault();
+            }
+
+            function doResize(e) {
+                if (!isResizing || !isEditorOpen) return;
+
+                const currentX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                const diff = currentX - startX;
+                const containerWidth = mainContainer.offsetWidth;
+
+                // Calculate new width as percentage
+                let newEditorWidth = startEditorWidth + diff;
+                let newEditorPercent = (newEditorWidth / containerWidth) * 100;
+
+                // Clamp between 20% and 80%
+                newEditorPercent = Math.max(20, Math.min(80, newEditorPercent));
+                const newCanvasPercent = 100 - newEditorPercent;
+
+                editorContainer.style.width = newEditorPercent + '%';
+                canvasContainer.style.width = newCanvasPercent + '%';
+
+                // Update Monaco layout
+                if (editor && typeof editor.layout === 'function') {
+                    editor.layout();
+                }
+
+                // Resize Three.js renderer
+                if (renderer && camera) {
+                    const canvas = document.getElementById('renderCanvas');
+                    if (canvas) {
+                        camera.aspect = canvas.clientWidth / canvas.clientHeight;
+                        camera.updateProjectionMatrix();
+                        renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+                    }
+                }
+
+                e.preventDefault();
+            }
+
+            function stopResize(e) {
+                if (isResizing) {
+                    isResizing = false;
+
+                    // Re-enable transitions
+                    editorContainer.style.transition = 'width 0.3s ease-in-out';
+                    canvasContainer.style.transition = 'width 0.3s ease-in-out';
+
+                    e.preventDefault();
+                }
+            }
+
+            // Mouse events
+            resizeHandle.addEventListener('mousedown', startResize);
+            document.addEventListener('mousemove', doResize);
+            document.addEventListener('mouseup', stopResize);
+
+            // Touch events for iOS
+            resizeHandle.addEventListener('touchstart', startResize, { passive: false });
+            document.addEventListener('touchmove', doResize, { passive: false });
+            document.addEventListener('touchend', stopResize, { passive: false });
+        }
+
+        // Initialize resize handle when DOM is ready
+        window.addEventListener('DOMContentLoaded', initResizeHandle);
         
         console.log('✅ Three.js template variables initialized');
         
