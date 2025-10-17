@@ -74,11 +74,34 @@ struct BabylonJSLibrary: Library3D {
         IMPORTANT API USAGE:
         - Use BABYLON.MeshBuilder.CreateSphere() (NOT Mesh-Builder)
         - Use BABYLON.MeshBuilder.CreateBox() (NOT CreateCube)
-        - Use BABYLON.MeshBuilder.CreateGround() 
+        - Use BABYLON.MeshBuilder.CreateGround()
         - Use BABYLON.MeshBuilder.CreateCylinder()
         - Use BABYLON.StandardMaterial() for materials
         - Use BABYLON.Vector3() for positions
         - Use BABYLON.Color3() for colors
+
+        🚨 CRITICAL COLOR3 RULES:
+        - ALWAYS use constructor syntax: new BABYLON.Color3(r, g, b)
+        - NEVER use static properties: Color3.Red(), Color3.Orange(), Color3.Green(), etc.
+        - NEVER use static properties without parentheses: Color3.Red, Color3.Orange, etc.
+        - RGB values are in range 0.0 to 1.0 (NOT 0-255)
+
+        Common Color3 RGB Values (USE THESE):
+        - Red: new BABYLON.Color3(1, 0, 0)
+        - Orange: new BABYLON.Color3(1, 0.5, 0)
+        - Yellow: new BABYLON.Color3(1, 1, 0)
+        - Green: new BABYLON.Color3(0, 1, 0)
+        - Blue: new BABYLON.Color3(0, 0, 1)
+        - Purple: new BABYLON.Color3(0.5, 0, 1)
+        - White: new BABYLON.Color3(1, 1, 1)
+        - Black: new BABYLON.Color3(0, 0, 0)
+        - Gray: new BABYLON.Color3(0.5, 0.5, 0.5)
+
+        Examples:
+        ✅ material.diffuseColor = new BABYLON.Color3(1, 0.5, 0); // Orange
+        ✅ light.diffuse = new BABYLON.Color3(1, 1, 1); // White
+        ❌ material.diffuseColor = BABYLON.Color3.Orange(); // WRONG
+        ❌ material.diffuseColor = Color3.Orange; // WRONG
 
         CREATIVE GUIDELINES
         - Always add a touch of creativity (e.g., colors, animations, textures, shadows, physics, interactions).

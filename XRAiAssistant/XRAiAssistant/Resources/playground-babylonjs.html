@@ -530,11 +530,108 @@ const scene = createScene();`;
             }
         }
         
+        function cleanBabylonJSCode(code) {
+            console.log('🧹 Cleaning Babylon.js code - converting Color3 static properties to constructors');
+            let cleanedCode = code;
+
+            // Map of Color3 static properties to RGB constructor values
+            const colorReplacements = {
+                // Common colors - with parentheses (function call style)
+                'Color3.Red()': 'new Color3(1, 0, 0)',
+                'Color3.Green()': 'new Color3(0, 1, 0)',
+                'Color3.Blue()': 'new Color3(0, 0, 1)',
+                'Color3.Yellow()': 'new Color3(1, 1, 0)',
+                'Color3.Orange()': 'new Color3(1, 0.5, 0)',
+                'Color3.Purple()': 'new Color3(0.5, 0, 1)',
+                'Color3.Magenta()': 'new Color3(1, 0, 1)',
+                'Color3.Cyan()': 'new Color3(0, 1, 1)',
+                'Color3.White()': 'new Color3(1, 1, 1)',
+                'Color3.Black()': 'new Color3(0, 0, 0)',
+                'Color3.Gray()': 'new Color3(0.5, 0.5, 0.5)',
+                'Color3.Teal()': 'new Color3(0, 0.5, 0.5)',
+
+                // BABYLON namespace versions - with parentheses
+                'BABYLON.Color3.Red()': 'new BABYLON.Color3(1, 0, 0)',
+                'BABYLON.Color3.Green()': 'new BABYLON.Color3(0, 1, 0)',
+                'BABYLON.Color3.Blue()': 'new BABYLON.Color3(0, 0, 1)',
+                'BABYLON.Color3.Yellow()': 'new BABYLON.Color3(1, 1, 0)',
+                'BABYLON.Color3.Orange()': 'new BABYLON.Color3(1, 0.5, 0)',
+                'BABYLON.Color3.Purple()': 'new BABYLON.Color3(0.5, 0, 1)',
+                'BABYLON.Color3.Magenta()': 'new BABYLON.Color3(1, 0, 1)',
+                'BABYLON.Color3.Cyan()': 'new BABYLON.Color3(0, 1, 1)',
+                'BABYLON.Color3.White()': 'new BABYLON.Color3(1, 1, 1)',
+                'BABYLON.Color3.Black()': 'new BABYLON.Color3(0, 0, 0)',
+                'BABYLON.Color3.Gray()': 'new BABYLON.Color3(0.5, 0.5, 0.5)',
+                'BABYLON.Color3.Teal()': 'new BABYLON.Color3(0, 0.5, 0.5)',
+
+                // Without parentheses (property access style)
+                'Color3.Red': 'new Color3(1, 0, 0)',
+                'Color3.Green': 'new Color3(0, 1, 0)',
+                'Color3.Blue': 'new Color3(0, 0, 1)',
+                'Color3.Yellow': 'new Color3(1, 1, 0)',
+                'Color3.Orange': 'new Color3(1, 0.5, 0)',
+                'Color3.Purple': 'new Color3(0.5, 0, 1)',
+                'Color3.Magenta': 'new Color3(1, 0, 1)',
+                'Color3.Cyan': 'new Color3(0, 1, 1)',
+                'Color3.White': 'new Color3(1, 1, 1)',
+                'Color3.Black': 'new Color3(0, 0, 0)',
+                'Color3.Gray': 'new Color3(0.5, 0.5, 0.5)',
+                'Color3.Teal': 'new Color3(0, 0.5, 0.5)',
+
+                // BABYLON namespace versions - without parentheses
+                'BABYLON.Color3.Red': 'new BABYLON.Color3(1, 0, 0)',
+                'BABYLON.Color3.Green': 'new BABYLON.Color3(0, 1, 0)',
+                'BABYLON.Color3.Blue': 'new BABYLON.Color3(0, 0, 1)',
+                'BABYLON.Color3.Yellow': 'new BABYLON.Color3(1, 1, 0)',
+                'BABYLON.Color3.Orange': 'new BABYLON.Color3(1, 0.5, 0)',
+                'BABYLON.Color3.Purple': 'new BABYLON.Color3(0.5, 0, 1)',
+                'BABYLON.Color3.Magenta': 'new BABYLON.Color3(1, 0, 1)',
+                'BABYLON.Color3.Cyan': 'new BABYLON.Color3(0, 1, 1)',
+                'BABYLON.Color3.White': 'new BABYLON.Color3(1, 1, 1)',
+                'BABYLON.Color3.Black': 'new BABYLON.Color3(0, 0, 0)',
+                'BABYLON.Color3.Gray': 'new BABYLON.Color3(0.5, 0.5, 0.5)',
+                'BABYLON.Color3.Teal': 'new BABYLON.Color3(0, 0.5, 0.5)'
+            };
+
+            // First pass: Replace function call style (with parentheses) - more specific
+            for (const [oldColor, newColor] of Object.entries(colorReplacements)) {
+                if (oldColor.includes('()')) {
+                    const regex = new RegExp(oldColor.replace(/\./g, '\\.').replace(/\(/g, '\\(').replace(/\)/g, '\\)'), 'g');
+                    const beforeCount = (cleanedCode.match(regex) || []).length;
+                    if (beforeCount > 0) {
+                        cleanedCode = cleanedCode.replace(regex, newColor);
+                        console.log(`  ✅ Replaced ${beforeCount} instances of ${oldColor} → ${newColor}`);
+                    }
+                }
+            }
+
+            // Second pass: Replace property access style (without parentheses)
+            // Use word boundaries to avoid replacing Color3.Red when it's part of Color3.Red()
+            for (const [oldColor, newColor] of Object.entries(colorReplacements)) {
+                if (!oldColor.includes('()')) {
+                    // Use word boundary (\b) to match only complete property names
+                    const regex = new RegExp(oldColor.replace(/\./g, '\\.') + '\\b', 'g');
+                    const beforeCount = (cleanedCode.match(regex) || []).length;
+                    if (beforeCount > 0) {
+                        cleanedCode = cleanedCode.replace(regex, newColor);
+                        console.log(`  ✅ Replaced ${beforeCount} instances of ${oldColor} → ${newColor}`);
+                    }
+                }
+            }
+
+            console.log('🧹 Babylon.js code cleaning complete');
+            return cleanedCode;
+        }
+
         function executeUserCode(code) {
             try {
                 console.log('=== EXECUTING USER CODE ===');
-                console.log('Code to execute:', code);
-                
+                console.log('Code to execute (original):', code);
+
+                // Clean Color3 static properties before execution
+                code = cleanBabylonJSCode(code);
+                console.log('Code to execute (cleaned):', code);
+
                 // Clear previous console messages for new execution
                 clearConsole();
                 
