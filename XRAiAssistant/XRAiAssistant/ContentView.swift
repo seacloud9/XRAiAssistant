@@ -1047,31 +1047,33 @@ struct ContentView: View {
                     withAnimation(.easeInOut(duration: 0.3)) {
                         currentView = .scene
                     }
-                    
-                    // Inject AI-generated code and automatically run it (but skip for CodeSandbox mode)
-                    let shouldUseCodeSandbox = useSandpackForR3F && (
-                        chatViewModel.getCurrentLibrary().id == "reactThreeFiber" ||
-                        chatViewModel.getCurrentLibrary().id == "reactylon"
-                    )
 
-                    if !lastGeneratedCode.isEmpty && !shouldUseCodeSandbox {
+                    // Check if we're in CodeSandbox mode (React Three Fiber)
+                    let shouldUseCodeSandbox = useSandpackForR3F && chatViewModel.getCurrentLibrary().id == "reactThreeFiber"
+
+                    if shouldUseCodeSandbox {
+                        print("🚀 User clicked Run Scene for React Three Fiber")
+
+                        // If we already have pending code, CodeSandboxWebView will pick it up
+                        if pendingCodeSandboxCode == nil || pendingCodeSandboxCode?.isEmpty == true {
+                            // No pending code, store the last generated code
+                            pendingCodeSandboxCode = lastGeneratedCode
+                            pendingCodeSandboxFramework = chatViewModel.getCurrentLibrary().id
+                            print("✅ Stored code for CodeSandbox: \(lastGeneratedCode.count) characters")
+                        } else {
+                            print("✅ Using existing pending code: \(pendingCodeSandboxCode?.count ?? 0) characters")
+                        }
+
+                        // CodeSandboxWebView will now load and automatically create the sandbox
+                        // because we've switched to .scene view
+                    } else if !lastGeneratedCode.isEmpty {
                         print("Injecting AI code into Scene tab and running...")
                         isInjectingCode = true
 
                         // Wait longer for Scene tab to be visible and WebView to be ready
-                        // Increased delay and retries for better reliability across all playground templates
                         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                             self.injectCodeWithRetry(lastGeneratedCode, maxRetries: 6)
                         }
-                    } else if shouldUseCodeSandbox {
-                        print("CodeSandbox mode enabled - using native API client")
-                        print("🌐 Creating CodeSandbox for \(chatViewModel.getCurrentLibrary().id)")
-
-                        // Store the code for CodeSandbox creation using native API
-                        pendingCodeSandboxCode = lastGeneratedCode
-                        pendingCodeSandboxFramework = chatViewModel.getCurrentLibrary().id
-                        print("✅ Code stored for native API CodeSandbox creation")
-                        print("🔍 Code length: \(lastGeneratedCode.count) characters")
                     } else {
                         print("No AI-generated code available, running default scene")
                         runScene()
@@ -1627,9 +1629,10 @@ struct ContentView: View {
             self.pendingCodeSandboxCode = code
             self.pendingCodeSandboxFramework = framework.rawValue
             print("✅ Stored code for native API CodeSandbox creation")
+            print("⏸️ NOT auto-switching to Scene tab - user must click 'Run Scene' button")
 
-            // Switch to scene view to ensure CodeSandboxWebView is loaded
-            self.currentView = .scene
+            // DO NOT auto-switch to scene view - let user read the AI response first
+            // User will click "Run Scene" button when ready
         }
 
         // Wait a moment for the view to switch and CodeSandboxWebView to load
