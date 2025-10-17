@@ -78,7 +78,7 @@
         }
 
         .editor-container.open {
-            width: 50%;
+            width: 100%;
         }
 
         .canvas-container {
@@ -92,7 +92,7 @@
         }
 
         .canvas-container.editor-open {
-            width: 50%;
+            width: 0%;
         }
         
         #renderCanvas {
@@ -102,27 +102,6 @@
             display: block;
         }
         
-        .resize-handle {
-            position: absolute;
-            top: 0;
-            right: -2px;
-            width: 4px;
-            height: 100%;
-            background: #3e3e42;
-            cursor: col-resize;
-            z-index: 10;
-            opacity: 0;
-            transition: opacity 0.3s ease-in-out;
-        }
-
-        .editor-container.open .resize-handle {
-            opacity: 1;
-        }
-
-        .resize-handle:hover {
-            background: #007acc;
-        }
-
         .editor-toggle-btn {
             position: absolute;
             left: 0;
@@ -148,17 +127,17 @@
 
         .editor-toggle-btn:hover {
             background: #1177bb;
-            padding-left: 12px;
         }
 
         .editor-toggle-btn:active {
             background: #0e639c;
         }
 
+        /* When editor is open, button moves to right edge */
         .editor-toggle-btn.editor-open {
-            left: -60px;
-            opacity: 0;
-            pointer-events: none;
+            left: auto;
+            right: 0;
+            border-radius: 4px 0 0 4px;
         }
         
         .footer {
@@ -183,41 +162,176 @@
             z-index: 1000;
         }
         
-        .console-display {
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-            right: 10px;
-            background: rgba(30, 30, 30, 0.95);
-            color: #ccc;
-            padding: 12px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-family: 'Consolas', 'Monaco', monospace;
-            max-height: 150px;
-            overflow-y: auto;
-            display: none;
-            z-index: 1000;
-            border: 1px solid #3e3e42;
+        /* Floating Console Window */
+        .console-window {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 400px;
+            height: 300px;
+            background: #1e1e1e;
+            border: 1px solid #007acc;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            z-index: 2000;
+            resize: both;
+            overflow: hidden;
+            min-width: 300px;
+            min-height: 200px;
+            max-width: 90vw;
+            max-height: 80vh;
         }
-        
+
+        .console-window.minimized {
+            height: auto !important;
+            min-height: auto;
+            resize: none;
+        }
+
+        .console-window.minimized .console-resize-handle {
+            display: none;
+        }
+
+        .console-window.hidden {
+            display: none;
+        }
+
+        .console-title-bar {
+            background: #007acc;
+            color: white;
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: move;
+            user-select: none;
+            -webkit-user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 6px 6px 0 0;
+        }
+
+        .console-title {
+            flex: 1;
+        }
+
+        .console-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .console-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .console-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .console-content {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: auto;
+            padding: 12px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 11px;
+            color: #ccc;
+            background: #1e1e1e;
+            user-select: text;
+            -webkit-user-select: text;
+            cursor: text;
+        }
+
+        .console-window.minimized .console-content {
+            display: none;
+        }
+
         .console-message {
             margin: 2px 0;
             word-wrap: break-word;
+            white-space: pre-wrap;
+            user-select: text;
+            -webkit-user-select: text;
         }
-        
+
         .console-error {
             color: #f14c4c;
         }
-        
+
         .console-warning {
             color: #ffcc02;
         }
-        
+
         .console-log {
             color: #ccc;
         }
-        
+
+        .console-resize-handle {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 16px;
+            height: 16px;
+            cursor: nwse-resize;
+            background: linear-gradient(135deg, transparent 50%, #007acc 50%);
+            opacity: 0.5;
+        }
+
+        .console-window.minimized .console-resize-handle {
+            display: none;
+        }
+
+        /* Console Open Button (always visible in editor) */
+        .console-open-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 48px;
+            height: 48px;
+            background: #007acc;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            z-index: 1500;
+            transition: all 0.2s;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .console-open-btn:hover {
+            background: #1177bb;
+            transform: scale(1.1);
+        }
+
+        .console-open-btn:active {
+            background: #0e639c;
+            transform: scale(0.95);
+        }
+
+        .console-open-btn.hidden {
+            display: none;
+        }
+
         .loading {
             position: absolute;
             top: 50%;
@@ -253,7 +367,7 @@
     <div class="main-container">
         <div class="editor-container" id="editorContainer">
             <div id="monaco-editor" style="width: 100%; height: 100%;"></div>
-            <div class="resize-handle" id="resizeHandle"></div>
+            <button class="console-open-btn" id="consoleOpenBtn" title="Open Console">📟</button>
         </div>
         <div class="canvas-container" id="canvasContainer">
             <button class="editor-toggle-btn" id="editorToggleBtn" onclick="toggleEditor()">CODE</button>
@@ -267,7 +381,20 @@
     </div>
     
     <div class="error-display" id="errorDisplay"></div>
-    <div class="console-display" id="consoleDisplay"></div>
+
+    <!-- Floating Console Window -->
+    <div class="console-window" id="consoleWindow">
+        <div class="console-title-bar" id="consoleTitleBar">
+            <div class="console-title">Console</div>
+            <div class="console-controls">
+                <button class="console-btn" id="consoleMinimizeBtn" title="Minimize">−</button>
+                <button class="console-btn" id="consoleToggleBtn" title="Expand">↕</button>
+                <button class="console-btn" id="consoleCloseBtn" title="Close">×</button>
+            </div>
+        </div>
+        <div class="console-content" id="consoleContent"></div>
+        <div class="console-resize-handle" id="consoleResizeHandle"></div>
+    </div>
 
     <script>
         let editor;
@@ -277,7 +404,7 @@
         let consoleMessages = [];
         let isEditorOpen = false;
 
-        // Editor toggle and resize functionality
+        // Editor toggle functionality - switches between code view (100%) and scene view (100%)
         function toggleEditor() {
             isEditorOpen = !isEditorOpen;
             const editorContainer = document.getElementById('editorContainer');
@@ -285,9 +412,11 @@
             const toggleBtn = document.getElementById('editorToggleBtn');
 
             if (isEditorOpen) {
+                // Show code editor (100%), hide scene (0%)
                 editorContainer.classList.add('open');
                 canvasContainer.classList.add('editor-open');
                 toggleBtn.classList.add('editor-open');
+                toggleBtn.textContent = 'SCENE';
 
                 // Trigger Monaco layout after transition completes
                 setTimeout(() => {
@@ -296,9 +425,11 @@
                     }
                 }, 300);
             } else {
+                // Show scene (100%), hide code editor (0%)
                 editorContainer.classList.remove('open');
                 canvasContainer.classList.remove('editor-open');
                 toggleBtn.classList.remove('editor-open');
+                toggleBtn.textContent = 'CODE';
             }
 
             // Resize canvas and engine
@@ -306,87 +437,6 @@
                 setTimeout(() => engine.resize(), 350);
             }
         }
-
-        // Draggable divider functionality with touch support
-        function initResizeHandle() {
-            const resizeHandle = document.getElementById('resizeHandle');
-            const editorContainer = document.getElementById('editorContainer');
-            const canvasContainer = document.getElementById('canvasContainer');
-            const mainContainer = document.querySelector('.main-container');
-
-            let startX = 0;
-            let startEditorWidth = 0;
-
-            function startResize(e) {
-                if (!isEditorOpen) return;
-
-                isResizing = true;
-                startX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
-                startEditorWidth = editorContainer.offsetWidth;
-
-                // Disable transitions during drag
-                editorContainer.style.transition = 'none';
-                canvasContainer.style.transition = 'none';
-
-                e.preventDefault();
-            }
-
-            function doResize(e) {
-                if (!isResizing || !isEditorOpen) return;
-
-                const currentX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
-                const diff = currentX - startX;
-                const containerWidth = mainContainer.offsetWidth;
-
-                // Calculate new width as percentage
-                let newEditorWidth = startEditorWidth + diff;
-                let newEditorPercent = (newEditorWidth / containerWidth) * 100;
-
-                // Clamp between 20% and 80%
-                newEditorPercent = Math.max(20, Math.min(80, newEditorPercent));
-                const newCanvasPercent = 100 - newEditorPercent;
-
-                editorContainer.style.width = newEditorPercent + '%';
-                canvasContainer.style.width = newCanvasPercent + '%';
-
-                // Update Monaco layout
-                if (editor && typeof editor.layout === 'function') {
-                    editor.layout();
-                }
-
-                // Resize Babylon engine
-                if (engine) {
-                    engine.resize();
-                }
-
-                e.preventDefault();
-            }
-
-            function stopResize(e) {
-                if (isResizing) {
-                    isResizing = false;
-
-                    // Re-enable transitions
-                    editorContainer.style.transition = 'width 0.3s ease-in-out';
-                    canvasContainer.style.transition = 'width 0.3s ease-in-out';
-
-                    e.preventDefault();
-                }
-            }
-
-            // Mouse events
-            resizeHandle.addEventListener('mousedown', startResize);
-            document.addEventListener('mousemove', doResize);
-            document.addEventListener('mouseup', stopResize);
-
-            // Touch events for iOS
-            resizeHandle.addEventListener('touchstart', startResize, { passive: false });
-            document.addEventListener('touchmove', doResize, { passive: false });
-            document.addEventListener('touchend', stopResize, { passive: false });
-        }
-
-        // Initialize resize handle when DOM is ready
-        window.addEventListener('DOMContentLoaded', initResizeHandle);
         
         // Override console methods to capture logs
         const originalConsole = {
@@ -944,17 +994,235 @@ const scene = createScene();`;
             notifySwift('showExamples', {});
         }
         
-        function toggleConsole() {
-            const consoleDisplay = document.getElementById('consoleDisplay');
-            if (consoleDisplay.style.display === 'none' || !consoleDisplay.style.display) {
-                updateConsoleDisplay(); // Ensure it's up to date
-                if (consoleMessages.length === 0) {
-                    console.log('Console opened - no messages yet');
+        // Floating Console Window Management
+        let consoleState = {
+            x: null,
+            y: null,
+            width: 400,
+            height: 300,
+            minimized: false,
+            hidden: false
+        };
+
+        function initFloatingConsole() {
+            const consoleWindow = document.getElementById('consoleWindow');
+            const titleBar = document.getElementById('consoleTitleBar');
+            const minimizeBtn = document.getElementById('consoleMinimizeBtn');
+            const toggleBtn = document.getElementById('consoleToggleBtn');
+            const closeBtn = document.getElementById('consoleCloseBtn');
+            const resizeHandle = document.getElementById('consoleResizeHandle');
+            const consoleOpenBtn = document.getElementById('consoleOpenBtn');
+
+            // Safety check - return if elements don't exist yet
+            if (!consoleWindow || !titleBar || !minimizeBtn || !toggleBtn || !closeBtn || !resizeHandle || !consoleOpenBtn) {
+                console.warn('Console elements not ready yet, skipping initialization');
+                return;
+            }
+
+            // Load saved state from localStorage
+            const saved = localStorage.getItem('babylonjs_console_state');
+            if (saved) {
+                consoleState = { ...consoleState, ...JSON.parse(saved) };
+                applyConsoleState();
+            }
+
+            // Minimize button
+            minimizeBtn.addEventListener('click', () => {
+                consoleState.minimized = !consoleState.minimized;
+                consoleWindow.classList.toggle('minimized', consoleState.minimized);
+                minimizeBtn.textContent = consoleState.minimized ? '+' : '−';
+                saveConsoleState();
+            });
+
+            // Toggle/Expand button
+            toggleBtn.addEventListener('click', () => {
+                if (consoleState.minimized) {
+                    consoleState.minimized = false;
+                    consoleWindow.classList.remove('minimized');
+                    minimizeBtn.textContent = '−';
                 }
+                saveConsoleState();
+            });
+
+            // Close button
+            closeBtn.addEventListener('click', () => {
+                consoleState.hidden = true;
+                consoleWindow.classList.add('hidden');
+                saveConsoleState();
+                updateConsoleOpenButtonVisibility();
+            });
+
+            // Dragging
+            let isDragging = false;
+            let dragStartX, dragStartY, dragStartLeft, dragStartTop;
+
+            titleBar.addEventListener('mousedown', startDrag);
+            titleBar.addEventListener('touchstart', startDrag, { passive: false });
+
+            function startDrag(e) {
+                if (e.target.closest('.console-btn')) return;
+                isDragging = true;
+
+                const rect = consoleWindow.getBoundingClientRect();
+                const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+
+                dragStartX = clientX;
+                dragStartY = clientY;
+                dragStartLeft = rect.left;
+                dragStartTop = rect.top;
+
+                e.preventDefault();
+            }
+
+            function doDrag(e) {
+                if (!isDragging) return;
+
+                const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+
+                const deltaX = clientX - dragStartX;
+                const deltaY = clientY - dragStartY;
+
+                consoleState.x = dragStartLeft + deltaX;
+                consoleState.y = dragStartTop + deltaY;
+
+                consoleWindow.style.left = consoleState.x + 'px';
+                consoleWindow.style.top = consoleState.y + 'px';
+                consoleWindow.style.right = 'auto';
+                consoleWindow.style.bottom = 'auto';
+
+                e.preventDefault();
+            }
+
+            function stopDrag() {
+                if (isDragging) {
+                    isDragging = false;
+                    saveConsoleState();
+                }
+            }
+
+            document.addEventListener('mousemove', doDrag);
+            document.addEventListener('touchmove', doDrag, { passive: false });
+            document.addEventListener('mouseup', stopDrag);
+            document.addEventListener('touchend', stopDrag);
+
+            // Resizing
+            let isResizing = false;
+            let resizeStartX, resizeStartY, resizeStartWidth, resizeStartHeight;
+
+            resizeHandle.addEventListener('mousedown', startResize);
+            resizeHandle.addEventListener('touchstart', startResize, { passive: false });
+
+            function startResize(e) {
+                isResizing = true;
+
+                const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+
+                resizeStartX = clientX;
+                resizeStartY = clientY;
+                resizeStartWidth = consoleWindow.offsetWidth;
+                resizeStartHeight = consoleWindow.offsetHeight;
+
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            function doResize(e) {
+                if (!isResizing) return;
+
+                const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+
+                const deltaX = clientX - resizeStartX;
+                const deltaY = clientY - resizeStartY;
+
+                consoleState.width = Math.max(300, Math.min(resizeStartWidth + deltaX, window.innerWidth * 0.9));
+                consoleState.height = Math.max(200, Math.min(resizeStartHeight + deltaY, window.innerHeight * 0.8));
+
+                consoleWindow.style.width = consoleState.width + 'px';
+                consoleWindow.style.height = consoleState.height + 'px';
+
+                e.preventDefault();
+            }
+
+            function stopResize() {
+                if (isResizing) {
+                    isResizing = false;
+                    saveConsoleState();
+                }
+            }
+
+            document.addEventListener('mousemove', doResize);
+            document.addEventListener('touchmove', doResize, { passive: false });
+            document.addEventListener('mouseup', stopResize);
+            document.addEventListener('touchend', stopResize);
+
+            // Console Open Button (already declared at top of function)
+            consoleOpenBtn.addEventListener('click', () => {
+                consoleState.hidden = false;
+                consoleState.minimized = false;
+                consoleWindow.classList.remove('hidden');
+                consoleWindow.classList.remove('minimized');
+                minimizeBtn.textContent = '−';
+                saveConsoleState();
+                updateConsoleOpenButtonVisibility();
+            });
+
+            // Update button visibility based on console state
+            updateConsoleOpenButtonVisibility();
+        }
+
+        function updateConsoleOpenButtonVisibility() {
+            const consoleOpenBtn = document.getElementById('consoleOpenBtn');
+            const consoleWindow = document.getElementById('consoleWindow');
+
+            // Show button only when console is hidden
+            if (consoleState.hidden) {
+                consoleOpenBtn.classList.remove('hidden');
             } else {
-                consoleDisplay.style.display = 'none';
+                consoleOpenBtn.classList.add('hidden');
             }
         }
+
+        function applyConsoleState() {
+            const consoleWindow = document.getElementById('consoleWindow');
+            const minimizeBtn = document.getElementById('consoleMinimizeBtn');
+
+            if (consoleState.x !== null && consoleState.y !== null) {
+                consoleWindow.style.left = consoleState.x + 'px';
+                consoleWindow.style.top = consoleState.y + 'px';
+                consoleWindow.style.right = 'auto';
+                consoleWindow.style.bottom = 'auto';
+            }
+
+            consoleWindow.style.width = consoleState.width + 'px';
+            consoleWindow.style.height = consoleState.height + 'px';
+
+            consoleWindow.classList.toggle('minimized', consoleState.minimized);
+            consoleWindow.classList.toggle('hidden', consoleState.hidden);
+            minimizeBtn.textContent = consoleState.minimized ? '+' : '−';
+
+            updateConsoleOpenButtonVisibility();
+        }
+
+        function saveConsoleState() {
+            localStorage.setItem('babylonjs_console_state', JSON.stringify(consoleState));
+        }
+
+        function toggleConsole() {
+            consoleState.hidden = !consoleState.hidden;
+            document.getElementById('consoleWindow').classList.toggle('hidden', consoleState.hidden);
+            saveConsoleState();
+            updateConsoleOpenButtonVisibility();
+            if (!consoleState.hidden && consoleMessages.length === 0) {
+                console.log('Console opened - no messages yet');
+            }
+        }
+
+        // Initialize console on page load
+        window.addEventListener('DOMContentLoaded', initFloatingConsole);
         
         function loadExample(exampleId) {
             if (!exampleId) return;
@@ -1164,15 +1432,12 @@ const scene = createScene();`;
         }
         
         function updateConsoleDisplay() {
-            const consoleDisplay = document.getElementById('consoleDisplay');
-            if (consoleMessages.length > 0) {
-                consoleDisplay.innerHTML = consoleMessages.map(msg => 
+            const consoleContent = document.getElementById('consoleContent');
+            if (consoleContent && consoleMessages.length > 0) {
+                consoleContent.innerHTML = consoleMessages.map(msg =>
                     `<div class="console-message console-${msg.type}">${escapeHtml(msg.message)}</div>`
                 ).join('');
-                consoleDisplay.style.display = 'block';
-                consoleDisplay.scrollTop = consoleDisplay.scrollHeight;
-            } else {
-                consoleDisplay.style.display = 'none';
+                consoleContent.scrollTop = consoleContent.scrollHeight;
             }
         }
         
