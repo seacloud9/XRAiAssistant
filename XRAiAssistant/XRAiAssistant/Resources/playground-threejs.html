@@ -346,10 +346,10 @@
         <select class="menu-btn" onchange="loadExample(this.value)">
             <option value="">Select Example...</option>
             <option value="basic-scene">Basic Scene</option>
-            <option value="rotating-cube">Rotating Cube</option>
-            <option value="lighting">Lighting Demo</option>
+            <option value="rotating-cube">Galaxy Cubes ✨</option>
+            <option value="lighting">Orbiting Lights 💡</option>
             <option value="materials">Materials Demo</option>
-            <option value="rainbow">Rainbow Arc</option>
+            <option value="rainbow">Rainbow Arc 🌈</option>
         </select>
     </div>
     
@@ -1600,38 +1600,76 @@ console.log("✅ Default scene creation complete!");`;
         function getRotatingCubeCode() {
             return `const createScene = () => {
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x333333);
-    
+    scene.background = new THREE.Color(0x000033); // Deep space blue
+
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 5, 10);
-    
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+    camera.position.set(0, 3, 8);
+
+    // Dramatic lighting
+    const ambientLight = new THREE.AmbientLight(0x222244, 0.4);
     scene.add(ambientLight);
+
+    // Multiple colored lights for dramatic effect
+    const light1 = new THREE.PointLight(0xff0055, 2, 50);
+    light1.position.set(5, 5, 5);
+    scene.add(light1);
+
+    const light2 = new THREE.PointLight(0x0055ff, 2, 50);
+    light2.position.set(-5, 5, -5);
+    scene.add(light2);
     
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(10, 10, 5);
-    scene.add(directionalLight);
-    
-    // Create rotating cube
-    const geometry = new THREE.BoxGeometry(2, 2, 2);
-    const material = new THREE.MeshPhongMaterial({ color: 0xff6b35 });
-    const cube = new THREE.Mesh(geometry, material);
-    cube.position.y = 1;
-    scene.add(cube);
-    
-    // Animation
-    function animate() {
-        cube.rotation.x += 0.01;
-        cube.rotation.y += 0.01;
+    // Create galaxy of glowing cubes
+    const cubes = [];
+    for (let i = 0; i < 50; i++) {
+        const size = Math.random() * 0.5 + 0.2;
+        const geometry = new THREE.BoxGeometry(size, size, size);
+        const hue = Math.random();
+        const color = new THREE.Color().setHSL(hue, 1.0, 0.5);
+
+        const material = new THREE.MeshStandardMaterial({
+            color: color,
+            emissive: color,
+            emissiveIntensity: 0.8,
+            metalness: 0.5,
+            roughness: 0.2
+        });
+
+        const cube = new THREE.Mesh(geometry, material);
+
+        // Position in a sphere
+        const radius = Math.random() * 5 + 2;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.random() * Math.PI;
+
+        cube.position.x = radius * Math.sin(phi) * Math.cos(theta);
+        cube.position.y = radius * Math.sin(phi) * Math.sin(theta);
+        cube.position.z = radius * Math.cos(phi);
+
+        // Random rotation speeds
+        cube.userData.rotationSpeed = {
+            x: (Math.random() - 0.5) * 0.02,
+            y: (Math.random() - 0.5) * 0.02,
+            z: (Math.random() - 0.5) * 0.02
+        };
+
+        scene.add(cube);
+        cubes.push(cube);
     }
-    
-    // Register animation
+
+    // Animation - rotate each cube
+    function animate() {
+        cubes.forEach(cube => {
+            cube.rotation.x += cube.userData.rotationSpeed.x;
+            cube.rotation.y += cube.userData.rotationSpeed.y;
+            cube.rotation.z += cube.userData.rotationSpeed.z;
+        });
+    }
+
     scene.userData.animate = animate;
-    
+
     controls.target.set(0, 0, 0);
     controls.update();
-    
+
     return { scene, camera };
 };
 
@@ -1641,45 +1679,96 @@ const { scene, camera } = createScene();`;
         function getLightingDemoCode() {
             return `const createScene = () => {
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x222222);
-    
+    scene.background = new THREE.Color(0x000000); // Pure black for drama
+
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 5, 10);
-    
-    // Multiple lights
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+    camera.position.set(0, 5, 15);
+
+    // Dim ambient for mood
+    const ambientLight = new THREE.AmbientLight(0x111122, 0.2);
     scene.add(ambientLight);
-    
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(10, 10, 5);
-    scene.add(directionalLight);
-    
-    const pointLight = new THREE.PointLight(0xff6b35, 1, 100);
-    pointLight.position.set(-5, 5, 5);
-    scene.add(pointLight);
-    
-    // Objects
-    const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
-    const sphereMaterial = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
-    const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-    sphere.position.set(-2, 1, 0);
-    scene.add(sphere);
-    
-    const boxGeometry = new THREE.BoxGeometry(2, 2, 2);
-    const boxMaterial = new THREE.MeshPhongMaterial({ color: 0xff6b35 });
-    const box = new THREE.Mesh(boxGeometry, boxMaterial);
-    box.position.set(2, 1, 0);
-    scene.add(box);
-    
-    const groundGeometry = new THREE.PlaneGeometry(20, 20);
-    const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+
+    // Animated colored lights orbiting the scene
+    const light1 = new THREE.PointLight(0xff0040, 3, 20);
+    scene.add(light1);
+
+    const light2 = new THREE.PointLight(0x0080ff, 3, 20);
+    scene.add(light2);
+
+    const light3 = new THREE.PointLight(0x80ff00, 3, 20);
+    scene.add(light3);
+
+    // Light helper spheres (small glowing orbs)
+    const lightSphere1 = new THREE.Mesh(
+        new THREE.SphereGeometry(0.2, 8, 8),
+        new THREE.MeshBasicMaterial({ color: 0xff0040 })
+    );
+    light1.add(lightSphere1);
+
+    const lightSphere2 = new THREE.Mesh(
+        new THREE.SphereGeometry(0.2, 8, 8),
+        new THREE.MeshBasicMaterial({ color: 0x0080ff })
+    );
+    light2.add(lightSphere2);
+
+    const lightSphere3 = new THREE.Mesh(
+        new THREE.SphereGeometry(0.2, 8, 8),
+        new THREE.MeshBasicMaterial({ color: 0x80ff00 })
+    );
+    light3.add(lightSphere3);
+
+    // Center crystal
+    const geometry = new THREE.IcosahedronGeometry(2, 0);
+    const material = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        metalness: 0.9,
+        roughness: 0.1,
+        emissive: 0x222244,
+        emissiveIntensity: 0.2
+    });
+    const crystal = new THREE.Mesh(geometry, material);
+    crystal.position.y = 2;
+    scene.add(crystal);
+
+    // Ground with reflections
+    const groundGeometry = new THREE.PlaneGeometry(30, 30);
+    const groundMaterial = new THREE.MeshStandardMaterial({
+        color: 0x111111,
+        metalness: 0.8,
+        roughness: 0.3
+    });
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
     ground.rotation.x = -Math.PI / 2;
     scene.add(ground);
-    
-    controls.target.set(0, 0, 0);
+
+    // Animation - orbit lights around the crystal
+    let time = 0;
+    function animate() {
+        time += 0.01;
+
+        // Orbit lights in different patterns
+        light1.position.x = Math.cos(time) * 6;
+        light1.position.z = Math.sin(time) * 6;
+        light1.position.y = 3 + Math.sin(time * 2) * 2;
+
+        light2.position.x = Math.cos(time + Math.PI * 2/3) * 6;
+        light2.position.z = Math.sin(time + Math.PI * 2/3) * 6;
+        light2.position.y = 3 + Math.sin(time * 2 + Math.PI * 2/3) * 2;
+
+        light3.position.x = Math.cos(time + Math.PI * 4/3) * 6;
+        light3.position.z = Math.sin(time + Math.PI * 4/3) * 6;
+        light3.position.y = 3 + Math.sin(time * 2 + Math.PI * 4/3) * 2;
+
+        // Slowly rotate crystal
+        crystal.rotation.y += 0.003;
+        crystal.rotation.x += 0.002;
+    }
+
+    scene.userData.animate = animate;
+
+    controls.target.set(0, 2, 0);
     controls.update();
-    
+
     return { scene, camera };
 };
 
