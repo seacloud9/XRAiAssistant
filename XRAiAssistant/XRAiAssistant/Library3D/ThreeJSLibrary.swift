@@ -82,7 +82,26 @@ struct ThreeJSLibrary: Library3D {
         - Use THREE.Color(hex) for colors
         - Use object.position.set(x, y, z) for positioning
         - Use object.rotation.set(x, y, z) for rotation
-        
+
+        VISUAL EFFECTS (Without Post-Processing):
+        Create stunning visual effects using emissive materials and creative lighting:
+
+        // Glowing effect with emissive materials
+        const glowMaterial = new THREE.MeshStandardMaterial({
+            color: 0xff0000,        // Base color
+            emissive: 0xff0000,     // Glow color (same as base for pure glow)
+            emissiveIntensity: 0.8, // Glow strength (0-1, higher = brighter)
+            metalness: 0.3,         // Metallic appearance (0-1)
+            roughness: 0.4          // Surface roughness (0-1, lower = shinier)
+        });
+
+        Tips for Beautiful Scenes:
+        - Use emissive + emissiveIntensity for self-illuminated objects
+        - Combine ambient + directional lights for depth
+        - Dark backgrounds (0x000011) make emissive materials pop
+        - Use multiple colored lights for dramatic effects
+        - Try transparent materials with opacity for layered effects
+
         CREATIVE GUIDELINES:
         - Always add interesting lighting (ambient + directional/point lights)
         - Use materials with realistic properties (metalness, roughness for StandardMaterial)
