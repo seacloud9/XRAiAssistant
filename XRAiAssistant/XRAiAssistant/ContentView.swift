@@ -40,6 +40,7 @@ class KeyboardObserver: ObservableObject {
 
 struct ContentView: View {
     @StateObject private var chatViewModel = ChatViewModel()
+    @StateObject private var conversationStorage = ConversationStorageManager()
     @StateObject private var keyboardObserver = KeyboardObserver()
     @State private var webView: WKWebView?
     @State private var currentCode = ""
@@ -648,12 +649,10 @@ struct ContentView: View {
     
     // MARK: - Chat View
     private var chatView: some View {
-        VStack(spacing: 0) {
-            chatHeader
-            chatMessages
-            chatCodeBanner
-            chatInputView
-        }
+        EnhancedChatView(
+            viewModel: chatViewModel,
+            storageManager: conversationStorage
+        )
     }
     
     // MARK: - Chat Header
