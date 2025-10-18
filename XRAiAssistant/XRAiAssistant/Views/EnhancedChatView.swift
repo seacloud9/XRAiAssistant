@@ -271,9 +271,14 @@ struct EnhancedChatView: View {
 
     private var inputAreaView: some View {
         HStack(spacing: 12) {
-            TextField("Type a message...", text: $inputText, axis: .vertical)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .lineLimit(1...5)
+            if #available(iOS 16.0, *) {
+                TextField("Type a message...", text: $inputText, axis: .vertical)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .lineLimit(1...5)
+            } else {
+                TextField("Type a message...", text: $inputText)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+            }
 
             Button(action: sendMessage) {
                 Image(systemName: "paperplane.fill")
@@ -334,9 +339,7 @@ struct EnhancedChatView: View {
             // TODO: Send to AI and get response
         } else {
             // Legacy path - send through existing ViewModel
-            Task {
-                await viewModel.sendMessage(messageContent)
-            }
+            viewModel.sendMessage(messageContent)
         }
     }
 
@@ -347,7 +350,7 @@ struct EnhancedChatView: View {
         var newConversation = Conversation(
             title: "New Conversation",
             messages: enhancedMessages,
-            library3DID: viewModel.libraryManager.selectedLibrary?.id,
+            library3DID: viewModel.libraryManager.selectedLibrary.id,
             modelUsed: viewModel.selectedModel
         )
         newConversation.generateTitleIfNeeded()
@@ -366,7 +369,7 @@ struct EnhancedChatView: View {
     }
 
     private func clearCurrentConversation() {
-        if let conversation = currentConversation {
+        if currentConversation != nil {
             saveCurrentConversation()
         }
 

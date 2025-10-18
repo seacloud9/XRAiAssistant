@@ -42,7 +42,8 @@ public class WasmBuildService: NSObject, BuildService {
             let jsCode = "window.buildWithEsbuild(\(buildMessage)); undefined;"
             
             // Add timeout to prevent hanging
-            DispatchQueue.main.asyncAfter(deadline: .now() + 30.0) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 30.0) { [weak self] in
+                guard let self = self else { return }
                 if let pendingContinuation = self.pendingBuildContinuation {
                     print("⏰ Build timeout after 30 seconds")
                     let timeoutResult = BuildResult(
@@ -54,8 +55,9 @@ public class WasmBuildService: NSObject, BuildService {
                     self.pendingBuildContinuation = nil
                 }
             }
-            
-            DispatchQueue.main.async {
+
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
                 self.webView?.evaluateJavaScript(jsCode) { result, error in
                     if let error = error {
                         print("❌ Build execution error: \(error)")
@@ -389,8 +391,6 @@ public class WasmBuildService: NSObject, BuildService {
     }
     
     private func createBuildMessage(from request: BuildRequest) -> String {
-        let encoder = JSONEncoder()
-        
         let buildData: [String: Any] = [
             "framework": request.framework.rawValue,
             "entryCode": request.entryCode,

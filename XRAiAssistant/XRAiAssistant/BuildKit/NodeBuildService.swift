@@ -252,7 +252,9 @@ public class NodeBuildWorker {
                 
                 // Send message to Node.js worker
                 // In a real implementation, this would use NodeJSMobile's message sending
-                self.simulateNodeJSResponse(for: cmd, messageId: messageId, payload: payload)
+                Task { @MainActor in
+                    self.simulateNodeJSResponse(for: cmd, messageId: messageId, payload: payload)
+                }
             }
         }
     }

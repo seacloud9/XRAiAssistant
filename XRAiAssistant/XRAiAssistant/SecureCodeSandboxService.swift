@@ -566,7 +566,7 @@ class SecureCodeSandboxService {
 
     private func sanitizeCodeForJSON(_ code: String) -> String {
         // First apply general security sanitization
-        var sanitized = sanitizeCode(code)
+        let sanitized = sanitizeCode(code)
 
         // Additional JSON-specific sanitization
         // These shouldn't normally be in React code, but just to be safe
