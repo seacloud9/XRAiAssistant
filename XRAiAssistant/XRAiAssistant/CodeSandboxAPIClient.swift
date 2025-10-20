@@ -891,7 +891,7 @@ class CodeSandboxAPIClient {
             var mutableCode = cleanedCode
             for match in matches.reversed() {
                 if match.numberOfRanges >= 6,
-                   let matchRange = Range(match.range, in: cleanedCode),
+                   let _ = Range(match.range, in: cleanedCode),
                    let meshTypeRange = Range(match.range(at: 1), in: cleanedCode),
                    let meshPropsBeforeRange = Range(match.range(at: 2), in: cleanedCode),
                    let materialTypeRange = Range(match.range(at: 3), in: cleanedCode),
@@ -1124,7 +1124,7 @@ class CodeSandboxAPIClient {
 
         // IMPORTANT: Be VERY conservative here - only remove truly orphaned tags
         // DO NOT remove legitimate JSX self-closing tags (e.g., <Component />)
-        var codeLines = finalCode.components(separatedBy: "\n")
+        let codeLines = finalCode.components(separatedBy: "\n")
         var cleanedLines: [String] = []
 
         for (index, line) in codeLines.enumerated() {

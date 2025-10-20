@@ -7,6 +7,7 @@ struct ThreadedMessageView: View {
     let isExpanded: Bool
     let onReply: (UUID) -> Void
     let onToggleThread: (UUID) -> Void
+    let onRun: ((String) -> Void)?
 
     @State private var showReplyField = false
 
@@ -16,6 +17,68 @@ struct ThreadedMessageView: View {
 
     private var hasReplies: Bool {
         !replies.isEmpty
+    }
+
+    private var extractedCode: String? {
+        let content = message.content
+
+        // DEBUG: Print full content to understand the format
+        print("🔍 Attempting code extraction from message:")
+        print("📏 Length: \(content.count)")
+        print("📝 First 300 chars: \(content.prefix(300))")
+        print("📝 Last 100 chars: \(content.suffix(100))")
+
+        // Simple string-based extraction (more reliable than regex for this case)
+        // Look for code between ```javascript and ``` (or similar)
+
+        // Find the start of the code block
+        let possibleStarts = ["```javascript", "```typescript", "```js", "```ts", "```jsx", "```"]
+        var codeStart: String.Index? = nil
+        var startMarkerLength = 0
+
+        for marker in possibleStarts {
+            if let range = content.range(of: marker) {
+                codeStart = range.upperBound
+                startMarkerLength = marker.count
+                print("✅ Found code block start: '\(marker)'")
+                break
+            }
+        }
+
+        guard let start = codeStart else {
+            print("❌ No code block start marker found (tried: \(possibleStarts))")
+            return nil
+        }
+
+        // Find the end of the code block (closing ```)
+        let afterStart = content[start...]
+        guard let endRange = afterStart.range(of: "```") else {
+            print("❌ No closing ``` found")
+            return nil
+        }
+
+        // Extract the code between start and end
+        let codeRange = start..<endRange.lowerBound
+        var code = String(content[codeRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+
+        print("✅ Raw extracted code length: \(code.count)")
+        print("📝 First 100 chars of code: \(code.prefix(100))")
+
+        // Remove any [/INSERT_CODE] or other artifacts that might be at the end
+        let artifactsToRemove = ["[/INSERT_CODE]", "[RUN_SCENE]", "```"]
+        for artifact in artifactsToRemove {
+            if code.hasSuffix(artifact) {
+                code = String(code.dropLast(artifact.count)).trimmingCharacters(in: .whitespacesAndNewlines)
+                print("🧹 Removed trailing artifact: \(artifact)")
+            }
+        }
+
+        print("✅ Final extracted code length: \(code.count)")
+        return code.isEmpty ? nil : code
+    }
+
+    private var hasCode: Bool {
+        extractedCode != nil
     }
 
     var body: some View {
@@ -49,6 +112,28 @@ struct ThreadedMessageView: View {
                                     .foregroundColor(.blue)
                             }
                             .buttonStyle(PlainButtonStyle())
+
+                            // ALWAYS show "Run the Scene" button for AI messages, but extract code smartly
+                            Button(action: {
+                                // Try to extract code first, fallback to full content if no code blocks found
+                                if let code = extractedCode {
+                                    print("🎯 Running extracted code (\(code.count) chars)")
+                                    onRun?(code)
+                                } else {
+                                    print("⚠️ No code blocks found, running full message content")
+                                    onRun?(message.content)
+                                }
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "play.fill")
+                                        .font(.caption)
+                                    Text("Run the Scene")
+                                        .font(.caption)
+                                        .underline() // Make it look like a hyperlink
+                                }
+                                .foregroundColor(extractedCode != nil ? .green : .orange)
+                            }
+                            .buttonStyle(PlainButtonStyle())
                         }
 
                         if hasReplies {
@@ -75,7 +160,8 @@ struct ThreadedMessageView: View {
                     ForEach(replies) { reply in
                         ThreadReplyView(
                             message: reply,
-                            onReply: onReply
+                            onReply: onReply,
+                            onRun: onRun
                         )
                     }
                 }
@@ -98,6 +184,69 @@ struct ThreadedMessageView: View {
 struct ThreadReplyView: View {
     let message: EnhancedChatMessage
     let onReply: (UUID) -> Void
+    let onRun: ((String) -> Void)?
+
+    private var extractedCode: String? {
+        let content = message.content
+
+        // DEBUG: Print full content to understand the format
+        print("🔍 Attempting code extraction from message:")
+        print("📏 Length: \(content.count)")
+        print("📝 First 300 chars: \(content.prefix(300))")
+        print("📝 Last 100 chars: \(content.suffix(100))")
+
+        // Simple string-based extraction (more reliable than regex for this case)
+        // Look for code between ```javascript and ``` (or similar)
+
+        // Find the start of the code block
+        let possibleStarts = ["```javascript", "```typescript", "```js", "```ts", "```jsx", "```"]
+        var codeStart: String.Index? = nil
+        var startMarkerLength = 0
+
+        for marker in possibleStarts {
+            if let range = content.range(of: marker) {
+                codeStart = range.upperBound
+                startMarkerLength = marker.count
+                print("✅ Found code block start: '\(marker)'")
+                break
+            }
+        }
+
+        guard let start = codeStart else {
+            print("❌ No code block start marker found (tried: \(possibleStarts))")
+            return nil
+        }
+
+        // Find the end of the code block (closing ```)
+        let afterStart = content[start...]
+        guard let endRange = afterStart.range(of: "```") else {
+            print("❌ No closing ``` found")
+            return nil
+        }
+
+        // Extract the code between start and end
+        let codeRange = start..<endRange.lowerBound
+        var code = String(content[codeRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+
+        print("✅ Raw extracted code length: \(code.count)")
+        print("📝 First 100 chars of code: \(code.prefix(100))")
+
+        // Remove any [/INSERT_CODE] or other artifacts that might be at the end
+        let artifactsToRemove = ["[/INSERT_CODE]", "[RUN_SCENE]", "```"]
+        for artifact in artifactsToRemove {
+            if code.hasSuffix(artifact) {
+                code = String(code.dropLast(artifact.count)).trimmingCharacters(in: .whitespacesAndNewlines)
+                print("🧹 Removed trailing artifact: \(artifact)")
+            }
+        }
+
+        print("✅ Final extracted code length: \(code.count)")
+        return code.isEmpty ? nil : code
+    }
+
+    private var hasCode: Bool {
+        extractedCode != nil
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -127,6 +276,28 @@ struct ThreadReplyView: View {
                             Text("Reply")
                                 .font(.caption2)
                                 .foregroundColor(.blue)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+
+                        // ALWAYS show "Run the Scene" button for AI messages, but extract code smartly
+                        Button(action: {
+                            // Try to extract code first, fallback to full content if no code blocks found
+                            if let code = extractedCode {
+                                print("🎯 Running extracted code from reply (\(code.count) chars)")
+                                onRun?(code)
+                            } else {
+                                print("⚠️ No code blocks found in reply, running full message content")
+                                onRun?(message.content)
+                            }
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "play.fill")
+                                    .font(.caption2)
+                                Text("Run the Scene")
+                                    .font(.caption2)
+                                    .underline() // Make it look like a hyperlink
+                            }
+                            .foregroundColor(extractedCode != nil ? .green : .orange)
                         }
                         .buttonStyle(PlainButtonStyle())
                     }
@@ -195,6 +366,9 @@ struct ThreadReplyView: View {
                                 } else {
                                     expandedThreads.insert(messageID)
                                 }
+                            },
+                            onRun: { code in
+                                print("Run code: \(code)")
                             }
                         )
                     }

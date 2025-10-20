@@ -167,7 +167,7 @@ struct ConversationRowView: View {
             )
             .onAppear {
                 // Add sample conversations
-                var conv1 = Conversation(
+                let conv1 = Conversation(
                     title: "Creating a 3D Cube",
                     messages: [
                         EnhancedChatMessage(content: "How do I create a rotating cube in Three.js?", isUser: true),
@@ -177,7 +177,7 @@ struct ConversationRowView: View {
                 )
                 storage.addConversation(conv1)
 
-                var conv2 = Conversation(
+                let conv2 = Conversation(
                     title: "Babylon.js Lighting",
                     messages: [
                         EnhancedChatMessage(content: "Add dynamic lighting to my scene", isUser: true),

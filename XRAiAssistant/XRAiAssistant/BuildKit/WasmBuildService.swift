@@ -3,6 +3,7 @@ import WebKit
 
 // MARK: - WASM Build Service
 
+@MainActor
 public class WasmBuildService: NSObject, BuildService {
     private var webView: WKWebView?
     private var isInitialized = false
@@ -14,7 +15,7 @@ public class WasmBuildService: NSObject, BuildService {
         setupWebView()
     }
     
-    public func isNodeAvailable() -> Bool {
+    nonisolated public func isNodeAvailable() -> Bool {
         return false // WASM service doesn't use Node
     }
     

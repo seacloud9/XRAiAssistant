@@ -57,7 +57,10 @@ struct ContentView: View {
     @State private var pendingCodeSandboxCode: String?
     @State private var pendingCodeSandboxFramework: String?
     @State private var codeSandboxCreateFunction: ((String) -> Void)?
-    
+    @State private var consoleMessages: [(level: String, message: String, timestamp: Date)] = []
+    @State private var showConsole = false
+    @State private var consoleCopied = false
+
     private var settingsView: some View {
         NavigationView {
             Form {
@@ -651,7 +654,18 @@ struct ContentView: View {
     private var chatView: some View {
         EnhancedChatView(
             viewModel: chatViewModel,
-            storageManager: conversationStorage
+            storageManager: conversationStorage,
+            onRunCode: { code in
+                // Switch to scene view and inject code
+                currentView = .scene
+                currentCode = code
+                lastGeneratedCode = code
+
+                // Inject after a short delay to ensure view is loaded
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    injectCodeWithRetry(code, maxRetries: 3)
+                }
+            }
         )
     }
     
@@ -921,7 +935,8 @@ struct ContentView: View {
     
     // MARK: - Scene View
     private var sceneView: some View {
-        ZStack {
+        VStack(spacing: 0) {
+            ZStack {
                         // Check if we should use CodeSandbox for React Three Fiber or Reactylon
                         if useSandpackForR3F && (chatViewModel.getCurrentLibrary().id == "reactThreeFiber" || chatViewModel.getCurrentLibrary().id == "reactylon") {
                             CodeSandboxWebView(
@@ -1017,8 +1032,146 @@ struct ContentView: View {
                             .cornerRadius(12)
                         }
                     }
+
+            // Console panel
+            consolePanel
+        }
+    }
+
+    // MARK: - Console Panel
+    private var consolePanel: some View {
+        VStack(spacing: 0) {
+            // Console header with copy button
+            HStack {
+                Image(systemName: "terminal")
+                    .foregroundColor(.gray)
+                    .font(.caption)
+
+                Text("Console")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+
+                Spacer()
+
+                // Clear console button
+                Button(action: {
+                    consoleMessages.removeAll()
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "trash")
+                            .font(.caption)
+                    }
+                    .foregroundColor(.red)
+                }
+                .padding(.trailing, 8)
+
+                // Copy console button
+                Button(action: {
+                    copyConsoleOutput()
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: consoleCopied ? "checkmark" : "doc.on.doc")
+                            .font(.caption)
+                        Text(consoleCopied ? "Copied!" : "Copy")
+                            .font(.caption)
+                    }
+                    .foregroundColor(consoleCopied ? .green : .blue)
+                }
+                .padding(.trailing, 8)
+
+                // Minimize button
+                Button(action: {
+                    withAnimation {
+                        showConsole.toggle()
+                    }
+                }) {
+                    Image(systemName: showConsole ? "chevron.down" : "chevron.up")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
             }
-    
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color(.systemGray6))
+            .overlay(
+                Rectangle()
+                    .frame(height: 1)
+                    .foregroundColor(Color(.separator)),
+                alignment: .top
+            )
+
+            if showConsole {
+                // Console messages
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 4) {
+                        if consoleMessages.isEmpty {
+                            Text("No console output yet")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                                .padding()
+                        } else {
+                            ForEach(Array(consoleMessages.enumerated()), id: \.offset) { index, log in
+                                HStack(alignment: .top, spacing: 8) {
+                                    // Level indicator
+                                    Circle()
+                                        .fill(consoleColor(for: log.level))
+                                        .frame(width: 6, height: 6)
+                                        .padding(.top, 5)
+
+                                    // Message
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(log.message)
+                                            .font(.system(size: 11, design: .monospaced))
+                                            .foregroundColor(.primary)
+
+                                        Text(formatTimestamp(log.timestamp))
+                                            .font(.system(size: 9))
+                                            .foregroundColor(.gray)
+                                    }
+
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 4)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+                .frame(height: 150)
+                .background(Color(.systemBackground))
+            }
+        }
+    }
+
+    private func copyConsoleOutput() {
+        let output = consoleMessages.map { log in
+            "[\(log.level.uppercased())] \(formatTimestamp(log.timestamp)): \(log.message)"
+        }.joined(separator: "\n")
+
+        UIPasteboard.general.string = output
+
+        consoleCopied = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            consoleCopied = false
+        }
+    }
+
+    private func consoleColor(for level: String) -> Color {
+        switch level.lowercased() {
+        case "error": return .red
+        case "warn", "warning": return .orange
+        case "info": return .blue
+        default: return .green
+        }
+    }
+
+    private func formatTimestamp(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss.SSS"
+        return formatter.string(from: date)
+    }
+
     // MARK: - Bottom Tab Bar
     private var bottomTabBar: some View {
         HStack {
@@ -1237,9 +1390,11 @@ struct ContentView: View {
         case "codeFormatted":
             print("Code formatted")
         case "consoleLog":
-            if let level = data["level"] as? String, 
+            if let level = data["level"] as? String,
                let message = data["message"] as? String {
                 print("🌐 WebView Console [\(level.uppercased())]: \(message)")
+                // Store console message
+                consoleMessages.append((level: level, message: message, timestamp: Date()))
             }
         case "libraryStatusUpdate":
             if let libraries = data["libraries"] as? [String: Bool] {
@@ -1420,42 +1575,51 @@ struct ContentView: View {
             print("❌ WebView not available")
             return
         }
-        
-        let escapedCode = code
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
-            .replacingOccurrences(of: "\n", with: "\\n")
-            .replacingOccurrences(of: "\r", with: "\\r")
-            .replacingOccurrences(of: "`", with: "\\`")
-        
+
+        // Use JSON encoding for safer string escaping - prevents "Unexpected identifier" errors
+        let jsonEncoder = JSONEncoder()
+        let jsonString: String
+
+        if let encoded = try? jsonEncoder.encode(code),
+           let jsonStr = String(data: encoded, encoding: .utf8) {
+            jsonString = jsonStr
+        } else {
+            // Fallback to manual escaping if JSON encoding fails
+            jsonString = "\"\(code.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\""))\""
+        }
+
         let jsCode = """
         console.log("=== CALLING ENHANCED setFullEditorContent ===");
-        
+
         (function() {
+            const codeToInject = \(jsonString);
+            console.log("📋 Code length to inject:", codeToInject.length);
+
             // Try method 1: Enhanced setFullEditorContent function
             if (typeof setFullEditorContent === 'function') {
                 console.log("📋 Method 1: Using setFullEditorContent function");
                 try {
-                    const success = setFullEditorContent("\(escapedCode)");
+                    const success = setFullEditorContent(codeToInject);
                     console.log("setFullEditorContent result:", success ? "SUCCESS" : "FAILED");
                     if (success) return "SUCCESS_METHOD_1";
                 } catch (error) {
                     console.error("❌ setFullEditorContent error:", error);
+                    console.error("❌ Error details:", error.message, error.stack);
                 }
             }
-            
+
             // Try method 2: Direct Monaco setValue with checks
             if (window.editor && typeof window.editor.setValue === 'function') {
                 console.log("📋 Method 2: Direct Monaco setValue");
                 try {
-                    window.editor.setValue("\(escapedCode)");
+                    window.editor.setValue(codeToInject);
                     if (typeof window.editor.layout === 'function') {
                         window.editor.layout();
                     }
                     if (typeof window.editor.focus === 'function') {
                         window.editor.focus();
                     }
-                    
+
                     // Try to trigger auto-run if available
                     if (typeof runCode === 'function') {
                         setTimeout(() => {
@@ -1463,14 +1627,15 @@ struct ContentView: View {
                             runCode();
                         }, 500);
                     }
-                    
+
                     console.log("✅ Direct injection completed");
                     return "SUCCESS_METHOD_2";
                 } catch (error) {
                     console.error("❌ Direct injection error:", error);
+                    console.error("❌ Error details:", error.message, error.stack);
                 }
             }
-            
+
             // Try method 3: Emergency text area injection (last resort)
             console.log("📋 Method 3: Emergency injection attempt");
             try {
@@ -1483,7 +1648,7 @@ struct ContentView: View {
             } catch (error) {
                 console.error("❌ Emergency injection error:", error);
             }
-            
+
             return "ALL_METHODS_FAILED";
         })();
         """

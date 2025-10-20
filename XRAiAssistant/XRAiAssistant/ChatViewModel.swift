@@ -293,7 +293,37 @@ class ChatViewModel: ObservableObject {
             
             // Process response for potential actions
             let processedResponse = processResponseForActions(response)
-            
+
+            // DEBUG: Log the COMPLETE processed response before saving
+            print("🔍 ===== PROCESSED RESPONSE DEBUG (BEFORE SAVING) =====")
+            print("📏 Total length: \(processedResponse.count) characters")
+            print("📝 First 500 chars:\n\(processedResponse.prefix(500))")
+            print("📝 Last 500 chars:\n\(processedResponse.suffix(500))")
+
+            // Check if code blocks are properly formed
+            let openingBackticks = processedResponse.components(separatedBy: "```").count - 1
+            print("📊 Number of ``` markers: \(openingBackticks) (should be even!)")
+
+            if openingBackticks % 2 != 0 {
+                print("⚠️ WARNING: Odd number of ``` markers - code blocks are MALFORMED!")
+            } else {
+                print("✅ Code blocks appear properly closed")
+            }
+
+            // Check for specific markers
+            if processedResponse.contains("[INSERT_CODE]") {
+                print("✅ Contains [INSERT_CODE] marker")
+            }
+            if processedResponse.contains("[/INSERT_CODE]") {
+                print("✅ Contains [/INSERT_CODE] marker")
+            } else if processedResponse.contains("[INSERT_CODE]") {
+                print("⚠️ WARNING: Has opening [INSERT_CODE] but missing closing [/INSERT_CODE]")
+            }
+            if processedResponse.contains("[RUN_SCENE]") {
+                print("✅ Contains [RUN_SCENE] marker (this should have been removed!)")
+            }
+            print("🔍 ===== END PROCESSED RESPONSE DEBUG =====")
+
             let assistantMessage = ChatMessage(
                 id: UUID().uuidString,
                 content: processedResponse,
@@ -711,23 +741,49 @@ class ChatViewModel: ObservableObject {
         // ENHANCED STRING EXTRACTION - Handle multiple patterns for [INSERT_CODE]
         print("Using enhanced string extraction...")
         
-        // Pattern 1: [INSERT_CODE]```javascript or [INSERT_CODE]```typescript (direct)
+        // Pattern 1: [INSERT_CODE]```javascript ... ``` or ... [/INSERT_CODE] (improved)
         let directPatterns = ["[INSERT_CODE]```javascript", "[INSERT_CODE]```typescript", "[INSERT_CODE]```js", "[INSERT_CODE]```ts"]
-        
+
         for pattern in directPatterns {
             if let startIndex = response.range(of: pattern)?.upperBound {
                 print("Found direct pattern: \(pattern)")
-                
+
                 let remainingString = String(response[startIndex...])
-                if let endIndex = remainingString.range(of: "```")?.lowerBound {
+
+                // Try to find [/INSERT_CODE] first (Qwen/most models use this)
+                if let insertCodeEndRange = remainingString.range(of: "[/INSERT_CODE]") {
+                    print("🔍 Found [/INSERT_CODE] tag, extracting code before it")
+
+                    // Extract everything from startIndex to [/INSERT_CODE], then trim ``` if present
+                    let codeRange = startIndex..<response.index(startIndex, offsetBy: remainingString.distance(from: remainingString.startIndex, to: insertCodeEndRange.lowerBound))
+                    var extractedCode = String(response[codeRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+
+                    // Remove trailing ``` if present
+                    if extractedCode.hasSuffix("```") {
+                        extractedCode = String(extractedCode.dropLast(3)).trimmingCharacters(in: .whitespacesAndNewlines)
+                    }
+
+                    if !extractedCode.isEmpty {
+                        print("✅ Extracted code using [/INSERT_CODE] boundary: \(extractedCode.count) chars")
+                        let correctedCode = fixBabylonJSCode(extractedCode)
+                        // DON'T replace code blocks - we need them intact for "Run the Scene" button!
+                        // Just remove the [/INSERT_CODE] marker
+                        processedResponse = processedResponse.replacingOccurrences(of: "[/INSERT_CODE]", with: "")
+                        injectCodeWithBuildSupport(correctedCode)
+                        return processedResponse.trimmingCharacters(in: .whitespacesAndNewlines)
+                    }
+                }
+                // Fallback: look for closing ``` (old behavior for models that don't use [/INSERT_CODE])
+                else if let endIndex = remainingString.range(of: "```")?.lowerBound {
+                    print("🔍 No [/INSERT_CODE] found, using closing ``` marker")
+
                     let codeRange = startIndex..<response.index(startIndex, offsetBy: remainingString.distance(from: remainingString.startIndex, to: endIndex))
                     let extractedCode = String(response[codeRange]).trimmingCharacters(in: .whitespacesAndNewlines)
-                    
+
                     if !extractedCode.isEmpty {
-                        print("✅ Extracted code using direct pattern method: \(pattern)")
+                        print("✅ Extracted code using closing ``` marker: \(extractedCode.count) chars")
                         let correctedCode = fixBabylonJSCode(extractedCode)
-                        processedResponse = processedResponse.replacingOccurrences(of: pattern, with: "✅ Code extracted!")
-                        processedResponse = processedResponse.replacingOccurrences(of: "```", with: "")
+                        // DON'T replace code blocks - we need them intact for "Run the Scene" button!
                         injectCodeWithBuildSupport(correctedCode)
                         return processedResponse.trimmingCharacters(in: .whitespacesAndNewlines)
                     }
@@ -766,12 +822,12 @@ class ChatViewModel: ObservableObject {
                         print("✅ Extracted code using ACTUAL Qwen pattern method with \(languagePattern)")
                         print("Code length: \(extractedCode.count)")
                         print("Code preview: \(extractedCode.prefix(300))...")
-                        
+
                         let correctedCode = fixBabylonJSCode(extractedCode)
-                        processedResponse = processedResponse.replacingOccurrences(of: "[INSERT_CODE]", with: "✅ Code extracted!")
+                        // DON'T replace code blocks - we need them intact for "Run the Scene" button!
+                        // Just remove the [INSERT_CODE] and [/INSERT_CODE] markers
+                        processedResponse = processedResponse.replacingOccurrences(of: "[INSERT_CODE]", with: "")
                         processedResponse = processedResponse.replacingOccurrences(of: "[/INSERT_CODE]", with: "")
-                        processedResponse = processedResponse.replacingOccurrences(of: languagePattern, with: "")
-                        processedResponse = processedResponse.replacingOccurrences(of: "```", with: "")
                         injectCodeWithBuildSupport(correctedCode)
                         return processedResponse.trimmingCharacters(in: .whitespacesAndNewlines)
                     } else {
@@ -857,13 +913,14 @@ class ChatViewModel: ObservableObject {
                         print("ℹ️ No corrections needed - code looks good")
                     }
                     
-                    // Clean up the response text for all code block types
-                    processedResponse = processedResponse.replacingOccurrences(of: "```javascript", with: "✅ Code extracted and ready!")
-                    processedResponse = processedResponse.replacingOccurrences(of: "```typescript", with: "✅ Code extracted and ready!")
-                    processedResponse = processedResponse.replacingOccurrences(of: "```js", with: "✅ Code extracted and ready!")
-                    processedResponse = processedResponse.replacingOccurrences(of: "```ts", with: "✅ Code extracted and ready!")
-                    processedResponse = processedResponse.replacingOccurrences(of: "```", with: "")
-                    
+                    // DON'T clean up code blocks - we need them for "Run the Scene" button!
+                    // Comment out all code block removal to preserve markdown for saved conversations
+                    // processedResponse = processedResponse.replacingOccurrences(of: "```javascript", with: "✅ Code extracted and ready!")
+                    // processedResponse = processedResponse.replacingOccurrences(of: "```typescript", with: "✅ Code extracted and ready!")
+                    // processedResponse = processedResponse.replacingOccurrences(of: "```js", with: "✅ Code extracted and ready!")
+                    // processedResponse = processedResponse.replacingOccurrences(of: "```ts", with: "✅ Code extracted and ready!")
+                    // processedResponse = processedResponse.replacingOccurrences(of: "```", with: "")
+
                     print("🎯 Calling enhanced code injection for model: \(selectedModel)")
                     injectCodeWithBuildSupport(correctedCode)
                     break
@@ -898,10 +955,11 @@ class ChatViewModel: ObservableObject {
                     if isJavaScriptCode {
                         print("🔄 FALLBACK: Injecting JavaScript code block \(index + 1) from model \(selectedModel)")
                         print("FALLBACK CODE: \(code)")
-                        
+
                         let correctedCode = fixBabylonJSCode(code)
-                        processedResponse = processedResponse.replacingOccurrences(of: "```", with: "✅ Code extracted (fallback mode)!")
-                        
+                        // DON'T remove code blocks - we need them for "Run the Scene" button!
+                        // processedResponse = processedResponse.replacingOccurrences(of: "```", with: "✅ Code extracted (fallback mode)!")
+
                         print("🎯 FALLBACK: Calling onInsertCode for model: \(selectedModel)")
                         onInsertCode?(correctedCode)
                         break
@@ -909,9 +967,10 @@ class ChatViewModel: ObservableObject {
                         // ULTRA-AGGRESSIVE for Qwen models - inject ANY non-empty code block
                         print("🚨 ULTRA-FALLBACK for Qwen: Injecting ANY code block \(index + 1)")
                         print("🚨 ULTRA-FALLBACK CODE: \(code)")
-                        
+
                         let correctedCode = fixBabylonJSCode(code)
-                        processedResponse = processedResponse.replacingOccurrences(of: "```", with: "✅ Code extracted (ultra-fallback)!")
+                        // DON'T remove code blocks - we need them for "Run the Scene" button!
+                        // processedResponse = processedResponse.replacingOccurrences(of: "```", with: "✅ Code extracted (ultra-fallback)!")
                         
                         print("🎯 ULTRA-FALLBACK: Calling onInsertCode for Qwen model")
                         onInsertCode?(correctedCode)
@@ -930,8 +989,21 @@ class ChatViewModel: ObservableObject {
         } else {
             print("ℹ️ No [RUN_SCENE] command found in response from model: \(selectedModel)")
         }
-        
-        return processedResponse.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let finalResponse = processedResponse.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // DEBUG: Log what we're about to return from processResponseForActions
+        print("🔍 ===== RETURNING FROM processResponseForActions =====")
+        print("📏 Final response length: \(finalResponse.count) characters")
+        print("📝 Final first 300 chars:\n\(finalResponse.prefix(300))")
+        print("📝 Final last 300 chars:\n\(finalResponse.suffix(300))")
+
+        // Count backticks to verify code blocks are closed
+        let backtickCount = finalResponse.components(separatedBy: "```").count - 1
+        print("📊 Final ``` count: \(backtickCount) \(backtickCount % 2 == 0 ? "✅ (even - good)" : "⚠️ (odd - BROKEN)")")
+        print("🔍 ===== END processResponseForActions =====")
+
+        return finalResponse
     }
     
     private func fixBabylonJSCode(_ code: String) -> String {

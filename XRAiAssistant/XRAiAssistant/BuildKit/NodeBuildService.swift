@@ -13,7 +13,8 @@ public class NodeBuildService: NSObject, BuildService {
     }
     
     deinit {
-        nodeWorker?.shutdown()
+        // Cannot call main actor-isolated method from deinit
+        // Cleanup will happen when nodeWorker is deallocated
     }
     
     private func startInitialization() {
@@ -157,6 +158,7 @@ public struct NodeWorkerStats: Codable {
 
 // MARK: - Node Build Worker Implementation
 
+@MainActor
 public class NodeBuildWorker {
     private var isRunning = false
     private var messageHandlers: [String: CheckedContinuation<[String: Any], Error>] = [:]
@@ -239,22 +241,22 @@ public class NodeBuildWorker {
         guard isRunning else {
             throw NodeWorkerError.workerNotRunning
         }
-        
+
         return try await withCheckedThrowingContinuation { continuation in
-            messageQueue.async {
-                let messageId = UUID().uuidString
-                var message = payload
-                message["cmd"] = cmd
-                message["messageId"] = messageId
-                
-                // Store continuation for response handling
+            let messageId = UUID().uuidString
+            var message = payload
+            message["cmd"] = cmd
+            message["messageId"] = messageId
+
+            // Store continuation for response handling
+            // This needs to run on MainActor since messageHandlers is MainActor-isolated
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
                 self.messageHandlers[messageId] = continuation
-                
+
                 // Send message to Node.js worker
                 // In a real implementation, this would use NodeJSMobile's message sending
-                Task { @MainActor in
-                    self.simulateNodeJSResponse(for: cmd, messageId: messageId, payload: payload)
-                }
+                self.simulateNodeJSResponse(for: cmd, messageId: messageId, payload: payload)
             }
         }
     }

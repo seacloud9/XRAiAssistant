@@ -89,11 +89,9 @@ struct MarkdownMessageView: View {
             .padding(.vertical, 8)
             .background(Color(.systemGray))
 
-            // Code content
+            // Code content with basic syntax highlighting
             ScrollView(.horizontal, showsIndicators: true) {
-                Text(code)
-                    .font(.system(.body, design: .monospaced))
-                    .foregroundColor(.white)
+                syntaxHighlightedCode(code, language: language)
                     .padding(12)
             }
             .background(Color(.systemGray2))
@@ -101,6 +99,90 @@ struct MarkdownMessageView: View {
         .cornerRadius(8)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 4)
+    }
+
+    private func syntaxHighlightedCode(_ code: String, language: String?) -> Text {
+        // Simple syntax highlighting for common keywords
+        let keywords = [
+            // JavaScript/TypeScript
+            "const", "let", "var", "function", "return", "if", "else", "for", "while", "class",
+            "import", "export", "from", "new", "this", "true", "false", "null", "undefined",
+            // Swift
+            "func", "struct", "enum", "protocol", "extension", "private", "public", "static",
+            "override", "init", "deinit", "guard", "defer", "await", "async",
+            // Python
+            "def", "class", "import", "from", "return", "if", "elif", "else", "for", "while",
+            "try", "except", "finally", "with", "as", "lambda", "yield",
+            // Common
+            "async", "await", "break", "case", "catch", "continue", "default", "do",
+            "switch", "throw", "throws", "try", "typeof", "void"
+        ]
+
+        var result = Text("")
+        let lines = code.components(separatedBy: .newlines)
+
+        for (lineIndex, line) in lines.enumerated() {
+            var currentText = ""
+            let words = line.components(separatedBy: .whitespaces)
+
+            for (wordIndex, word) in words.enumerated() {
+                // Check if word contains a keyword
+                let trimmedWord = word.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+
+                if keywords.contains(trimmedWord) {
+                    // Add accumulated text first
+                    if !currentText.isEmpty {
+                        result = result + Text(currentText)
+                            .foregroundColor(.white)
+                            .font(.system(.body, design: .monospaced))
+                        currentText = ""
+                    }
+
+                    // Add keyword with highlighting
+                    let prefix = word.prefix(while: { !$0.isLetter && !$0.isNumber })
+                    let suffix = word.suffix(from: word.index(word.startIndex, offsetBy: prefix.count + trimmedWord.count))
+
+                    result = result +
+                        Text(String(prefix))
+                            .foregroundColor(.white)
+                            .font(.system(.body, design: .monospaced)) +
+                        Text(trimmedWord)
+                            .foregroundColor(Color(red: 0.4, green: 0.8, blue: 1.0)) // Light blue
+                            .font(.system(.body, design: .monospaced))
+                            .fontWeight(.semibold) +
+                        Text(String(suffix))
+                            .foregroundColor(.white)
+                            .font(.system(.body, design: .monospaced))
+
+                    if wordIndex < words.count - 1 {
+                        result = result + Text(" ")
+                            .foregroundColor(.white)
+                            .font(.system(.body, design: .monospaced))
+                    }
+                } else {
+                    currentText += word
+                    if wordIndex < words.count - 1 {
+                        currentText += " "
+                    }
+                }
+            }
+
+            // Add any remaining text
+            if !currentText.isEmpty {
+                result = result + Text(currentText)
+                    .foregroundColor(.white)
+                    .font(.system(.body, design: .monospaced))
+            }
+
+            // Add newline except for last line
+            if lineIndex < lines.count - 1 {
+                result = result + Text("\n")
+                    .foregroundColor(.white)
+                    .font(.system(.body, design: .monospaced))
+            }
+        }
+
+        return result
     }
 
     private func copyToClipboard(_ text: String, index: Int) {
@@ -129,11 +211,41 @@ struct MarkdownMessageView: View {
         }
     }
 
+    // MARK: - Content Cleaning
+
+    private func cleanContent(_ text: String) -> String {
+        var cleaned = text
+
+        // Remove common AI response artifacts that appear at the start
+        let artifacts = [
+            "^A:\\s*",           // "A: "
+            "^Assistant:\\s*",   // "Assistant: "
+            "^AI:\\s*",          // "AI: "
+            "^Response:\\s*"     // "Response: "
+        ]
+
+        for artifact in artifacts {
+            if let regex = try? NSRegularExpression(pattern: artifact, options: [.anchorsMatchLines]) {
+                cleaned = regex.stringByReplacingMatches(
+                    in: cleaned,
+                    options: [],
+                    range: NSRange(location: 0, length: cleaned.utf16.count),
+                    withTemplate: ""
+                )
+            }
+        }
+
+        return cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     // MARK: - Content Parsing
 
     private func parseContent() -> [ContentBlock] {
+        // Clean up content first - remove common AI response artifacts
+        let cleanedContent = cleanContent(content)
+
         var blocks: [ContentBlock] = []
-        let lines = content.components(separatedBy: .newlines)
+        let lines = cleanedContent.components(separatedBy: .newlines)
         var i = 0
 
         while i < lines.count {

@@ -4,6 +4,7 @@ import SwiftUI
 struct EnhancedChatView: View {
     @ObservedObject var viewModel: ChatViewModel
     @ObservedObject var storageManager: ConversationStorageManager
+    var onRunCode: ((String) -> Void)?
 
     @State private var currentConversation: Conversation?
     @State private var expandedThreads: Set<UUID> = []
@@ -34,6 +35,9 @@ struct EnhancedChatView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
+                // Model and Library selectors header (always visible)
+                modelAndLibraryHeader
+
                 // Conversation header (if loaded from history)
                 if let conversation = currentConversation {
                     conversationHeaderView(conversation)
@@ -61,6 +65,9 @@ struct EnhancedChatView: View {
                                                     expandedThreads.insert(messageID)
                                                 }
                                             }
+                                        },
+                                        onRun: { code in
+                                            onRunCode?(code)
                                         }
                                     )
                                     .id(message.id)
@@ -85,6 +92,11 @@ struct EnhancedChatView: View {
                         if let lastMessage = viewModel.messages.last {
                             withAnimation {
                                 proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                            }
+
+                            // Auto-save conversation only after AI responses (not user messages)
+                            if currentConversation == nil && !lastMessage.isUser && !viewModel.messages.isEmpty {
+                                autoSaveConversation()
                             }
                         }
                     }
@@ -152,6 +164,163 @@ struct EnhancedChatView: View {
 
     // MARK: - Subviews
 
+    // MARK: - Model and Library Header (broken into sub-views for compiler)
+
+    private var modelAndLibraryHeader: some View {
+        HStack(spacing: 12) {
+            modelSelectorView
+            librarySelectorView
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color(.systemBackground))
+        .overlay(
+            Rectangle()
+                .frame(height: 1)
+                .foregroundColor(Color(.separator)),
+            alignment: .bottom
+        )
+    }
+
+    private var modelSelectorView: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "cpu")
+                .foregroundColor(.gray)
+                .font(.caption)
+
+            Text("Model:")
+                .font(.caption)
+                .foregroundColor(.gray)
+
+            modelMenuView
+        }
+    }
+
+    private var modelMenuView: some View {
+        Menu {
+            modelMenuContent
+        } label: {
+            modelMenuLabel
+        }
+    }
+
+    private var modelMenuContent: some View {
+        Group {
+            ForEach(Array(viewModel.modelsByProvider.keys.sorted()), id: \.self) { provider in
+                Section(provider) {
+                    ForEach(viewModel.modelsByProvider[provider] ?? [], id: \.id) { model in
+                        Button(action: {
+                            viewModel.selectedModel = model.id
+                        }) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(model.displayName)
+                                        .font(.system(size: 14, weight: .medium))
+                                    Text("\(model.description) - \(model.pricing)")
+                                        .font(.caption2)
+                                        .foregroundColor(.gray)
+                                }
+                                Spacer()
+                                if viewModel.selectedModel == model.id {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(.blue)
+                                        .font(.caption)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if !viewModel.availableModels.isEmpty {
+                Section("Legacy") {
+                    ForEach(viewModel.availableModels, id: \.self) { model in
+                        Button(action: {
+                            viewModel.selectedModel = model
+                        }) {
+                            HStack {
+                                Text(viewModel.getModelDisplayName(model))
+                                    .font(.system(size: 14, weight: .medium))
+                                if viewModel.selectedModel == model {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(.blue)
+                                        .font(.caption)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var modelMenuLabel: some View {
+        HStack {
+            Text(viewModel.getModelDisplayName(viewModel.selectedModel))
+                .font(.caption)
+                .foregroundColor(.blue)
+            Image(systemName: "chevron.down")
+                .font(.caption2)
+                .foregroundColor(.blue)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Color.blue.opacity(0.1))
+        .cornerRadius(6)
+    }
+
+    private var librarySelectorView: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "cube.box")
+                .foregroundColor(.gray)
+                .font(.caption)
+
+            Text("Library:")
+                .font(.caption)
+                .foregroundColor(.gray)
+
+            libraryMenuView
+        }
+    }
+
+    private var libraryMenuView: some View {
+        Menu {
+            ForEach(viewModel.libraryManager.availableLibraries, id: \.id) { library in
+                Button(action: {
+                    viewModel.libraryManager.selectLibrary(library)
+                }) {
+                    HStack {
+                        Text(library.displayName)
+                            .font(.system(size: 14, weight: .medium))
+                        if viewModel.libraryManager.selectedLibrary.id == library.id {
+                            Image(systemName: "checkmark")
+                                .foregroundColor(.blue)
+                                .font(.caption)
+                        }
+                    }
+                }
+            }
+        } label: {
+            libraryMenuLabel
+        }
+    }
+
+    private var libraryMenuLabel: some View {
+        HStack {
+            Text(viewModel.libraryManager.selectedLibrary.displayName)
+                .font(.caption)
+                .foregroundColor(.blue)
+            Image(systemName: "chevron.down")
+                .font(.caption2)
+                .foregroundColor(.blue)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Color.blue.opacity(0.1))
+        .cornerRadius(6)
+    }
+
     private func conversationHeaderView(_ conversation: Conversation) -> some View {
         VStack(spacing: 4) {
             Text(conversation.title)
@@ -208,7 +377,7 @@ struct EnhancedChatView: View {
                         .foregroundColor(.gray)
                 }
             } else {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 6) {
                     MarkdownMessageView(content: message.content, isUser: false)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
@@ -217,13 +386,91 @@ struct EnhancedChatView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 18))
                         .frame(maxWidth: 600, alignment: .leading)
 
-                    Text(formatTime(message.timestamp))
-                        .font(.caption2)
-                        .foregroundColor(.gray)
+                    // Timestamp and action buttons
+                    HStack(spacing: 12) {
+                        Text(formatTime(message.timestamp))
+                            .font(.caption2)
+                            .foregroundColor(.gray)
+
+                        // ALWAYS show "Run the Scene" button for AI messages, but extract code smartly
+                        Button(action: {
+                            // Try to extract code first, fallback to full content if no code blocks found
+                            if let code = extractCode(from: message.content) {
+                                print("🎯 Running extracted code (\(code.count) chars)")
+                                onRunCode?(code)
+                            } else {
+                                print("⚠️ No code blocks found, running full message content")
+                                onRunCode?(message.content)
+                            }
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "play.fill")
+                                    .font(.caption)
+                                Text("Run the Scene")
+                                    .font(.caption)
+                                    .underline() // Make it look like a hyperlink
+                            }
+                            .foregroundColor(extractCode(from: message.content) != nil ? .green : .orange)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                    .frame(maxWidth: 600, alignment: .leading)
                 }
                 Spacer()
             }
         }
+    }
+
+    private func extractCode(from content: String) -> String? {
+        // DEBUG: Print full content to understand the format
+        print("🔍 [Legacy] Attempting code extraction:")
+        print("📏 Length: \(content.count)")
+        print("📝 First 300 chars: \(content.prefix(300))")
+        print("📝 Last 100 chars: \(content.suffix(100))")
+
+        // Simple string-based extraction (more reliable than regex)
+        // Find the start of the code block
+        let possibleStarts = ["```javascript", "```typescript", "```js", "```ts", "```jsx", "```"]
+        var codeStart: String.Index? = nil
+
+        for marker in possibleStarts {
+            if let range = content.range(of: marker) {
+                codeStart = range.upperBound
+                print("✅ Found code block start: '\(marker)'")
+                break
+            }
+        }
+
+        guard let start = codeStart else {
+            print("❌ No code block start marker found")
+            return nil
+        }
+
+        // Find the end of the code block (closing ```)
+        let afterStart = content[start...]
+        guard let endRange = afterStart.range(of: "```") else {
+            print("❌ No closing ``` found")
+            return nil
+        }
+
+        // Extract the code between start and end
+        let codeRange = start..<endRange.lowerBound
+        var code = String(content[codeRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+
+        print("✅ Raw extracted code length: \(code.count)")
+        print("📝 First 100 chars of code: \(code.prefix(100))")
+
+        // Remove any artifacts that might be at the end
+        let artifactsToRemove = ["[/INSERT_CODE]", "[RUN_SCENE]", "```"]
+        for artifact in artifactsToRemove {
+            if code.hasSuffix(artifact) {
+                code = String(code.dropLast(artifact.count)).trimmingCharacters(in: .whitespacesAndNewlines)
+                print("🧹 Removed trailing artifact: \(artifact)")
+            }
+        }
+
+        print("✅ Final extracted code length: \(code.count)")
+        return code.isEmpty ? nil : code
     }
 
     private var loadingIndicator: some View {
@@ -275,8 +522,13 @@ struct EnhancedChatView: View {
                 TextField("Type a message...", text: $inputText, axis: .vertical)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .lineLimit(1...5)
+                    .onSubmit {
+                        sendMessage()
+                    }
             } else {
-                TextField("Type a message...", text: $inputText)
+                TextField("Type a message...", text: $inputText, onCommit: {
+                    sendMessage()
+                })
                     .textFieldStyle(RoundedBorderTextFieldStyle())
             }
 
@@ -336,10 +588,63 @@ struct EnhancedChatView: View {
             storageManager.updateConversation(updatedConversation)
             replyingToMessageID = nil
 
-            // TODO: Send to AI and get response
+            // Send to AI and get response
+            Task {
+                await sendToAIAndUpdateConversation(messageContent, in: updatedConversation)
+            }
         } else {
             // Legacy path - send through existing ViewModel
             viewModel.sendMessage(messageContent)
+        }
+    }
+
+    private func sendToAIAndUpdateConversation(_ userMessage: String, in conversation: Conversation) async {
+        // Temporarily sync conversation to viewModel to get AI response
+        await MainActor.run {
+            // Clear viewModel messages and add conversation history
+            viewModel.messages = conversation.messages.map { enhanced in
+                ChatMessage(
+                    id: enhanced.id.uuidString,
+                    content: enhanced.content,
+                    isUser: enhanced.isUser,
+                    timestamp: enhanced.timestamp
+                )
+            }
+
+            // Add the new user message
+            let userChatMessage = ChatMessage(
+                id: UUID().uuidString,
+                content: userMessage,
+                isUser: true,
+                timestamp: Date()
+            )
+            viewModel.messages.append(userChatMessage)
+        }
+
+        // Use viewModel's sendMessage which handles AI response
+        await MainActor.run {
+            viewModel.sendMessage(userMessage)
+        }
+
+        // Wait for the response and sync back to conversation
+        Task { @MainActor in
+            // Wait for loading to finish
+            while viewModel.isLoading {
+                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+            }
+
+            // Sync viewModel messages back to conversation
+            guard var updatedConversation = currentConversation else { return }
+
+            // Update conversation with all messages from viewModel
+            updatedConversation.messages = viewModel.messages.map { EnhancedChatMessage(from: $0) }
+            updatedConversation.updatedAt = Date()
+
+            currentConversation = updatedConversation
+            storageManager.updateConversation(updatedConversation)
+
+            // Clear viewModel messages to avoid confusion
+            viewModel.messages.removeAll()
         }
     }
 
@@ -357,6 +662,52 @@ struct EnhancedChatView: View {
 
         storageManager.addConversation(newConversation)
         currentConversation = newConversation
+    }
+
+    private func autoSaveConversation() {
+        // Automatically save conversation after AI responses
+        guard !viewModel.messages.isEmpty else { return }
+
+        if let conversation = currentConversation {
+            // Update existing conversation with new messages
+            var updatedConversation = conversation
+            let enhancedMessages = viewModel.messages.map { EnhancedChatMessage(from: $0) }
+            updatedConversation.messages = enhancedMessages
+            updatedConversation.updatedAt = Date()
+
+            storageManager.updateConversation(updatedConversation)
+            currentConversation = updatedConversation
+        } else {
+            // Create new conversation with title from first user message
+            let enhancedMessages = viewModel.messages.map { EnhancedChatMessage(from: $0) }
+
+            // Find the first user message to use as the title
+            let firstUserMessage = viewModel.messages.first(where: { $0.isUser })
+            let title = generateConversationTitle(from: firstUserMessage?.content ?? "New Conversation")
+
+            let newConversation = Conversation(
+                title: title,
+                messages: enhancedMessages,
+                library3DID: viewModel.libraryManager.selectedLibrary.id,
+                modelUsed: viewModel.selectedModel
+            )
+
+            storageManager.addConversation(newConversation)
+            currentConversation = newConversation
+        }
+    }
+
+    private func generateConversationTitle(from message: String) -> String {
+        // Clean and truncate the message to create a good title
+        let cleaned = message.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Take first line or first 50 characters
+        let firstLine = cleaned.components(separatedBy: .newlines).first ?? cleaned
+        if firstLine.count <= 50 {
+            return firstLine
+        } else {
+            return String(firstLine.prefix(47)) + "..."
+        }
     }
 
     private func loadConversation(_ conversation: Conversation) {
