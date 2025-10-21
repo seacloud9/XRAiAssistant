@@ -189,4 +189,385 @@ struct BabylonJSLibrary: Library3D {
         const scene = createScene();
         """
     }
+
+    var examples: [CodeExample] {
+        return [
+            // BASIC EXAMPLES
+            CodeExample(
+                title: "Rotating Cube",
+                description: "A simple animated cube with colorful material",
+                code: """
+                const createScene = () => {
+                    const scene = new BABYLON.Scene(engine);
+                    const camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 5, -10), scene);
+                    camera.setTarget(BABYLON.Vector3.Zero());
+                    if (camera.attachControls) {
+                        camera.attachControls(canvas, true);
+                    }
+
+                    const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+                    light.intensity = 0.7;
+
+                    const box = BABYLON.MeshBuilder.CreateBox("box", {size: 2}, scene);
+                    box.position.y = 1;
+
+                    const material = new BABYLON.StandardMaterial("boxMat", scene);
+                    material.diffuseColor = new BABYLON.Color3(1, 0.5, 0);
+                    box.material = material;
+
+                    // Animation
+                    scene.registerBeforeRender(() => {
+                        box.rotation.y += 0.01;
+                        box.rotation.x += 0.005;
+                    });
+
+                    const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 6, height: 6}, scene);
+
+                    return scene;
+                };
+                const scene = createScene();
+                """,
+                category: .basic,
+                difficulty: .beginner
+            ),
+
+            CodeExample(
+                title: "Sphere with Physics",
+                description: "Bouncing sphere with gravity using Babylon.js physics engine",
+                code: """
+                const createScene = () => {
+                    const scene = new BABYLON.Scene(engine);
+                    const camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 5, -10), scene);
+                    camera.setTarget(BABYLON.Vector3.Zero());
+                    if (camera.attachControls) {
+                        camera.attachControls(canvas, true);
+                    }
+
+                    const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+                    light.intensity = 0.7;
+
+                    // Enable physics
+                    const gravityVector = new BABYLON.Vector3(0, -9.81, 0);
+                    scene.enablePhysics(gravityVector, new BABYLON.CannonJSPlugin());
+
+                    // Create sphere with physics
+                    const sphere = BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 2}, scene);
+                    sphere.position.y = 5;
+                    sphere.physicsImpostor = new BABYLON.PhysicsImpostor(sphere, BABYLON.PhysicsImpostor.SphereImpostor, {mass: 1, restitution: 0.9}, scene);
+
+                    const material = new BABYLON.StandardMaterial("sphereMat", scene);
+                    material.diffuseColor = new BABYLON.Color3(0, 0.5, 1);
+                    sphere.material = material;
+
+                    // Ground with physics
+                    const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 10, height: 10}, scene);
+                    ground.physicsImpostor = new BABYLON.PhysicsImpostor(ground, BABYLON.PhysicsImpostor.BoxImpostor, {mass: 0, restitution: 0.9}, scene);
+
+                    return scene;
+                };
+                const scene = createScene();
+                """,
+                category: .physics,
+                difficulty: .intermediate
+            ),
+
+            // ANIMATION EXAMPLES
+            CodeExample(
+                title: "Animated Path Following",
+                description: "Object following a curved path with smooth animation",
+                code: """
+                const createScene = () => {
+                    const scene = new BABYLON.Scene(engine);
+                    const camera = new BABYLON.ArcRotateCamera("camera1", -Math.PI / 2, Math.PI / 2.5, 15, new BABYLON.Vector3(0, 0, 0), scene);
+                    if (camera.attachControls) {
+                        camera.attachControls(canvas, true);
+                    }
+
+                    const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+
+                    // Create a path
+                    const path = [];
+                    for (let i = 0; i < 60; i++) {
+                        path.push(new BABYLON.Vector3(5 * Math.cos(i * 0.1), 0, 5 * Math.sin(i * 0.1)));
+                    }
+
+                    // Create tube along path
+                    const tube = BABYLON.MeshBuilder.CreateTube("tube", {path: path, radius: 0.1}, scene);
+
+                    // Create moving sphere
+                    const sphere = BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 1}, scene);
+                    const material = new BABYLON.StandardMaterial("mat", scene);
+                    material.diffuseColor = new BABYLON.Color3(1, 0, 0);
+                    sphere.material = material;
+
+                    // Animation
+                    let alpha = 0;
+                    scene.registerBeforeRender(() => {
+                        alpha += 0.02;
+                        const index = Math.floor(alpha) % path.length;
+                        sphere.position = path[index];
+                    });
+
+                    return scene;
+                };
+                const scene = createScene();
+                """,
+                category: .animation,
+                difficulty: .intermediate
+            ),
+
+            // LIGHTING EXAMPLES
+            CodeExample(
+                title: "Dynamic Lighting Scene",
+                description: "Multiple colored lights creating dramatic atmosphere",
+                code: """
+                const createScene = () => {
+                    const scene = new BABYLON.Scene(engine);
+                    scene.clearColor = new BABYLON.Color3(0.1, 0.1, 0.2);
+
+                    const camera = new BABYLON.ArcRotateCamera("camera1", -Math.PI / 2, Math.PI / 2.5, 10, new BABYLON.Vector3(0, 0, 0), scene);
+                    if (camera.attachControls) {
+                        camera.attachControls(canvas, true);
+                    }
+
+                    // Create multiple point lights
+                    const light1 = new BABYLON.PointLight("light1", new BABYLON.Vector3(3, 3, 0), scene);
+                    light1.diffuse = new BABYLON.Color3(1, 0, 0);
+                    light1.intensity = 0.5;
+
+                    const light2 = new BABYLON.PointLight("light2", new BABYLON.Vector3(-3, 3, 0), scene);
+                    light2.diffuse = new BABYLON.Color3(0, 1, 0);
+                    light2.intensity = 0.5;
+
+                    const light3 = new BABYLON.PointLight("light3", new BABYLON.Vector3(0, 3, 3), scene);
+                    light3.diffuse = new BABYLON.Color3(0, 0, 1);
+                    light3.intensity = 0.5;
+
+                    // Center object
+                    const box = BABYLON.MeshBuilder.CreateBox("box", {size: 2}, scene);
+                    const material = new BABYLON.StandardMaterial("mat", scene);
+                    material.specularColor = new BABYLON.Color3(1, 1, 1);
+                    box.material = material;
+
+                    // Animate lights
+                    let time = 0;
+                    scene.registerBeforeRender(() => {
+                        time += 0.01;
+                        light1.position.x = 3 * Math.cos(time);
+                        light1.position.z = 3 * Math.sin(time);
+                        light2.position.x = 3 * Math.cos(time + 2.09);
+                        light2.position.z = 3 * Math.sin(time + 2.09);
+                        light3.position.x = 3 * Math.cos(time + 4.18);
+                        light3.position.z = 3 * Math.sin(time + 4.18);
+                    });
+
+                    return scene;
+                };
+                const scene = createScene();
+                """,
+                category: .lighting,
+                difficulty: .intermediate
+            ),
+
+            // MATERIALS EXAMPLES
+            CodeExample(
+                title: "PBR Materials Showcase",
+                description: "Physically based rendering with metallic and roughness properties",
+                code: """
+                const createScene = () => {
+                    const scene = new BABYLON.Scene(engine);
+                    const camera = new BABYLON.ArcRotateCamera("camera1", -Math.PI / 2, Math.PI / 2.5, 15, new BABYLON.Vector3(0, 0, 0), scene);
+                    if (camera.attachControls) {
+                        camera.attachControls(canvas, true);
+                    }
+
+                    const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+                    light.intensity = 1.0;
+
+                    // Create spheres with different materials
+                    for (let i = 0; i < 5; i++) {
+                        const sphere = BABYLON.MeshBuilder.CreateSphere("sphere" + i, {diameter: 2}, scene);
+                        sphere.position.x = (i - 2) * 3;
+
+                        const material = new BABYLON.PBRMaterial("pbr" + i, scene);
+                        material.albedoColor = new BABYLON.Color3(1, 0.5, 0);
+                        material.metallic = i / 4; // Varying metallic
+                        material.roughness = 0.3;
+                        sphere.material = material;
+                    }
+
+                    const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 20, height: 10}, scene);
+                    const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
+                    groundMat.diffuseColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+                    ground.material = groundMat;
+
+                    return scene;
+                };
+                const scene = createScene();
+                """,
+                category: .materials,
+                difficulty: .intermediate
+            ),
+
+            // EFFECTS EXAMPLES
+            CodeExample(
+                title: "Glow Effect (Bloom)",
+                description: "Glowing objects with bloom post-processing effect",
+                code: """
+                const createScene = () => {
+                    const scene = new BABYLON.Scene(engine);
+                    scene.clearColor = new BABYLON.Color3(0, 0, 0);
+
+                    const camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 5, -10), scene);
+                    camera.setTarget(BABYLON.Vector3.Zero());
+                    if (camera.attachControls) {
+                        camera.attachControls(canvas, true);
+                    }
+
+                    const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+                    light.intensity = 0.3;
+
+                    // Create glow layer
+                    const gl = new BABYLON.GlowLayer("glow", scene);
+                    gl.intensity = 1.0;
+
+                    // Create glowing sphere
+                    const sphere = BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 2}, scene);
+                    sphere.position.y = 1;
+
+                    const material = new BABYLON.StandardMaterial("mat", scene);
+                    material.emissiveColor = new BABYLON.Color3(0, 1, 1);
+                    material.diffuseColor = new BABYLON.Color3(0, 0.3, 0.3);
+                    sphere.material = material;
+
+                    // Animated rotation
+                    scene.registerBeforeRender(() => {
+                        sphere.rotation.y += 0.01;
+                    });
+
+                    const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 6, height: 6}, scene);
+
+                    return scene;
+                };
+                const scene = createScene();
+                """,
+                category: .effects,
+                difficulty: .intermediate
+            ),
+
+            // INTERACTION EXAMPLE
+            CodeExample(
+                title: "Click Interaction",
+                description: "Interactive objects that respond to mouse clicks",
+                code: """
+                const createScene = () => {
+                    const scene = new BABYLON.Scene(engine);
+                    const camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 5, -10), scene);
+                    camera.setTarget(BABYLON.Vector3.Zero());
+                    if (camera.attachControls) {
+                        camera.attachControls(canvas, true);
+                    }
+
+                    const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+
+                    // Create boxes
+                    const colors = [
+                        new BABYLON.Color3(1, 0, 0),
+                        new BABYLON.Color3(0, 1, 0),
+                        new BABYLON.Color3(0, 0, 1)
+                    ];
+
+                    for (let i = 0; i < 3; i++) {
+                        const box = BABYLON.MeshBuilder.CreateBox("box" + i, {size: 1.5}, scene);
+                        box.position.x = (i - 1) * 3;
+                        box.position.y = 1;
+
+                        const material = new BABYLON.StandardMaterial("mat" + i, scene);
+                        material.diffuseColor = colors[i];
+                        box.material = material;
+
+                        // Add click interaction
+                        box.actionManager = new BABYLON.ActionManager(scene);
+                        box.actionManager.registerAction(
+                            new BABYLON.ExecuteCodeAction(
+                                BABYLON.ActionManager.OnPickTrigger,
+                                function() {
+                                    box.scaling = box.scaling.x === 1 ? new BABYLON.Vector3(1.5, 1.5, 1.5) : new BABYLON.Vector3(1, 1, 1);
+                                }
+                            )
+                        );
+                    }
+
+                    const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 10, height: 10}, scene);
+
+                    return scene;
+                };
+                const scene = createScene();
+                """,
+                category: .interaction,
+                difficulty: .intermediate
+            ),
+
+            // ADVANCED EXAMPLE
+            CodeExample(
+                title: "Particle System",
+                description: "Animated particle system with custom colors and behavior",
+                code: """
+                const createScene = () => {
+                    const scene = new BABYLON.Scene(engine);
+                    scene.clearColor = new BABYLON.Color3(0, 0, 0);
+
+                    const camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 5, -10), scene);
+                    camera.setTarget(BABYLON.Vector3.Zero());
+                    if (camera.attachControls) {
+                        camera.attachControls(canvas, true);
+                    }
+
+                    const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+
+                    // Create particle system
+                    const particleSystem = new BABYLON.ParticleSystem("particles", 2000, scene);
+                    particleSystem.particleTexture = new BABYLON.Texture("https://www.babylonjs-playground.com/textures/flare.png", scene);
+
+                    // Emitter
+                    const fountain = BABYLON.MeshBuilder.CreateBox("fountain", {size: 0.1}, scene);
+                    fountain.position.y = 0;
+                    particleSystem.emitter = fountain;
+
+                    // Colors
+                    particleSystem.color1 = new BABYLON.Color4(1, 0.5, 0, 1);
+                    particleSystem.color2 = new BABYLON.Color4(1, 0, 0, 1);
+                    particleSystem.colorDead = new BABYLON.Color4(0, 0, 0, 0);
+
+                    // Size
+                    particleSystem.minSize = 0.1;
+                    particleSystem.maxSize = 0.3;
+
+                    // Life time
+                    particleSystem.minLifeTime = 0.3;
+                    particleSystem.maxLifeTime = 1.5;
+
+                    // Emission rate
+                    particleSystem.emitRate = 500;
+
+                    // Direction
+                    particleSystem.direction1 = new BABYLON.Vector3(-1, 1, -1);
+                    particleSystem.direction2 = new BABYLON.Vector3(1, 1, 1);
+
+                    // Gravity
+                    particleSystem.gravity = new BABYLON.Vector3(0, -9.81, 0);
+
+                    particleSystem.start();
+
+                    const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 10, height: 10}, scene);
+
+                    return scene;
+                };
+                const scene = createScene();
+                """,
+                category: .effects,
+                difficulty: .advanced
+            )
+        ]
+    }
 }

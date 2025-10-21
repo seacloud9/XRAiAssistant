@@ -171,6 +171,27 @@ struct EnhancedChatView: View {
             modelSelectorView
             librarySelectorView
             Spacer()
+
+            // Documentation button
+            Button(action: {
+                let currentLibrary = viewModel.libraryManager.selectedLibrary
+                if let url = URL(string: currentLibrary.documentationURL) {
+                    UIApplication.shared.open(url)
+                }
+            }) {
+                HStack(spacing: 4) {
+                    Image(systemName: "book.circle")
+                        .foregroundColor(.purple)
+                        .font(.caption)
+                    Text("Docs")
+                        .font(.caption)
+                        .foregroundColor(.purple)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.purple.opacity(0.1))
+                .cornerRadius(6)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)

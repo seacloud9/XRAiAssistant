@@ -28,6 +28,7 @@ class Library3DManager: ObservableObject {
         var iconName: String { _library.iconName }
         var supportedFeatures: Set<Library3DFeature> { _library.supportedFeatures }
         var documentationURL: String { _library.documentationURL }
+        var examples: [CodeExample] { _library.examples }
         
         // Manual Hashable implementation
         func hash(into hasher: inout Hasher) {

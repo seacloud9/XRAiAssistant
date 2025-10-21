@@ -382,7 +382,7 @@
         <button class="menu-btn" onclick="saveScene()">💾 Save</button>
         <button class="menu-btn" onclick="downloadScene()">⬇ Download</button>
         <button class="menu-btn" onclick="newScene()">📄 New</button>
-        <button class="menu-btn" onclick="showExamples()">📚 Examples</button>
+        <button class="menu-btn" onclick="openDocumentation()">📖 Documentation</button>
         <button class="menu-btn" onclick="toggleConsole()">🖥 Console</button>
         <select class="menu-btn" onchange="loadExample(this.value)">
             <option value="">Select Example...</option>
@@ -1367,8 +1367,9 @@ console.log("✅ Default scene creation complete!");`;
             runCode();
         }
         
-        function showExamples() {
-            notifySwift('showExamples', {});
+        function openDocumentation() {
+            // Open Three.js documentation in Safari
+            window.location.href = 'https://threejs.org/docs/';
         }
         
         function initFloatingConsole() {

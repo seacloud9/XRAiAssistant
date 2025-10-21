@@ -253,4 +253,8 @@ struct ReactylonLibrary: Library3D {
         root.render(<App />)
         """
     }
+
+    var examples: [CodeExample] {
+        return []
+    }
 }

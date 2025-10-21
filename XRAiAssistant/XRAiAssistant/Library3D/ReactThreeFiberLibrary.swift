@@ -30,51 +30,57 @@ struct ReactThreeFiberLibrary: Library3D {
         4. Automatically add [BUILD_AND_RUN] at the end to build and run the code
         
         IMPORTANT Code Guidelines:
-        - Always provide COMPLETE working TSX code that creates a React app
+        - Always provide COMPLETE working code for a React Three Fiber app
         - Your code must follow this exact structure:
-        
+
         import React, { useRef } from 'react'
-        import { createRoot } from 'react-dom/client'
         import { Canvas, useFrame } from '@react-three/fiber'
-        import { OrbitControls, Text } from '@react-three/drei'
-        import * as THREE from 'three'
-        
-        function Scene() {
-          // Component logic here
+        import { OrbitControls } from '@react-three/drei'
+
+        function RotatingBox() {
+          const meshRef = useRef(null)
+
+          useFrame((state, delta) => {
+            if (meshRef.current) {
+              meshRef.current.rotation.x += delta
+            }
+          })
+
           return (
-            <>
-              <ambientLight intensity={0.8} />
-              <directionalLight position={[2, 2, 2]} intensity={1} />
-              {/* Your 3D components here */}
-              <OrbitControls />
-            </>
+            <mesh ref={meshRef}>
+              <boxGeometry args={[1, 1, 1]} />
+              <meshStandardMaterial color="orange" />
+            </mesh>
           )
         }
-        
+
         function App() {
           return (
-            <Canvas 
+            <Canvas
               style={{ width: '100%', height: '100%' }}
               camera={{ position: [0, 0, 5], fov: 75 }}
               gl={{ antialias: true }}
             >
-              <Scene />
+              <ambientLight intensity={0.5} />
+              <directionalLight position={[2, 2, 2]} intensity={1} />
+              <RotatingBox />
+              <OrbitControls />
             </Canvas>
           )
         }
-        
-        const root = createRoot(document.getElementById('root')!)
-        root.render(<App />)
-        
+
+        export default App
+
         CRITICAL RULES:
-        - ALWAYS use TypeScript syntax with proper type annotations
-        - Import React components and hooks from 'react'
+        - DO NOT include createRoot or root.render - the build system handles mounting
+        - DO NOT import from 'react-dom/client' - not needed in App.js
+        - ALWAYS export default App at the end
+        - Import React and hooks from 'react'
         - Import Canvas and hooks from '@react-three/fiber'
         - Import helper components from '@react-three/drei'
-        - Import THREE from 'three' when needed for types/utilities
         - Use functional components with hooks (useRef, useFrame, useThree, etc.)
-        - Mount to the existing #root div element
         - Canvas should have style={{ width: '100%', height: '100%' }}
+        - Use null checks when accessing refs: if (meshRef.current) { ... }
         
         IMPORTANT R3F PATTERNS:
         - Use <mesh>, <boxGeometry>, <meshStandardMaterial> for objects
@@ -115,19 +121,19 @@ struct ReactThreeFiberLibrary: Library3D {
         // Create declarative 3D scenes with React components
 
         import React, { useRef } from 'react'
-        import { createRoot } from 'react-dom/client'
         import { Canvas, useFrame } from '@react-three/fiber'
         import { OrbitControls } from '@react-three/drei'
-        import * as THREE from 'three'
 
         function RotatingCube() {
-          const meshRef = useRef<THREE.Mesh>(null!)
-          
+          const meshRef = useRef(null)
+
           useFrame((state, delta) => {
-            meshRef.current.rotation.x += delta * 0.5
-            meshRef.current.rotation.y += delta * 0.2
+            if (meshRef.current) {
+              meshRef.current.rotation.x += delta * 0.5
+              meshRef.current.rotation.y += delta * 0.2
+            }
           })
-          
+
           return (
             <mesh ref={meshRef} position={[0, 1, 0]}>
               <boxGeometry args={[1, 1, 1]} />
@@ -136,39 +142,34 @@ struct ReactThreeFiberLibrary: Library3D {
           )
         }
 
-        function Scene() {
+        function App() {
           return (
-            <>
+            <Canvas
+              style={{ width: '100%', height: '100%' }}
+              camera={{ position: [3, 3, 3], fov: 75 }}
+              gl={{ antialias: true }}
+            >
               <ambientLight intensity={0.6} />
               <directionalLight position={[2, 2, 2]} intensity={1} />
-              
+
               <RotatingCube />
-              
+
               {/* Ground plane */}
               <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]}>
                 <planeGeometry args={[10, 10]} />
                 <meshStandardMaterial color="#888888" />
               </mesh>
-              
-              <OrbitControls />
-            </>
-          )
-        }
 
-        function App() {
-          return (
-            <Canvas 
-              style={{ width: '100%', height: '100%' }}
-              camera={{ position: [3, 3, 3], fov: 75 }}
-              gl={{ antialias: true }}
-            >
-              <Scene />
+              <OrbitControls />
             </Canvas>
           )
         }
 
-        const root = createRoot(document.getElementById('root')!)
-        root.render(<App />)
+        export default App
         """
+    }
+
+    var examples: [CodeExample] {
+        return []
     }
 }

@@ -14,6 +14,58 @@ protocol Library3D: Identifiable, Hashable {
     var iconName: String { get }
     var supportedFeatures: Set<Library3DFeature> { get }
     var documentationURL: String { get }
+    var examples: [CodeExample] { get }
+}
+
+// MARK: - Code Example Model
+struct CodeExample: Identifiable, Hashable {
+    let id: String
+    let title: String
+    let description: String
+    let code: String
+    let category: ExampleCategory
+    let difficulty: ExampleDifficulty
+
+    init(id: String? = nil, title: String, description: String, code: String, category: ExampleCategory, difficulty: ExampleDifficulty = .beginner) {
+        self.id = id ?? UUID().uuidString
+        self.title = title
+        self.description = description
+        self.code = code
+        self.category = category
+        self.difficulty = difficulty
+    }
+}
+
+enum ExampleCategory: String, CaseIterable {
+    case basic = "Basic Shapes"
+    case animation = "Animation"
+    case lighting = "Lighting"
+    case materials = "Materials"
+    case interaction = "Interaction"
+    case physics = "Physics"
+    case effects = "Effects"
+    case vr = "VR/XR"
+    case advanced = "Advanced"
+
+    var icon: String {
+        switch self {
+        case .basic: return "cube"
+        case .animation: return "rotate.3d"
+        case .lighting: return "lightbulb"
+        case .materials: return "paintbrush"
+        case .interaction: return "hand.tap"
+        case .physics: return "figure.fall"
+        case .effects: return "sparkles"
+        case .vr: return "visionpro"
+        case .advanced: return "gearshape.2"
+        }
+    }
+}
+
+enum ExampleDifficulty: String {
+    case beginner = "Beginner"
+    case intermediate = "Intermediate"
+    case advanced = "Advanced"
 }
 
 // MARK: - Supporting Types

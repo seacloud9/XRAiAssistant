@@ -196,4 +196,8 @@ struct ThreeJSLibrary: Library3D {
         const { scene, camera } = createScene();
         """
     }
+
+    var examples: [CodeExample] {
+        return []
+    }
 }
