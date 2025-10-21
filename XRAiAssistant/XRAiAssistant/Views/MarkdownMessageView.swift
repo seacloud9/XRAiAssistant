@@ -107,10 +107,10 @@ struct MarkdownMessageView: View {
             // Header with language and copy button
             HStack {
                 if let lang = language, !lang.isEmpty {
-                    Text(lang)
+                    Text(lang.uppercased())
                         .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.white.opacity(0.7))
+                        .fontWeight(.semibold)
+                        .foregroundColor(Color(red: 0.4, green: 0.8, blue: 1.0)) // Bright blue
                 }
 
                 Spacer()
@@ -123,34 +123,40 @@ struct MarkdownMessageView: View {
                             .font(.caption)
                         Text(copiedCodeBlocks.contains(index) ? "Copied!" : "Copy")
                             .font(.caption)
-                            .fontWeight(.medium)
+                            .fontWeight(.semibold)
                     }
-                    .foregroundColor(.white.opacity(0.9))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.white.opacity(0.15))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(copiedCodeBlocks.contains(index) ? 
+                               Color.green.opacity(0.8) : 
+                               Color(red: 0.3, green: 0.6, blue: 0.9))
                     .cornerRadius(6)
                 }
                 .buttonStyle(PlainButtonStyle())
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(Color(.systemGray))
+            .background(Color(red: 0.12, green: 0.14, blue: 0.18)) // Dark blue-gray header
 
-            // Code content with basic syntax highlighting
+            // Code content with enhanced syntax highlighting
             ScrollView(.horizontal, showsIndicators: true) {
                 syntaxHighlightedCode(code, language: language)
                     .padding(12)
             }
-            .background(Color(.systemGray2))
+            .background(Color(red: 0.08, green: 0.10, blue: 0.13)) // Darker code background
         }
         .cornerRadius(8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color(red: 0.2, green: 0.3, blue: 0.4).opacity(0.3), lineWidth: 1)
+        )
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 4)
     }
 
     private func syntaxHighlightedCode(_ code: String, language: String?) -> Text {
-        // Simple syntax highlighting for common keywords
+        // Enhanced syntax highlighting with better contrast colors
         let keywords = [
             // JavaScript/TypeScript
             "const", "let", "var", "function", "return", "if", "else", "for", "while", "class",
@@ -181,7 +187,7 @@ struct MarkdownMessageView: View {
                     // Add accumulated text first
                     if !currentText.isEmpty {
                         result = result + Text(currentText)
-                            .foregroundColor(.white)
+                            .foregroundColor(Color(red: 0.85, green: 0.90, blue: 0.95)) // Light gray-blue for text
                             .font(.system(.body, design: .monospaced))
                         currentText = ""
                     }
@@ -192,19 +198,19 @@ struct MarkdownMessageView: View {
 
                     result = result +
                         Text(String(prefix))
-                            .foregroundColor(.white)
+                            .foregroundColor(Color(red: 0.85, green: 0.90, blue: 0.95))
                             .font(.system(.body, design: .monospaced)) +
                         Text(trimmedWord)
-                            .foregroundColor(Color(red: 0.4, green: 0.8, blue: 1.0)) // Light blue
+                            .foregroundColor(Color(red: 0.4, green: 0.85, blue: 1.0)) // Bright cyan for keywords
                             .font(.system(.body, design: .monospaced))
                             .fontWeight(.semibold) +
                         Text(String(suffix))
-                            .foregroundColor(.white)
+                            .foregroundColor(Color(red: 0.85, green: 0.90, blue: 0.95))
                             .font(.system(.body, design: .monospaced))
 
                     if wordIndex < words.count - 1 {
                         result = result + Text(" ")
-                            .foregroundColor(.white)
+                            .foregroundColor(Color(red: 0.85, green: 0.90, blue: 0.95))
                             .font(.system(.body, design: .monospaced))
                     }
                 } else {
@@ -218,14 +224,14 @@ struct MarkdownMessageView: View {
             // Add any remaining text
             if !currentText.isEmpty {
                 result = result + Text(currentText)
-                    .foregroundColor(.white)
+                    .foregroundColor(Color(red: 0.85, green: 0.90, blue: 0.95)) // Light gray-blue for text
                     .font(.system(.body, design: .monospaced))
             }
 
             // Add newline except for last line
             if lineIndex < lines.count - 1 {
                 result = result + Text("\n")
-                    .foregroundColor(.white)
+                    .foregroundColor(Color(red: 0.85, green: 0.90, blue: 0.95))
                     .font(.system(.body, design: .monospaced))
             }
         }
