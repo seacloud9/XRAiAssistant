@@ -361,6 +361,9 @@
             <option value="rotating-cube">Rotating Cube</option>
             <option value="lighting">Lighting Demo</option>
             <option value="materials">Materials Demo</option>
+            <option value="glow-layer">✨ Glow Layer (Bloom)</option>
+            <option value="blur-postprocess">🌫️ Blur PostProcess</option>
+            <option value="black-and-white">⚫⚪ Black & White</option>
         </select>
     </div>
     
@@ -1226,14 +1229,17 @@ const scene = createScene();`;
         
         function loadExample(exampleId) {
             if (!exampleId) return;
-            
+
             const examples = {
                 'basic-scene': getDefaultCode(),
                 'rotating-cube': getRotatingCubeCode(),
                 'lighting': getLightingDemoCode(),
-                'materials': getMaterialsDemoCode()
+                'materials': getMaterialsDemoCode(),
+                'glow-layer': getGlowLayerCode(),
+                'blur-postprocess': getBlurPostProcessCode(),
+                'black-and-white': getBlackAndWhiteCode()
             };
-            
+
             if (examples[exampleId] && editor) {
                 editor.setValue(examples[exampleId]);
                 runCode();
@@ -1490,29 +1496,35 @@ const scene = createScene();`;
         function getLightingDemoCode() {
             return `const createScene = () => {
     const scene = new BABYLON.Scene(engine);
-    
+
     // Camera
     const camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 5, -10), scene);
     camera.setTarget(BABYLON.Vector3.Zero());
-    camera.attachControls(canvas, true);
-    
-    // Lights
+
+    // Attach camera controls safely
+    if (camera.attachControls) {
+        camera.attachControls(canvas, true);
+    }
+
+    // Lights - demonstrating different light types
     const hemisphericLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
     hemisphericLight.intensity = 0.3;
-    
+
     const directionalLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -1, -1), scene);
     directionalLight.position = new BABYLON.Vector3(10, 10, 10);
     directionalLight.intensity = 0.7;
-    
+
     // Objects
     const sphere = BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 2}, scene);
     sphere.position = new BABYLON.Vector3(-2, 1, 0);
-    
+
     const box = BABYLON.MeshBuilder.CreateBox("box", {size: 2}, scene);
     box.position = new BABYLON.Vector3(2, 1, 0);
-    
+
     const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 10, height: 10}, scene);
-    
+
+    console.log("Lighting demo scene created successfully");
+
     return scene;
 };
 
@@ -1522,48 +1534,295 @@ const scene = createScene();`;
         function getMaterialsDemoCode() {
             return `const createScene = () => {
     const scene = new BABYLON.Scene(engine);
-    
+
     // Camera
     const camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 5, -10), scene);
     camera.setTarget(BABYLON.Vector3.Zero());
-    camera.attachControls(canvas, true);
-    
+
+    // Attach camera controls safely
+    if (camera.attachControls) {
+        camera.attachControls(canvas, true);
+    }
+
     // Light
     const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
-    
+
     // Materials
     const redMaterial = new BABYLON.StandardMaterial("redMaterial", scene);
     redMaterial.diffuseColor = new BABYLON.Color3(1, 0, 0);
-    
+
     const blueMaterial = new BABYLON.StandardMaterial("blueMaterial", scene);
     blueMaterial.diffuseColor = new BABYLON.Color3(0, 0, 1);
     blueMaterial.specularColor = new BABYLON.Color3(0.5, 0.5, 0.5);
-    
+
     const greenMaterial = new BABYLON.StandardMaterial("greenMaterial", scene);
     greenMaterial.diffuseColor = new BABYLON.Color3(0, 1, 0);
     greenMaterial.emissiveColor = new BABYLON.Color3(0.2, 0.2, 0);
-    
+
     // Objects with materials
     const sphere1 = BABYLON.MeshBuilder.CreateSphere("sphere1", {diameter: 2}, scene);
     sphere1.position = new BABYLON.Vector3(-3, 1, 0);
     sphere1.material = redMaterial;
-    
+
     const sphere2 = BABYLON.MeshBuilder.CreateSphere("sphere2", {diameter: 2}, scene);
     sphere2.position = new BABYLON.Vector3(0, 1, 0);
     sphere2.material = blueMaterial;
-    
+
     const sphere3 = BABYLON.MeshBuilder.CreateSphere("sphere3", {diameter: 2}, scene);
     sphere3.position = new BABYLON.Vector3(3, 1, 0);
     sphere3.material = greenMaterial;
-    
+
     const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 10, height: 10}, scene);
-    
+
     return scene;
 };
 
 const scene = createScene();`;
         }
-        
+
+        function getGlowLayerCode() {
+            return `const createScene = () => {
+    const scene = new BABYLON.Scene(engine);
+    scene.clearColor = new BABYLON.Color3(0.02, 0.02, 0.05);
+
+    // Camera
+    const camera = new BABYLON.ArcRotateCamera("camera1", 0, Math.PI / 3, 15, BABYLON.Vector3.Zero(), scene);
+
+    // Attach camera controls safely
+    if (camera.attachControls) {
+        camera.attachControls(canvas, true);
+    }
+
+    camera.lowerRadiusLimit = 5;
+    camera.upperRadiusLimit = 30;
+
+    // Lighting
+    const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+    light.intensity = 0.5;
+
+    // Create glow layer for bloom effect
+    const gl = new BABYLON.GlowLayer("glow", scene);
+    gl.intensity = 1.0;
+
+    // Create emissive materials for glowing objects
+    const colors = [
+        new BABYLON.Color3(1, 0.2, 0.2),    // Red
+        new BABYLON.Color3(0.2, 1, 0.2),    // Green
+        new BABYLON.Color3(0.2, 0.2, 1),    // Blue
+        new BABYLON.Color3(1, 1, 0.2),      // Yellow
+        new BABYLON.Color3(1, 0.2, 1)       // Magenta
+    ];
+
+    // Create glowing spheres in a circle
+    for (let i = 0; i < 5; i++) {
+        const angle = (i / 5) * Math.PI * 2;
+        const x = Math.cos(angle) * 4;
+        const z = Math.sin(angle) * 4;
+
+        const sphere = BABYLON.MeshBuilder.CreateSphere(\`sphere\${i}\`, {diameter: 1.5}, scene);
+        sphere.position = new BABYLON.Vector3(x, 0, z);
+
+        const material = new BABYLON.StandardMaterial(\`mat\${i}\`, scene);
+        material.diffuseColor = colors[i];
+        material.emissiveColor = colors[i];
+        material.specularColor = new BABYLON.Color3(0, 0, 0);
+        sphere.material = material;
+
+        // Animate spheres
+        sphere.metadata = {
+            initialY: 0,
+            speed: 0.5 + Math.random() * 0.5,
+            offset: i * Math.PI * 0.4
+        };
+    }
+
+    // Create central glowing torus
+    const torus = BABYLON.MeshBuilder.CreateTorus("torus", {
+        diameter: 3,
+        thickness: 0.5,
+        tessellation: 32
+    }, scene);
+    torus.position.y = 0;
+
+    const torusMat = new BABYLON.StandardMaterial("torusMat", scene);
+    torusMat.diffuseColor = new BABYLON.Color3(0.3, 0.6, 1.0);
+    torusMat.emissiveColor = new BABYLON.Color3(0.3, 0.6, 1.0);
+    torusMat.specularColor = new BABYLON.Color3(0, 0, 0);
+    torus.material = torusMat;
+
+    // Ground plane
+    const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 20, height: 20}, scene);
+    const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
+    groundMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.15);
+    groundMat.specularColor = new BABYLON.Color3(0, 0, 0);
+    ground.material = groundMat;
+
+    // Animation
+    scene.registerBeforeRender(() => {
+        const time = performance.now() * 0.001;
+
+        // Animate spheres
+        scene.meshes.forEach(mesh => {
+            if (mesh.name.startsWith('sphere')) {
+                const meta = mesh.metadata;
+                mesh.position.y = meta.initialY + Math.sin(time * meta.speed + meta.offset) * 1.5;
+            }
+        });
+
+        // Rotate torus
+        torus.rotation.x += 0.005;
+        torus.rotation.y += 0.01;
+    });
+
+    console.log("✨ Glow layer postprocessing scene created!");
+
+    return scene;
+};
+
+const scene = createScene();`;
+        }
+
+        function getBlurPostProcessCode() {
+            return `const createScene = () => {
+    const scene = new BABYLON.Scene(engine);
+    scene.clearColor = new BABYLON.Color3(0.1, 0.1, 0.15);
+
+    // Camera
+    const camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 5, -10), scene);
+    camera.setTarget(BABYLON.Vector3.Zero());
+
+    // Attach camera controls safely
+    if (camera.attachControls) {
+        camera.attachControls(canvas, true);
+    }
+
+    // Lighting
+    const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+    light.intensity = 0.7;
+
+    const directionalLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1, -2, -1), scene);
+    directionalLight.intensity = 0.5;
+
+    // Create colorful objects
+    const colors = [
+        new BABYLON.Color3(1, 0.3, 0.3),
+        new BABYLON.Color3(0.3, 1, 0.3),
+        new BABYLON.Color3(0.3, 0.3, 1)
+    ];
+
+    for (let i = 0; i < 3; i++) {
+        const box = BABYLON.MeshBuilder.CreateBox(\`box\${i}\`, {size: 1.5}, scene);
+        box.position = new BABYLON.Vector3((i - 1) * 3, 1, 0);
+
+        const material = new BABYLON.StandardMaterial(\`mat\${i}\`, scene);
+        material.diffuseColor = colors[i];
+        material.specularColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+        box.material = material;
+
+        // Animate rotation
+        box.metadata = {speed: 0.01 + i * 0.005};
+    }
+
+    // Ground
+    const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 15, height: 15}, scene);
+    const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
+    groundMat.diffuseColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+    ground.material = groundMat;
+
+    // Apply horizontal blur post-process
+    const horizontalBlur = new BABYLON.BlurPostProcess(
+        "HorizontalBlur",
+        new BABYLON.Vector2(1.0, 0),  // Horizontal direction
+        10,                            // Kernel size (blur intensity)
+        1.0,                           // Sampling ratio
+        camera                         // Attach to camera
+    );
+
+    // Apply vertical blur post-process
+    const verticalBlur = new BABYLON.BlurPostProcess(
+        "VerticalBlur",
+        new BABYLON.Vector2(0, 1.0),  // Vertical direction
+        10,                            // Kernel size
+        1.0,                           // Sampling ratio
+        camera                         // Attach to camera
+    );
+
+    // Animation
+    scene.registerBeforeRender(() => {
+        scene.meshes.forEach(mesh => {
+            if (mesh.name.startsWith('box')) {
+                mesh.rotation.x += mesh.metadata.speed;
+                mesh.rotation.y += mesh.metadata.speed * 1.5;
+            }
+        });
+    });
+
+    console.log("🌫️ Blur postprocessing scene created!");
+    console.log("Blur effects applied to camera - entire scene has depth of field effect");
+
+    return scene;
+};
+
+const scene = createScene();`;
+        }
+
+        function getBlackAndWhiteCode() {
+            return `const createScene = () => {
+    const scene = new BABYLON.Scene(engine);
+    scene.clearColor = new BABYLON.Color3(0.5, 0.7, 0.9);
+
+    // Camera
+    const camera = new BABYLON.ArcRotateCamera("camera1", -Math.PI / 2, Math.PI / 3, 12, BABYLON.Vector3.Zero(), scene);
+    camera.attachControls(canvas, true);
+
+    // Lighting
+    const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+    light.intensity = 0.7;
+
+    const directionalLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1, -2, -1), scene);
+    directionalLight.intensity = 0.5;
+
+    // Create colorful scene (will be converted to B&W)
+    const sphere = BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 2}, scene);
+    sphere.position.y = 1;
+
+    const sphereMat = new BABYLON.StandardMaterial("sphereMat", scene);
+    sphereMat.diffuseColor = new BABYLON.Color3(1, 0.2, 0.2);
+    sphereMat.specularColor = new BABYLON.Color3(1, 1, 1);
+    sphere.material = sphereMat;
+
+    const torus = BABYLON.MeshBuilder.CreateTorus("torus", {diameter: 3, thickness: 0.5}, scene);
+    torus.position.y = 1;
+
+    const torusMat = new BABYLON.StandardMaterial("torusMat", scene);
+    torusMat.diffuseColor = new BABYLON.Color3(0.2, 0.2, 1);
+    torusMat.specularColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+    torus.material = torusMat;
+
+    const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 10, height: 10}, scene);
+    const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
+    groundMat.diffuseColor = new BABYLON.Color3(0.3, 0.8, 0.3);
+    ground.material = groundMat;
+
+    // Apply black and white post-process
+    const bwPostProcess = new BABYLON.BlackAndWhitePostProcess("bandw", 1.0, camera);
+
+    // Animation
+    scene.registerBeforeRender(() => {
+        sphere.rotation.y += 0.01;
+        torus.rotation.x += 0.005;
+        torus.rotation.z += 0.01;
+    });
+
+    console.log("⚫⚪ Black and White postprocessing scene created!");
+    console.log("All colors converted to grayscale using BlackAndWhitePostProcess");
+
+    return scene;
+};
+
+const scene = createScene();`;
+        }
+
         // MARK: - Testing and Debugging Functions
         
         /// Test injection system - can be called from browser console

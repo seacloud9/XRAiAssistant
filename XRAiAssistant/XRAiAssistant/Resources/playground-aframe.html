@@ -6,7 +6,7 @@
     <title>A-Frame VR Playground</title>
     
     <!-- A-Frame Core -->
-    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
     
     <!-- A-Frame Extras for additional components -->
     <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
@@ -41,7 +41,7 @@
         }
         
         .menu-btn {
-            background: #ff6b35;
+            background: #0e639c;
             color: white;
             border: none;
             padding: 6px 12px;
@@ -52,7 +52,7 @@
         }
         
         .menu-btn:hover {
-            background: #ff8c1a;
+            background: #1177bb;
         }
         
         .menu-btn:disabled {
@@ -93,13 +93,20 @@
         .scene-container.editor-open {
             width: 0%;
         }
-
+        
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            outline: none;
+            display: block;
+        }
+        
         .editor-toggle-btn {
             position: absolute;
             left: 0;
             top: 50%;
             transform: translateY(-50%);
-            background: #ff6b35;
+            background: #007acc;
             color: white;
             border: none;
             border-radius: 0 4px 4px 0;
@@ -118,11 +125,11 @@
         }
 
         .editor-toggle-btn:hover {
-            background: #ff8c1a;
+            background: #1177bb;
         }
 
         .editor-toggle-btn:active {
-            background: #ff5722;
+            background: #0e639c;
         }
 
         /* When editor is open, button moves to right edge */
@@ -133,7 +140,7 @@
         }
         
         .footer {
-            background: #ff6b35;
+            background: #007acc;
             padding: 4px 12px;
             font-size: 11px;
             text-align: center;
@@ -162,7 +169,7 @@
             width: 400px;
             height: 300px;
             background: #1e1e1e;
-            border: 1px solid #ff6b35;
+            border: 1px solid #007acc;
             border-radius: 6px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
             display: flex;
@@ -174,15 +181,6 @@
             min-height: 200px;
             max-width: 90vw;
             max-height: 80vh;
-            transition: opacity 0.2s;
-        }
-
-        .console-window.hidden {
-            display: none;
-        }
-
-        .console-window.minimized .console-content {
-            display: none;
         }
 
         .console-window.minimized {
@@ -195,54 +193,69 @@
             display: none;
         }
 
+        .console-window.hidden {
+            display: none;
+        }
+
         .console-title-bar {
-            background: #2d2d30;
+            background: #007acc;
+            color: white;
             padding: 8px 12px;
+            font-size: 13px;
+            font-weight: 600;
             cursor: move;
+            user-select: none;
+            -webkit-user-select: none;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid #ff6b35;
-            user-select: none;
+            border-radius: 6px 6px 0 0;
         }
 
         .console-title {
-            font-weight: 600;
-            font-size: 13px;
-            color: #cccccc;
+            flex: 1;
         }
 
         .console-controls {
             display: flex;
-            gap: 4px;
+            gap: 8px;
         }
 
         .console-btn {
-            background: transparent;
+            background: rgba(255, 255, 255, 0.2);
             border: none;
-            color: #cccccc;
-            cursor: pointer;
-            padding: 4px 8px;
-            font-size: 14px;
+            color: white;
+            width: 24px;
+            height: 24px;
             border-radius: 3px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             transition: background 0.2s;
         }
 
         .console-btn:hover {
-            background: rgba(255, 107, 53, 0.2);
+            background: rgba(255, 255, 255, 0.3);
         }
 
         .console-content {
             flex: 1;
             overflow-y: auto;
             overflow-x: auto;
-            padding: 8px;
-            font-size: 11px;
+            padding: 12px;
             font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 11px;
             color: #ccc;
+            background: #1e1e1e;
             user-select: text;
             -webkit-user-select: text;
             cursor: text;
+        }
+
+        .console-window.minimized .console-content {
+            display: none;
         }
 
         .console-message {
@@ -269,20 +282,25 @@
             position: absolute;
             bottom: 0;
             right: 0;
-            width: 20px;
-            height: 20px;
-            cursor: se-resize;
-            background: linear-gradient(135deg, transparent 50%, #ff6b35 50%);
+            width: 16px;
+            height: 16px;
+            cursor: nwse-resize;
+            background: linear-gradient(135deg, transparent 50%, #007acc 50%);
+            opacity: 0.5;
         }
 
-        /* Console Open Button */
+        .console-window.minimized .console-resize-handle {
+            display: none;
+        }
+
+        /* Console Open Button (always visible in editor) */
         .console-open-btn {
             position: fixed;
             bottom: 20px;
             right: 20px;
             width: 48px;
             height: 48px;
-            background: #ff6b35;
+            background: #007acc;
             color: white;
             border: none;
             border-radius: 50%;
@@ -294,22 +312,25 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
             z-index: 1500;
             transition: all 0.2s;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .console-open-btn:hover {
-            background: #ff8552;
-            transform: scale(1.05);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            background: #1177bb;
+            transform: scale(1.1);
         }
 
         .console-open-btn:active {
+            background: #0e639c;
             transform: scale(0.95);
         }
 
         .console-open-btn.hidden {
             display: none;
         }
-        
+
         .loading {
             position: absolute;
             top: 50%;
@@ -317,12 +338,6 @@
             transform: translate(-50%, -50%);
             color: #cccccc;
             font-size: 14px;
-        }
-        
-        /* A-Frame Scene Styling */
-        a-scene {
-            width: 100%;
-            height: 100%;
         }
         
         /* Remove media query - same behavior across all devices per requirements */
