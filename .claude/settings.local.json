@@ -34,7 +34,8 @@
       "Bash(tee:*)",
       "Bash(timeout 120 xcodebuild:*)",
       "Bash(xcrun simctl list:*)",
-      "Bash(../scripts/xcode_recovery.sh:*)"
+      "Bash(../scripts/xcode_recovery.sh:*)",
+      "Bash(awk:*)"
     ],
     "deny": []
   }

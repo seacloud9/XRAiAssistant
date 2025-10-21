@@ -2,12 +2,40 @@ import WebKit
 import Foundation
 import SwiftUI
 
-class WebViewCoordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+class WebViewCoordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler, WKUIDelegate {
     var parent: PlaygroundWebView
-    
+
     init(parent: PlaygroundWebView) {
         self.parent = parent
         super.init()
+    }
+
+    // MARK: - Console Logging Support
+
+    /// Forward WebKit console messages to Xcode console
+    func webView(_ webView: WKWebView,
+                 runJavaScriptAlertPanelWithMessage message: String,
+                 initiatedByFrame frame: WKFrameInfo,
+                 completionHandler: @escaping () -> Void) {
+        print("🔔 [WebKit Alert] \(message)")
+        completionHandler()
+    }
+
+    func webView(_ webView: WKWebView,
+                 runJavaScriptConfirmPanelWithMessage message: String,
+                 initiatedByFrame frame: WKFrameInfo,
+                 completionHandler: @escaping (Bool) -> Void) {
+        print("❓ [WebKit Confirm] \(message)")
+        completionHandler(true)
+    }
+
+    func webView(_ webView: WKWebView,
+                 runJavaScriptTextInputPanelWithPrompt prompt: String,
+                 defaultText: String?,
+                 initiatedByFrame frame: WKFrameInfo,
+                 completionHandler: @escaping (String?) -> Void) {
+        print("✏️ [WebKit Prompt] \(prompt)")
+        completionHandler(defaultText)
     }
     
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -50,13 +78,39 @@ class WebViewCoordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler
     
     // Handle messages from JavaScript
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        // Handle console logging messages
+        if message.name == "consoleLogger" {
+            if let consoleMessage = message.body as? [String: Any],
+               let level = consoleMessage["level"] as? String,
+               let messageText = consoleMessage["message"] as? String {
+
+                let emoji: String
+                switch level {
+                case "error":
+                    emoji = "❌"
+                case "warn":
+                    emoji = "⚠️"
+                case "info":
+                    emoji = "ℹ️"
+                case "debug":
+                    emoji = "🐛"
+                default:
+                    emoji = "📝"
+                }
+
+                print("\(emoji) [WebKit Console - \(level.uppercased())] \(messageText)")
+            }
+            return
+        }
+
+        // Handle playground messages
         guard let messageBody = message.body as? [String: Any],
               let action = messageBody["action"] as? String else {
             return
         }
-        
+
         let data = messageBody["data"] as? [String: Any] ?? [:]
-        
+
         DispatchQueue.main.async {
             self.parent.handleJavaScriptMessage(action: action, data: data)
         }
@@ -80,6 +134,69 @@ struct PlaygroundWebView: UIViewRepresentable {
         // Configure message handler
         let contentController = WKUserContentController()
         contentController.add(context.coordinator, name: "playgroundHandler")
+
+        // Add console logging interceptor to forward console.log/error/warn to Xcode
+        let consoleLogScript = WKUserScript(
+            source: """
+            (function() {
+                const originalLog = console.log;
+                const originalError = console.error;
+                const originalWarn = console.warn;
+                const originalInfo = console.info;
+                const originalDebug = console.debug;
+
+                function sendToNative(level, args) {
+                    const message = Array.from(args).map(arg => {
+                        if (typeof arg === 'object') {
+                            try {
+                                return JSON.stringify(arg);
+                            } catch (e) {
+                                return String(arg);
+                            }
+                        }
+                        return String(arg);
+                    }).join(' ');
+
+                    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.consoleLogger) {
+                        window.webkit.messageHandlers.consoleLogger.postMessage({
+                            level: level,
+                            message: message
+                        });
+                    }
+                }
+
+                console.log = function(...args) {
+                    originalLog.apply(console, args);
+                    sendToNative('log', args);
+                };
+
+                console.error = function(...args) {
+                    originalError.apply(console, args);
+                    sendToNative('error', args);
+                };
+
+                console.warn = function(...args) {
+                    originalWarn.apply(console, args);
+                    sendToNative('warn', args);
+                };
+
+                console.info = function(...args) {
+                    originalInfo.apply(console, args);
+                    sendToNative('info', args);
+                };
+
+                console.debug = function(...args) {
+                    originalDebug.apply(console, args);
+                    sendToNative('debug', args);
+                };
+            })();
+            """,
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: false
+        )
+        contentController.addUserScript(consoleLogScript)
+        contentController.add(context.coordinator, name: "consoleLogger")
+
         configuration.userContentController = contentController
         
         // Enable debugging (if needed)
@@ -95,6 +212,7 @@ struct PlaygroundWebView: UIViewRepresentable {
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
+        webView.uiDelegate = context.coordinator // Enable console logging to Xcode
         webView.allowsBackForwardNavigationGestures = false
 
         // Optimize WebView performance to reduce GPU process exits

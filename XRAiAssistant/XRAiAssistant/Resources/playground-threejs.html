@@ -5,10 +5,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Three.js Playground</title>
     
-    <!-- Three.js Core -->
-    <script src="https://unpkg.com/three@0.160.0/build/three.min.js" onerror="console.error('❌ Failed to load Three.js library')"></script>
-    <!-- OrbitControls temporarily disabled to focus on Monaco fix -->
-    
+    <!-- Import Map for Three.js ES modules -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/super-three@0.173.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/super-three@0.173.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <!-- Three.js Core (super-three v0.173.0 from CDN) - Load as ES module -->
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+        import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+        // Make THREE and addons globally available
+        window.THREE = THREE;
+        window.OrbitControls = OrbitControls;
+        window.EffectComposer = EffectComposer;
+        window.RenderPass = RenderPass;
+        window.UnrealBloomPass = UnrealBloomPass;
+        window.OutputPass = OutputPass;
+
+        console.log('✅ super-three v0.173.0 loaded from CDN, version:', THREE.REVISION);
+        console.log('✅ OrbitControls available:', typeof OrbitControls !== 'undefined');
+        console.log('✅ Postprocessing addons available');
+
+        // Dispatch event to signal Three.js is ready
+        window.dispatchEvent(new CustomEvent('threejs-loaded'));
+    </script>
+
+
     <!-- Monaco Editor -->
     <script src="https://unpkg.com/monaco-editor@0.45.0/min/vs/loader.js" onerror="console.error('❌ Failed to load Monaco loader')"></script>
     
@@ -350,6 +382,7 @@
             <option value="lighting">Orbiting Lights 💡</option>
             <option value="materials">Materials Demo</option>
             <option value="rainbow">Rainbow Arc 🌈</option>
+            <option value="postprocessing">Bloom Effect ✨</option>
         </select>
     </div>
     
@@ -786,9 +819,25 @@
         // Initialize Three.js with comprehensive error handling
         function initializeThreeJS() {
             console.log('🚀 Initializing Three.js...');
-            
+
+            // Check if THREE is available, if not wait for it
+            if (typeof THREE === 'undefined') {
+                console.log('⏳ Waiting for Three.js module to load...');
+                window.addEventListener('threejs-loaded', function() {
+                    console.log('✅ Three.js module loaded event received');
+                    initializeThreeJSCore();
+                }, { once: true });
+                return;
+            }
+
+            initializeThreeJSCore();
+        }
+
+        function initializeThreeJSCore() {
+            console.log('🚀 Starting Three.js core initialization...');
+
             try {
-                // Check if THREE is available
+                // Verify THREE is available
                 if (typeof THREE === 'undefined') {
                     console.error('❌ CRITICAL: THREE.js library not loaded from CDN');
                     throw new Error('THREE.js library not loaded - check network connection');
@@ -844,19 +893,36 @@
                 return;
             }
             
-            // Set up camera position and create mock controls
+            // Set up camera position and create OrbitControls
             camera.position.set(0, 5, 10);
             camera.lookAt(0, 0, 0);
-            
-            // Create mock controls object to prevent undefined errors
-            controls = {
-                target: { x: 0, y: 0, z: 0, set: function(x, y, z) { this.x = x; this.y = y; this.z = z; } },
-                update: function() {},
-                enableDamping: false,
-                dampingFactor: 0.05
-            };
-            
-            console.log('✅ Camera positioned with mock controls');
+
+            // Create real OrbitControls if available, otherwise use mock
+            if (typeof OrbitControls !== 'undefined') {
+                try {
+                    controls = new OrbitControls(camera, canvas);
+                    controls.enableDamping = true;
+                    controls.dampingFactor = 0.05;
+                    controls.target.set(0, 0, 0);
+                    controls.update();
+                    console.log('✅ Camera positioned with OrbitControls');
+                } catch (controlsError) {
+                    console.warn('⚠️ OrbitControls creation failed, using mock controls:', controlsError);
+                    createMockControls();
+                }
+            } else {
+                console.warn('⚠️ OrbitControls not available, using mock controls');
+                createMockControls();
+            }
+
+            function createMockControls() {
+                controls = {
+                    target: { x: 0, y: 0, z: 0, set: function(x, y, z) { this.x = x; this.y = y; this.z = z; } },
+                    update: function() {},
+                    enableDamping: false,
+                    dampingFactor: 0.05
+                };
+            }
             
             // Make globals available
             window.canvas = canvas;
@@ -895,25 +961,30 @@
         function startRenderLoop() {
             console.log('🎬 Starting Three.js render loop...');
             let frameCount = 0;
-            
+
             function animate() {
                 animationId = requestAnimationFrame(animate);
                 frameCount++;
-                
+
                 // Debug every 60 frames (about once per second at 60fps)
                 if (frameCount % 60 === 0) {
                     console.log('🎬 Render loop active, frame:', frameCount, 'scene children:', scene?.children?.length || 0);
                 }
-                
+
                 controls.update();
-                
+
                 // Execute any scene animations
                 if (scene && scene.userData && scene.userData.animate) {
                     scene.userData.animate();
                 }
-                
+
                 if (scene && camera && renderer) {
-                    renderer.render(scene, camera);
+                    // Check if scene has a custom composer (for postprocessing)
+                    if (scene.userData && scene.userData.composer) {
+                        scene.userData.composer.render();
+                    } else {
+                        renderer.render(scene, camera);
+                    }
                 } else if (frameCount < 10) {
                     console.log('⚠️ Missing components - scene:', !!scene, 'camera:', !!camera, 'renderer:', !!renderer);
                 }
@@ -1059,16 +1130,25 @@ console.log("✅ Default scene creation complete!");`;
         function executeUserCode(code) {
             try {
                 console.log('=== EXECUTING THREE.JS USER CODE ===');
-                
+
                 clearConsole();
-                
+
                 // Store old scene and camera for comparison
                 const oldScene = scene;
                 const oldCamera = camera;
-                
+
                 // Clear existing objects but preserve lighting
                 clearScene();
-                
+
+                // Clean user code to remove conflicting animation loops
+                // Remove standalone animate() function definitions that call composer.render()
+                code = code.replace(/function\s+animate\s*\(\s*\)\s*\{[^}]*requestAnimationFrame\s*\(\s*animate\s*\)[^}]*composer\.render\s*\(\s*\)[^}]*\}\s*animate\s*\(\s*\)\s*;?/g, '');
+
+                // Remove arrow function animate loops
+                code = code.replace(/const\s+animate\s*=\s*\(\s*\)\s*=>\s*\{[^}]*requestAnimationFrame\s*\(\s*animate\s*\)[^}]*composer\.render\s*\(\s*\)[^}]*\}\s*;?\s*animate\s*\(\s*\)\s*;?/g, '');
+
+                console.log('🧹 Cleaned user code to remove conflicting animation loops');
+
                 // Execute the code in global context
                 const executeCode = new Function('THREE', 'scene', 'camera', 'renderer', 'controls', 'canvas',
                     `try {
@@ -1504,15 +1584,16 @@ console.log("✅ Default scene creation complete!");`;
         
         function loadExample(exampleId) {
             if (!exampleId) return;
-            
+
             const examples = {
                 'basic-scene': getDefaultCode(),
                 'rotating-cube': getRotatingCubeCode(),
                 'lighting': getLightingDemoCode(),
                 'materials': getMaterialsDemoCode(),
-                'rainbow': getRainbowCode()
+                'rainbow': getRainbowCode(),
+                'postprocessing': getPostprocessingCode()
             };
-            
+
             if (examples[exampleId] && editor) {
                 editor.setValue(examples[exampleId]);
                 runCode();
@@ -1920,6 +2001,113 @@ const { scene, camera } = createScene();`;
 };
 
 const { scene, camera } = createScene();`;
+        }
+
+        function getPostprocessingCode() {
+            return `// Three.js r160 Postprocessing Example - Bloom Effect
+// This demonstrates the UnrealBloomPass for glowing effects
+
+const createScene = () => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000011); // Dark space background
+
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 5, 15);
+
+    // Basic lighting
+    const ambientLight = new THREE.AmbientLight(0x222244, 0.3);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    directionalLight.position.set(10, 10, 5);
+    scene.add(directionalLight);
+
+    // Create glowing spheres
+    const colors = [0xff0055, 0x0055ff, 0x00ff55, 0xff5500, 0x5500ff];
+    const spheres = [];
+
+    for (let i = 0; i < 5; i++) {
+        const geometry = new THREE.SphereGeometry(0.8, 32, 32);
+        const material = new THREE.MeshStandardMaterial({
+            color: colors[i],
+            emissive: colors[i],
+            emissiveIntensity: 1.0,
+            metalness: 0.5,
+            roughness: 0.2
+        });
+
+        const sphere = new THREE.Mesh(geometry, material);
+        sphere.position.x = (i - 2) * 3;
+        sphere.position.y = 2;
+
+        // Store animation data
+        sphere.userData.speed = 0.02 + Math.random() * 0.02;
+        sphere.userData.offset = i * Math.PI * 0.4;
+
+        scene.add(sphere);
+        spheres.push(sphere);
+    }
+
+    // Ground plane
+    const groundGeometry = new THREE.PlaneGeometry(30, 30);
+    const groundMaterial = new THREE.MeshStandardMaterial({
+        color: 0x111122,
+        metalness: 0.8,
+        roughness: 0.2
+    });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+
+    // Set up postprocessing
+    const composer = new EffectComposer(renderer);
+
+    // Add render pass
+    const renderPass = new RenderPass(scene, camera);
+    composer.addPass(renderPass);
+
+    // Add bloom pass
+    const bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight),
+        1.5,  // strength
+        0.4,  // radius
+        0.85  // threshold
+    );
+    composer.addPass(bloomPass);
+
+    // Add output pass
+    const outputPass = new OutputPass();
+    composer.addPass(outputPass);
+
+    // Animation function (will be called by main render loop)
+    let time = 0;
+    function animate() {
+        time += 0.01;
+
+        spheres.forEach((sphere, i) => {
+            // Floating animation
+            sphere.position.y = 2 + Math.sin(time + sphere.userData.offset) * 0.5;
+            // Rotation
+            sphere.rotation.y += sphere.userData.speed;
+            sphere.rotation.x += sphere.userData.speed * 0.5;
+        });
+    }
+
+    // Store animation and composer so main render loop can use them
+    scene.userData.animate = animate;
+    scene.userData.composer = composer;
+
+    controls.target.set(0, 2, 0);
+    controls.update();
+
+    console.log("✨ Postprocessing scene created with bloom effect!");
+
+    return { scene, camera };
+};
+
+const { scene, camera } = createScene();
+
+console.log("✅ Bloom postprocessing enabled - scene will render with glow effect!");`;
         }
     </script>
 </body>
