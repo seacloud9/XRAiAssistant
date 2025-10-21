@@ -24,21 +24,25 @@ export function formatTimestamp(timestamp: number): string {
 }
 
 export function extractCodeFromMessage(content: string): string | null {
-  // Look for code blocks with various languages
-  const codeBlockRegex = /```(?:javascript|js|typescript|ts|jsx|tsx)?\n([\s\S]*?)```/g
+  // Look for code blocks with various languages (TRIPLE backticks only)
+  // This regex is strict: matches ```language\ncode\n``` pattern
+  const codeBlockRegex = /```(?:javascript|js|typescript|ts|jsx|tsx|html|css)?\s*\n([\s\S]*?)\n\s*```/g
   const match = codeBlockRegex.exec(content)
   
   if (match) {
     return match[1].trim()
   }
   
-  // Look for inline code that might be a complete snippet
-  const inlineCodeRegex = /`([^`]+)`/g
-  const inlineMatch = inlineCodeRegex.exec(content)
+  // Fallback: try without language specifier but still require triple backticks
+  const genericCodeBlockRegex = /```\s*\n([\s\S]*?)\n\s*```/g
+  const genericMatch = genericCodeBlockRegex.exec(content)
   
-  if (inlineMatch && inlineMatch[1].length > 50) {
-    return inlineMatch[1].trim()
+  if (genericMatch) {
+    return genericMatch[1].trim()
   }
+  
+  // DO NOT extract inline code (single backticks) for Monaco editor
+  // Inline code like `const x = 5` is for display only, not execution
   
   return null
 }

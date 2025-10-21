@@ -428,16 +428,26 @@ struct EnhancedChatView: View {
         print("📝 First 300 chars: \(content.prefix(300))")
         print("📝 Last 100 chars: \(content.suffix(100))")
 
-        // Simple string-based extraction (more reliable than regex)
+        // STRICT: Only extract code from TRIPLE backtick blocks (``` not `)
         // Find the start of the code block
-        let possibleStarts = ["```javascript", "```typescript", "```js", "```ts", "```jsx", "```"]
+        let possibleStarts = ["```javascript", "```typescript", "```js", "```ts", "```jsx", "```html", "```"]
         var codeStart: String.Index? = nil
+        var foundMarker = ""
 
         for marker in possibleStarts {
             if let range = content.range(of: marker) {
-                codeStart = range.upperBound
-                print("✅ Found code block start: '\(marker)'")
-                break
+                // Verify it's actually triple backticks, not more
+                let beforeMarker = content[..<range.lowerBound]
+                let afterMarkerStart = content.index(range.upperBound, offsetBy: 0, limitedBy: content.endIndex) ?? content.endIndex
+                
+                // Make sure we're not matching part of a longer backtick sequence
+                if !beforeMarker.hasSuffix("`") && 
+                   (afterMarkerStart == content.endIndex || !content[afterMarkerStart...].hasPrefix("`")) {
+                    codeStart = range.upperBound
+                    foundMarker = marker
+                    print("✅ Found code block start: '\(marker)'")
+                    break
+                }
             }
         }
 
@@ -446,9 +456,11 @@ struct EnhancedChatView: View {
             return nil
         }
 
-        // Find the end of the code block (closing ```)
+        // Find the end of the code block (closing triple backticks)
         let afterStart = content[start...]
-        guard let endRange = afterStart.range(of: "```") else {
+        
+        // Look for newline followed by ``` (the proper closing)
+        guard let endRange = afterStart.range(of: "\n```") ?? afterStart.range(of: "```") else {
             print("❌ No closing ``` found")
             return nil
         }
@@ -470,6 +482,13 @@ struct EnhancedChatView: View {
         }
 
         print("✅ Final extracted code length: \(code.count)")
+        
+        // Sanity check: ignore if it's too short (probably not real code)
+        if code.count < 10 {
+            print("⚠️ Extracted code too short, ignoring")
+            return nil
+        }
+        
         return code.isEmpty ? nil : code
     }
 

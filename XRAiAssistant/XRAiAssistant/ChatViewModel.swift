@@ -767,8 +767,11 @@ class ChatViewModel: ObservableObject {
                         print("✅ Extracted code using [/INSERT_CODE] boundary: \(extractedCode.count) chars")
                         let correctedCode = fixBabylonJSCode(extractedCode)
                         // DON'T replace code blocks - we need them intact for "Run the Scene" button!
-                        // Just remove the [/INSERT_CODE] marker
+                        // Clean all display markers before returning
+                        print("🧹 Cleaning display markers from response (early return path 1)...")
+                        processedResponse = processedResponse.replacingOccurrences(of: "[INSERT_CODE]", with: "")
                         processedResponse = processedResponse.replacingOccurrences(of: "[/INSERT_CODE]", with: "")
+                        processedResponse = processedResponse.replacingOccurrences(of: "[RUN_SCENE]", with: "")
                         injectCodeWithBuildSupport(correctedCode)
                         return processedResponse.trimmingCharacters(in: .whitespacesAndNewlines)
                     }
@@ -784,6 +787,11 @@ class ChatViewModel: ObservableObject {
                         print("✅ Extracted code using closing ``` marker: \(extractedCode.count) chars")
                         let correctedCode = fixBabylonJSCode(extractedCode)
                         // DON'T replace code blocks - we need them intact for "Run the Scene" button!
+                        // Clean all display markers before returning
+                        print("🧹 Cleaning display markers from response (early return path 2)...")
+                        processedResponse = processedResponse.replacingOccurrences(of: "[INSERT_CODE]", with: "")
+                        processedResponse = processedResponse.replacingOccurrences(of: "[/INSERT_CODE]", with: "")
+                        processedResponse = processedResponse.replacingOccurrences(of: "[RUN_SCENE]", with: "")
                         injectCodeWithBuildSupport(correctedCode)
                         return processedResponse.trimmingCharacters(in: .whitespacesAndNewlines)
                     }
@@ -825,9 +833,11 @@ class ChatViewModel: ObservableObject {
 
                         let correctedCode = fixBabylonJSCode(extractedCode)
                         // DON'T replace code blocks - we need them intact for "Run the Scene" button!
-                        // Just remove the [INSERT_CODE] and [/INSERT_CODE] markers
+                        // Clean all display markers before returning
+                        print("🧹 Cleaning display markers from response (early return path 3)...")
                         processedResponse = processedResponse.replacingOccurrences(of: "[INSERT_CODE]", with: "")
                         processedResponse = processedResponse.replacingOccurrences(of: "[/INSERT_CODE]", with: "")
+                        processedResponse = processedResponse.replacingOccurrences(of: "[RUN_SCENE]", with: "")
                         injectCodeWithBuildSupport(correctedCode)
                         return processedResponse.trimmingCharacters(in: .whitespacesAndNewlines)
                     } else {
@@ -989,6 +999,14 @@ class ChatViewModel: ObservableObject {
         } else {
             print("ℹ️ No [RUN_SCENE] command found in response from model: \(selectedModel)")
         }
+
+        // CRITICAL: Always strip display markers from the final response
+        // These markers are used for code extraction but should NEVER appear in the displayed message
+        print("🧹 Cleaning display markers from response...")
+        processedResponse = processedResponse.replacingOccurrences(of: "[INSERT_CODE]", with: "")
+        processedResponse = processedResponse.replacingOccurrences(of: "[/INSERT_CODE]", with: "")
+        processedResponse = processedResponse.replacingOccurrences(of: "[RUN_SCENE]", with: "")
+        print("✅ Display markers removed")
 
         let finalResponse = processedResponse.trimmingCharacters(in: .whitespacesAndNewlines)
 

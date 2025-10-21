@@ -26,14 +26,11 @@ struct MarkdownMessageView: View {
         case .codeBlock(let code, let language):
             codeBlockView(code: code, language: language, index: index)
 
-        case .inlineCode(let code):
-            Text(code)
-                .font(.system(.body, design: .monospaced))
-                .padding(.horizontal, 4)
-                .padding(.vertical, 2)
-                .background(Color(.systemGray6))
-                .cornerRadius(4)
-                .foregroundColor(.primary)
+        case .inlineFormattedLine(let blocks):
+            // Render a line with mixed inline formatting (text + inline code + bold + italic)
+            // NO background container - only inline code gets gray background
+            buildAttributedText(from: blocks)
+                .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
 
         case .heading(let text, let level):
             Text(text)
@@ -42,15 +39,66 @@ struct MarkdownMessageView: View {
                 .foregroundColor(isUser ? .white : .primary)
                 .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
 
+        // Legacy cases - kept for backward compatibility but shouldn't be used directly anymore
+        case .inlineCode(let code):
+            Text(code)
+                .font(.system(.body, design: .monospaced))
+                .padding(.horizontal, 4)
+                .padding(.vertical, 2)
+                .background(Color(.systemGray6))
+                .cornerRadius(4)
+                .foregroundColor(.primary)
+                .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
+
         case .bold(let text):
             Text(text)
                 .fontWeight(.bold)
                 .foregroundColor(isUser ? .white : .primary)
+                .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
 
         case .italic(let text):
             Text(text)
                 .italic()
                 .foregroundColor(isUser ? .white : .primary)
+                .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
+        }
+    }
+    
+    // Build an inline formatted view using HStack for better control
+    // This ensures inline code gets gray background while text remains normal
+    private func buildAttributedText(from blocks: [InlineBlock]) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 0) {
+            ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
+                switch block {
+                case .plainText(let text):
+                    Text(text)
+                        .font(.body)
+                        .foregroundColor(isUser ? .white : .primary)
+                    
+                case .code(let code):
+                    Text(code)
+                        .font(.system(.body, design: .monospaced))
+                        .foregroundColor(.primary)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color(.systemGray6))
+                        )
+                    
+                case .boldText(let text):
+                    Text(text)
+                        .font(.body)
+                        .fontWeight(.bold)
+                        .foregroundColor(isUser ? .white : .primary)
+                    
+                case .italicText(let text):
+                    Text(text)
+                        .font(.body)
+                        .italic()
+                        .foregroundColor(isUser ? .white : .primary)
+                }
+            }
         }
     }
 
@@ -251,18 +299,22 @@ struct MarkdownMessageView: View {
         while i < lines.count {
             let line = lines[i]
 
-            // Code block detection (```)
-            if line.trimmingCharacters(in: .whitespaces).hasPrefix("```") {
-                let language = line.trimmingCharacters(in: .whitespaces)
+            // Code block detection (```) - MUST be checked first and be strict
+            // Only match if ``` is at the start of the line (after whitespace)
+            let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+            if trimmedLine.hasPrefix("```") && !trimmedLine.hasPrefix("`````") {
+                let language = trimmedLine
                     .replacingOccurrences(of: "```", with: "")
                     .trimmingCharacters(in: .whitespaces)
 
                 var codeLines: [String] = []
                 i += 1
 
+                // Collect all lines until we find the closing ```
                 while i < lines.count {
                     let codeLine = lines[i]
-                    if codeLine.trimmingCharacters(in: .whitespaces).hasPrefix("```") {
+                    let trimmedCodeLine = codeLine.trimmingCharacters(in: .whitespaces)
+                    if trimmedCodeLine.hasPrefix("```") {
                         break
                     }
                     codeLines.append(codeLine)
@@ -270,12 +322,15 @@ struct MarkdownMessageView: View {
                 }
 
                 let code = codeLines.joined(separator: "\n")
+                print("📦 Code block extracted: \(codeLines.count) lines, \(code.count) chars")
+                print("📝 Code block preview: \(code.prefix(100))...")
+                print("📝 Code block END: ...\(code.suffix(100))")
                 blocks.append(.codeBlock(code: code, language: language.isEmpty ? nil : language))
                 i += 1
                 continue
             }
 
-            // Heading detection
+            // Heading detection (must be at line start)
             if line.hasPrefix("#") {
                 let level = line.prefix(while: { $0 == "#" }).count
                 let text = line.dropFirst(level).trimmingCharacters(in: .whitespaces)
@@ -284,9 +339,14 @@ struct MarkdownMessageView: View {
                 continue
             }
 
-            // Inline code detection (`)
-            if line.contains("`") {
-                blocks.append(contentsOf: parseInlineFormatting(line))
+            // Lines with inline code, bold, or italic formatting
+            // This handles mixed content like "Use `const` or `let` for variables"
+            if line.contains("`") || line.contains("*") {
+                let inlineBlocks = parseInlineFormatting(line)
+                // Only create inline formatted line if we have content
+                if !inlineBlocks.isEmpty {
+                    blocks.append(.inlineFormattedLine(inlineBlocks))
+                }
                 i += 1
                 continue
             }
@@ -298,48 +358,77 @@ struct MarkdownMessageView: View {
 
             i += 1
         }
-
+        
         return blocks
     }
 
-    private func parseInlineFormatting(_ text: String) -> [ContentBlock] {
-        var blocks: [ContentBlock] = []
+    private func parseInlineFormatting(_ text: String) -> [InlineBlock] {
+        var blocks: [InlineBlock] = []
         var currentText = ""
         var i = text.startIndex
 
         while i < text.endIndex {
             let char = text[i]
 
-            // Inline code (`code`)
+            // Inline code (`code`) - single backticks only
             if char == "`" {
+                // Make sure it's not a triple backtick (which shouldn't happen here, but safety check)
+                let remainingText = String(text[i...])
+                if remainingText.hasPrefix("```") {
+                    // This is a code block marker, treat as regular text
+                    currentText.append(char)
+                    i = text.index(after: i)
+                    continue
+                }
+                
                 if !currentText.isEmpty {
-                    blocks.append(.text(currentText))
+                    blocks.append(.plainText(currentText))
                     currentText = ""
                 }
 
                 i = text.index(after: i)
                 var code = ""
+                
+                // Find the closing backtick
                 while i < text.endIndex && text[i] != "`" {
                     code.append(text[i])
                     i = text.index(after: i)
                 }
-                blocks.append(.inlineCode(code))
-
-                if i < text.endIndex {
+                
+                // Only create inline code if we found a closing backtick
+                if i < text.endIndex && text[i] == "`" {
+                    blocks.append(.code(code))
                     i = text.index(after: i)
+                } else {
+                    // No closing backtick found, treat as regular text
+                    currentText.append("`")
+                    currentText.append(code)
                 }
                 continue
             }
 
-            // Bold (**text**)
+            // Bold (**text**) - must have two asterisks
             if char == "*" && i < text.index(before: text.endIndex) && text[text.index(after: i)] == "*" {
+                // Check it's not more than two asterisks
+                let nextIndex = text.index(i, offsetBy: 2, limitedBy: text.endIndex)
+                let isTripleAsterisk = nextIndex != nil && nextIndex! < text.endIndex && text[nextIndex!] == "*"
+                
+                if isTripleAsterisk {
+                    // Three or more asterisks, treat as regular text
+                    currentText.append(char)
+                    i = text.index(after: i)
+                    continue
+                }
+                
                 if !currentText.isEmpty {
-                    blocks.append(.text(currentText))
+                    blocks.append(.plainText(currentText))
                     currentText = ""
                 }
 
                 i = text.index(i, offsetBy: 2)
                 var bold = ""
+                
+                // Find closing **
                 while i < text.index(before: text.endIndex) {
                     if text[i] == "*" && text[text.index(after: i)] == "*" {
                         break
@@ -347,31 +436,41 @@ struct MarkdownMessageView: View {
                     bold.append(text[i])
                     i = text.index(after: i)
                 }
-                blocks.append(.bold(bold))
-
-                if i < text.endIndex {
-                    i = text.index(i, offsetBy: 2)
+                
+                if i < text.endIndex && text[i] == "*" {
+                    blocks.append(.boldText(bold))
+                    i = text.index(i, offsetBy: 2, limitedBy: text.endIndex) ?? text.endIndex
+                } else {
+                    // No closing **, treat as regular text
+                    currentText.append("**")
+                    currentText.append(bold)
                 }
                 continue
             }
 
-            // Italic (*text*)
+            // Italic (*text*) - single asterisk
             if char == "*" {
                 if !currentText.isEmpty {
-                    blocks.append(.text(currentText))
+                    blocks.append(.plainText(currentText))
                     currentText = ""
                 }
 
                 i = text.index(after: i)
                 var italic = ""
+                
+                // Find closing *
                 while i < text.endIndex && text[i] != "*" {
                     italic.append(text[i])
                     i = text.index(after: i)
                 }
-                blocks.append(.italic(italic))
-
-                if i < text.endIndex {
+                
+                if i < text.endIndex && text[i] == "*" {
+                    blocks.append(.italicText(italic))
                     i = text.index(after: i)
+                } else {
+                    // No closing *, treat as regular text
+                    currentText.append("*")
+                    currentText.append(italic)
                 }
                 continue
             }
@@ -381,10 +480,10 @@ struct MarkdownMessageView: View {
         }
 
         if !currentText.isEmpty {
-            blocks.append(.text(currentText))
+            blocks.append(.plainText(currentText))
         }
 
-        return blocks.isEmpty ? [.text(text)] : blocks
+        return blocks
     }
 }
 
@@ -392,10 +491,20 @@ struct MarkdownMessageView: View {
 enum ContentBlock {
     case text(String)
     case codeBlock(code: String, language: String?)
-    case inlineCode(String)
+    case inlineFormattedLine([InlineBlock])  // New: for lines with mixed inline formatting
     case heading(text: String, level: Int)
+    // Legacy cases - kept for backward compatibility
+    case inlineCode(String)
     case bold(String)
     case italic(String)
+}
+
+// MARK: - Inline Block Types (for mixed formatting on a single line)
+enum InlineBlock {
+    case plainText(String)
+    case code(String)
+    case boldText(String)
+    case italicText(String)
 }
 
 // MARK: - Preview
@@ -423,6 +532,8 @@ enum ContentBlock {
                     return n
                 return fibonacci(n-1) + fibonacci(n-2)
             ```
+            
+            To use this code, call `runCode()` or use the **Run** button. You can also use `insertCodeAtCursor()` for *inline* insertion.
             """,
             isUser: false
         )
