@@ -255,6 +255,436 @@ struct ReactylonLibrary: Library3D {
     }
 
     var examples: [CodeExample] {
-        return []
+        return [
+            CodeExample(
+                title: "Floating Gems",
+                description: "Beautiful floating gems with React state and Babylon.js materials",
+                code: """
+                import React, { useState, useEffect } from 'react'
+                import { Engine } from 'reactylon/web'
+                import { Scene, box, sphere, hemisphericLight, standardMaterial } from 'reactylon'
+                import { Color3, Vector3, createDefaultCameraOrLight } from '@babylonjs/core'
+
+                function App() {
+                  const [rotationSpeed, setRotationSpeed] = useState(0.01)
+
+                  return (
+                    <Engine antialias adaptToDeviceRatio canvasId="canvas">
+                      <Scene
+                        clearColor="#0a0a1a"
+                        onSceneReady={(scene) => {
+                          createDefaultCameraOrLight(scene, true, true, true)
+
+                          // Animate gems
+                          scene.registerBeforeRender(() => {
+                            const time = Date.now() * 0.001
+                            const gem1 = scene.getMeshByName("gem1")
+                            const gem2 = scene.getMeshByName("gem2")
+                            const gem3 = scene.getMeshByName("gem3")
+
+                            if (gem1) {
+                              gem1.rotation.y += rotationSpeed
+                              gem1.position.y = 1.5 + Math.sin(time) * 0.3
+                            }
+                            if (gem2) {
+                              gem2.rotation.y += rotationSpeed
+                              gem2.position.y = 1.5 + Math.sin(time + 2) * 0.3
+                            }
+                            if (gem3) {
+                              gem3.rotation.y += rotationSpeed
+                              gem3.position.y = 1.5 + Math.sin(time + 4) * 0.3
+                            }
+                          })
+                        }}
+                      >
+                        <hemisphericLight
+                          name="light1"
+                          direction={new Vector3(0, 1, 0)}
+                          intensity={0.8}
+                        />
+
+                        {/* Pink Gem */}
+                        <box
+                          name="gem1"
+                          position={new Vector3(-2.5, 1.5, 0)}
+                          options={{ size: 1.2 }}
+                        >
+                          <standardMaterial
+                            name="gem1Mat"
+                            diffuseColor={Color3.FromHexString("#ff6b9d")}
+                            specularColor={Color3.White()}
+                            emissiveColor={Color3.FromHexString("#ff6b9d")}
+                          />
+                        </box>
+
+                        {/* Blue Gem */}
+                        <sphere
+                          name="gem2"
+                          position={new Vector3(0, 1.5, 0)}
+                          options={{ diameter: 1.5 }}
+                        >
+                          <standardMaterial
+                            name="gem2Mat"
+                            diffuseColor={Color3.FromHexString("#4080ff")}
+                            specularColor={Color3.White()}
+                            emissiveColor={Color3.FromHexString("#4080ff")}
+                          />
+                        </sphere>
+
+                        {/* Gold Gem */}
+                        <box
+                          name="gem3"
+                          position={new Vector3(2.5, 1.5, 0)}
+                          options={{ size: 1.2 }}
+                        >
+                          <standardMaterial
+                            name="gem3Mat"
+                            diffuseColor={Color3.FromHexString("#ffd93d")}
+                            specularColor={Color3.White()}
+                            emissiveColor={Color3.FromHexString("#ffd93d")}
+                          />
+                        </box>
+
+                        {/* Ground */}
+                        <ground
+                          name="ground"
+                          options={{ width: 15, height: 15 }}
+                        >
+                          <standardMaterial
+                            name="groundMat"
+                            diffuseColor={Color3.FromHexString("#1a1a2e")}
+                          />
+                        </ground>
+                      </Scene>
+                    </Engine>
+                  )
+                }
+
+                export default App
+                """,
+                category: .basic,
+                difficulty: .beginner
+            ),
+
+            CodeExample(
+                title: "Interactive Color Boxes",
+                description: "Click boxes to cycle through colors with React state management",
+                code: """
+                import React, { useState } from 'react'
+                import { Engine } from 'reactylon/web'
+                import { Scene, box, hemisphericLight, pointLight, ground, standardMaterial } from 'reactylon'
+                import { Color3, Vector3, createDefaultCameraOrLight } from '@babylonjs/core'
+
+                function ColorBox({ position, initialColor, name }) {
+                  const colors = [
+                    Color3.FromHexString("#ff6b9d"),
+                    Color3.FromHexString("#4080ff"),
+                    Color3.FromHexString("#4ecdc4"),
+                    Color3.FromHexString("#ffe66d"),
+                    Color3.FromHexString("#a26cf7")
+                  ]
+
+                  const [colorIndex, setColorIndex] = useState(0)
+
+                  const handleClick = () => {
+                    setColorIndex((prev) => (prev + 1) % colors.length)
+                  }
+
+                  return (
+                    <box
+                      name={name}
+                      position={position}
+                      options={{ size: 1.5 }}
+                      onPick={handleClick}
+                    >
+                      <standardMaterial
+                        name={`${name}Mat`}
+                        diffuseColor={colors[colorIndex]}
+                        specularColor={Color3.White()}
+                        specularPower={64}
+                      />
+                    </box>
+                  )
+                }
+
+                function App() {
+                  return (
+                    <Engine antialias adaptToDeviceRatio canvasId="canvas">
+                      <Scene
+                        clearColor="#0f0f20"
+                        onSceneReady={(scene) => createDefaultCameraOrLight(scene, true, true, true)}
+                      >
+                        <hemisphericLight
+                          name="ambient"
+                          direction={new Vector3(0, 1, 0)}
+                          intensity={0.6}
+                        />
+
+                        <pointLight
+                          name="pointLight1"
+                          position={new Vector3(5, 5, 5)}
+                          intensity={0.8}
+                        />
+
+                        <ColorBox
+                          position={new Vector3(-3, 1, 0)}
+                          initialColor="#ff6b9d"
+                          name="box1"
+                        />
+
+                        <ColorBox
+                          position={new Vector3(0, 1, 0)}
+                          initialColor="#4080ff"
+                          name="box2"
+                        />
+
+                        <ColorBox
+                          position={new Vector3(3, 1, 0)}
+                          initialColor="#4ecdc4"
+                          name="box3"
+                        />
+
+                        <ground
+                          name="ground"
+                          options={{ width: 12, height: 12 }}
+                        >
+                          <standardMaterial
+                            name="groundMat"
+                            diffuseColor={Color3.FromHexString("#1a1a2e")}
+                            specularColor={Color3.FromHexString("#0f3460")}
+                          />
+                        </ground>
+                      </Scene>
+                    </Engine>
+                  )
+                }
+
+                export default App
+                """,
+                category: .interaction,
+                difficulty: .intermediate
+            ),
+
+            CodeExample(
+                title: "Animated Rainbow Spheres",
+                description: "Multiple spheres with rainbow colors and wave animation",
+                code: """
+                import React, { useEffect } from 'react'
+                import { Engine } from 'reactylon/web'
+                import { Scene, sphere, hemisphericLight, ground, pBRMaterial } from 'reactylon'
+                import { Color3, Vector3, createDefaultCameraOrLight } from '@babylonjs/core'
+
+                function App() {
+                  const count = 7
+
+                  return (
+                    <Engine antialias adaptToDeviceRatio canvasId="canvas">
+                      <Scene
+                        clearColor="#000511"
+                        onSceneReady={(scene) => {
+                          createDefaultCameraOrLight(scene, true, true, true)
+
+                          // Wave animation
+                          scene.registerBeforeRender(() => {
+                            const time = Date.now() * 0.001
+
+                            for (let i = 0; i < count; i++) {
+                              const sphereMesh = scene.getMeshByName(`sphere${i}`)
+                              if (sphereMesh) {
+                                const offset = (i / count) * Math.PI * 2
+                                sphereMesh.position.y = 1.5 + Math.sin(time + offset) * 1.2
+                                sphereMesh.rotation.y = time * 0.5
+                              }
+                            }
+                          })
+                        }}
+                      >
+                        <hemisphericLight
+                          name="light"
+                          direction={new Vector3(0, 1, 0)}
+                          intensity={0.7}
+                        />
+
+                        {Array.from({ length: count }).map((_, i) => {
+                          const hue = (i / count) * 360
+                          const r = Math.abs(Math.sin((hue * Math.PI) / 180))
+                          const g = Math.abs(Math.sin(((hue + 120) * Math.PI) / 180))
+                          const b = Math.abs(Math.sin(((hue + 240) * Math.PI) / 180))
+
+                          return (
+                            <sphere
+                              key={i}
+                              name={`sphere${i}`}
+                              position={new Vector3((i - count / 2) * 2, 1.5, 0)}
+                              options={{ diameter: 1.2 }}
+                            >
+                              <pBRMaterial
+                                name={`mat${i}`}
+                                albedoColor={new Color3(r, g, b)}
+                                metallic={0.9}
+                                roughness={0.1}
+                                emissiveColor={new Color3(r * 0.5, g * 0.5, b * 0.5)}
+                              />
+                            </sphere>
+                          )
+                        })}
+
+                        <ground
+                          name="ground"
+                          options={{ width: 20, height: 20 }}
+                        >
+                          <pBRMaterial
+                            name="groundMat"
+                            albedoColor={Color3.FromHexString("#0a0a1a")}
+                            metallic={0.2}
+                            roughness={0.8}
+                          />
+                        </ground>
+                      </Scene>
+                    </Engine>
+                  )
+                }
+
+                export default App
+                """,
+                category: .animation,
+                difficulty: .intermediate
+            ),
+
+            CodeExample(
+                title: "Dynamic Material Playground",
+                description: "Control material properties with React state and sliders",
+                code: """
+                import React, { useState } from 'react'
+                import { Engine } from 'reactylon/web'
+                import { Scene, sphere, box, cylinder, hemisphericLight, pBRMaterial } from 'reactylon'
+                import { Color3, Vector3, createDefaultCameraOrLight } from '@babylonjs/core'
+
+                function App() {
+                  const [metallic, setMetallic] = useState(0.5)
+                  const [roughness, setRoughness] = useState(0.5)
+                  const [emissive, setEmissive] = useState(0.2)
+
+                  return (
+                    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+                      <Engine antialias adaptToDeviceRatio canvasId="canvas">
+                        <Scene
+                          clearColor="#1a1a2e"
+                          onSceneReady={(scene) => createDefaultCameraOrLight(scene, true, true, true)}
+                        >
+                          <hemisphericLight
+                            name="light"
+                            direction={new Vector3(0, 1, 0)}
+                            intensity={0.8}
+                          />
+
+                          <sphere
+                            name="sphere"
+                            position={new Vector3(-3, 2, 0)}
+                            options={{ diameter: 2 }}
+                          >
+                            <pBRMaterial
+                              name="sphereMat"
+                              albedoColor={Color3.FromHexString("#ff6b9d")}
+                              metallic={metallic}
+                              roughness={roughness}
+                              emissiveColor={Color3.FromHexString("#ff6b9d")}
+                              emissiveIntensity={emissive}
+                            />
+                          </sphere>
+
+                          <box
+                            name="box"
+                            position={new Vector3(0, 2, 0)}
+                            options={{ size: 2 }}
+                          >
+                            <pBRMaterial
+                              name="boxMat"
+                              albedoColor={Color3.FromHexString("#4080ff")}
+                              metallic={metallic}
+                              roughness={roughness}
+                              emissiveColor={Color3.FromHexString("#4080ff")}
+                              emissiveIntensity={emissive}
+                            />
+                          </box>
+
+                          <cylinder
+                            name="cylinder"
+                            position={new Vector3(3, 2, 0)}
+                            options={{ height: 2, diameter: 1.5 }}
+                          >
+                            <pBRMaterial
+                              name="cylinderMat"
+                              albedoColor={Color3.FromHexString("#4ecdc4")}
+                              metallic={metallic}
+                              roughness={roughness}
+                              emissiveColor={Color3.FromHexString("#4ecdc4")}
+                              emissiveIntensity={emissive}
+                            />
+                          </cylinder>
+                        </Scene>
+                      </Engine>
+
+                      <div style={{
+                        position: 'absolute',
+                        top: 20,
+                        left: 20,
+                        background: 'rgba(0,0,0,0.7)',
+                        color: 'white',
+                        padding: 20,
+                        borderRadius: 8,
+                        fontFamily: 'sans-serif'
+                      }}>
+                        <h3 style={{ margin: '0 0 15px 0' }}>Material Controls</h3>
+
+                        <div style={{ marginBottom: 10 }}>
+                          <label>Metallic: {metallic.toFixed(2)}</label>
+                          <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value={metallic}
+                            onChange={(e) => setMetallic(parseFloat(e.target.value))}
+                            style={{ width: '100%' }}
+                          />
+                        </div>
+
+                        <div style={{ marginBottom: 10 }}>
+                          <label>Roughness: {roughness.toFixed(2)}</label>
+                          <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value={roughness}
+                            onChange={(e) => setRoughness(parseFloat(e.target.value))}
+                            style={{ width: '100%' }}
+                          />
+                        </div>
+
+                        <div>
+                          <label>Emissive: {emissive.toFixed(2)}</label>
+                          <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value={emissive}
+                            onChange={(e) => setEmissive(parseFloat(e.target.value))}
+                            style={{ width: '100%' }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )
+                }
+
+                export default App
+                """,
+                category: .advanced,
+                difficulty: .advanced
+            )
+        ]
     }
 }

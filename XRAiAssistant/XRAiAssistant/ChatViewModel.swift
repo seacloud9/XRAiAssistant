@@ -25,9 +25,12 @@ class ChatViewModel: ObservableObject {
     
     // New AI Provider System
     private(set) var aiProviderManager = AIProviderManager()
-    
+
     // 3D Library Management System
     private let library3DManager = Library3DManager()
+
+    // Published property to trigger UI updates when library changes
+    @Published var currentLibraryId: String = "babylonjs"
     
     // Build System Management
     private let buildManager = BuildManager.shared
@@ -113,23 +116,37 @@ class ChatViewModel: ObservableObject {
     
     init() {
         print("🚀 ChatViewModel initialization starting...")
-        
+
         // Initialize LlamaStackClient for meta-llama models
         self.inference = RemoteInference(
             url: URL(string: "https://llama-stack.together.ai")!,
             apiKey: DEFAULT_API_KEY
         )
-        
+
         // Initialize AIProxy for Together.ai (Qwen/DeepSeek models)
         self.togetherAIService = AIProxy.togetherAIDirectService(
             unprotectedAPIKey: DEFAULT_API_KEY
         )
-        
+
         print("📚 Setting up library manager and AI providers...")
+
+        // Initialize currentLibraryId from library3DManager
+        self.currentLibraryId = library3DManager.selectedLibrary.id
+
+        // Observe library changes and sync currentLibraryId
+        library3DManager.$selectedLibrary
+            .sink { [weak self] newLibrary in
+                guard let self = self else { return }
+                print("📢 Library3DManager selectedLibrary changed to: \(newLibrary.displayName)")
+                self.currentLibraryId = newLibrary.id
+                print("✅ Updated currentLibraryId to: \(self.currentLibraryId)")
+            }
+            .store(in: &cancellables)
+
         setupInitialMessage()
         setupDefaultSystemPrompt()
         loadSettings()
-        
+
         print("✅ ChatViewModel initialization complete")
         print("🔑 Current Together.ai API key status: \(aiProviderManager.getAPIKey(for: "Together.ai") == "changeMe" ? "NOT_CONFIGURED" : "CONFIGURED")")
     }
@@ -187,11 +204,14 @@ class ChatViewModel: ObservableObject {
     // MARK: - 3D Library System Methods
     
     func selectLibrary(id: String) {
+        // Update published property FIRST to trigger UI refresh immediately
+        currentLibraryId = id
+
         library3DManager.selectLibrary(id: id)
-        
+
         // Update the welcome message and system prompt when library changes
         setupDefaultSystemPrompt()
-        
+
         // Update the welcome message
         if !messages.isEmpty {
             messages[0] = ChatMessage(
@@ -201,16 +221,20 @@ class ChatViewModel: ObservableObject {
                 timestamp: messages[0].timestamp
             )
         }
-        
+
         print("🎯 Switched to \(library3DManager.selectedLibrary.displayName)")
+        print("📊 currentLibraryId is now: \(currentLibraryId)")
     }
     
     func selectLibrary(_ library: any Library3D) {
+        // Update published property FIRST to trigger UI refresh immediately
+        currentLibraryId = library.id
+
         library3DManager.selectLibrary(library)
-        
+
         // Update the welcome message and system prompt when library changes
         setupDefaultSystemPrompt()
-        
+
         // Update the welcome message
         if !messages.isEmpty {
             messages[0] = ChatMessage(
@@ -220,8 +244,9 @@ class ChatViewModel: ObservableObject {
                 timestamp: messages[0].timestamp
             )
         }
-        
+
         print("🎯 Switched to \(library3DManager.selectedLibrary.displayName)")
+        print("📊 currentLibraryId is now: \(currentLibraryId)")
     }
     
     

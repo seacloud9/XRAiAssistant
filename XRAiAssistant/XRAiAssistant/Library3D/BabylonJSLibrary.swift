@@ -194,34 +194,58 @@ struct BabylonJSLibrary: Library3D {
         return [
             // BASIC EXAMPLES
             CodeExample(
-                title: "Rotating Cube",
-                description: "A simple animated cube with colorful material",
+                title: "Floating Crystal Gems",
+                description: "Beautiful rotating gems with metallic materials and soft glow",
                 code: """
                 const createScene = () => {
                     const scene = new BABYLON.Scene(engine);
-                    const camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 5, -10), scene);
-                    camera.setTarget(BABYLON.Vector3.Zero());
+                    scene.clearColor = new BABYLON.Color3(0.02, 0.02, 0.05);
+
+                    const camera = new BABYLON.ArcRotateCamera("camera1", -Math.PI / 2, Math.PI / 3, 12, new BABYLON.Vector3(0, 0, 0), scene);
                     if (camera.attachControls) {
                         camera.attachControls(canvas, true);
                     }
 
                     const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
-                    light.intensity = 0.7;
+                    light.intensity = 0.8;
 
-                    const box = BABYLON.MeshBuilder.CreateBox("box", {size: 2}, scene);
-                    box.position.y = 1;
+                    // Add glow layer
+                    const gl = new BABYLON.GlowLayer("glow", scene);
+                    gl.intensity = 0.5;
 
-                    const material = new BABYLON.StandardMaterial("boxMat", scene);
-                    material.diffuseColor = new BABYLON.Color3(1, 0.5, 0);
-                    box.material = material;
+                    // Create three floating crystals
+                    const colors = [
+                        new BABYLON.Color3(1, 0.2, 0.6),  // Pink
+                        new BABYLON.Color3(0.2, 0.6, 1),  // Blue
+                        new BABYLON.Color3(1, 0.8, 0.2)   // Gold
+                    ];
 
-                    // Animation
-                    scene.registerBeforeRender(() => {
-                        box.rotation.y += 0.01;
-                        box.rotation.x += 0.005;
-                    });
+                    for (let i = 0; i < 3; i++) {
+                        const crystal = BABYLON.MeshBuilder.CreatePolyhedron("crystal" + i, {type: 1, size: 1.2}, scene);
+                        crystal.position.x = (i - 1) * 3;
+                        crystal.position.y = 1;
 
-                    const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 6, height: 6}, scene);
+                        const material = new BABYLON.PBRMaterial("mat" + i, scene);
+                        material.albedoColor = colors[i];
+                        material.metallic = 0.9;
+                        material.roughness = 0.1;
+                        material.emissiveColor = colors[i];
+                        material.emissiveIntensity = 0.3;
+                        crystal.material = material;
+
+                        // Floating animation
+                        const startY = crystal.position.y;
+                        scene.registerBeforeRender(() => {
+                            crystal.rotation.y += 0.005 + i * 0.003;
+                            crystal.position.y = startY + Math.sin(Date.now() * 0.001 + i) * 0.3;
+                        });
+                    }
+
+                    const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 15, height: 15}, scene);
+                    const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
+                    groundMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.15);
+                    groundMat.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+                    ground.material = groundMat;
 
                     return scene;
                 };
@@ -510,62 +534,86 @@ struct BabylonJSLibrary: Library3D {
 
             // ADVANCED EXAMPLE
             CodeExample(
-                title: "Particle System",
-                description: "Animated particle system with custom colors and behavior",
+                title: "Holographic Torus Array",
+                description: "Mesmerizing array of torus meshes with holographic glow and wave animation",
                 code: """
                 const createScene = () => {
                     const scene = new BABYLON.Scene(engine);
-                    scene.clearColor = new BABYLON.Color3(0, 0, 0);
+                    scene.clearColor = new BABYLON.Color3(0, 0.02, 0.08);
 
-                    const camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 5, -10), scene);
-                    camera.setTarget(BABYLON.Vector3.Zero());
+                    const camera = new BABYLON.ArcRotateCamera("camera1", 0, Math.PI / 3, 20, new BABYLON.Vector3(0, 0, 0), scene);
+                    camera.lowerRadiusLimit = 10;
+                    camera.upperRadiusLimit = 40;
                     if (camera.attachControls) {
                         camera.attachControls(canvas, true);
                     }
 
                     const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+                    light.intensity = 0.4;
 
-                    // Create particle system
-                    const particleSystem = new BABYLON.ParticleSystem("particles", 2000, scene);
-                    particleSystem.particleTexture = new BABYLON.Texture("https://www.babylonjs-playground.com/textures/flare.png", scene);
+                    // Create intense glow layer
+                    const gl = new BABYLON.GlowLayer("glow", scene);
+                    gl.intensity = 1.5;
 
-                    // Emitter
-                    const fountain = BABYLON.MeshBuilder.CreateBox("fountain", {size: 0.1}, scene);
-                    fountain.position.y = 0;
-                    particleSystem.emitter = fountain;
+                    // Create array of torus meshes
+                    const count = 8;
+                    const toruses = [];
 
-                    // Colors
-                    particleSystem.color1 = new BABYLON.Color4(1, 0.5, 0, 1);
-                    particleSystem.color2 = new BABYLON.Color4(1, 0, 0, 1);
-                    particleSystem.colorDead = new BABYLON.Color4(0, 0, 0, 0);
+                    for (let i = 0; i < count; i++) {
+                        const torus = BABYLON.MeshBuilder.CreateTorus("torus" + i, {
+                            diameter: 3,
+                            thickness: 0.5,
+                            tessellation: 64
+                        }, scene);
 
-                    // Size
-                    particleSystem.minSize = 0.1;
-                    particleSystem.maxSize = 0.3;
+                        torus.position.z = (i - count / 2) * 2;
 
-                    // Life time
-                    particleSystem.minLifeTime = 0.3;
-                    particleSystem.maxLifeTime = 1.5;
+                        // Create rainbow gradient material
+                        const hue = (i / count) * 360;
+                        const r = Math.abs(Math.sin((hue) * Math.PI / 180));
+                        const g = Math.abs(Math.sin((hue + 120) * Math.PI / 180));
+                        const b = Math.abs(Math.sin((hue + 240) * Math.PI / 180));
 
-                    // Emission rate
-                    particleSystem.emitRate = 500;
+                        const material = new BABYLON.PBRMaterial("mat" + i, scene);
+                        material.albedoColor = new BABYLON.Color3(r, g, b);
+                        material.metallic = 0.95;
+                        material.roughness = 0.05;
+                        material.emissiveColor = new BABYLON.Color3(r * 0.8, g * 0.8, b * 0.8);
+                        material.emissiveIntensity = 0.8;
+                        torus.material = material;
 
-                    // Direction
-                    particleSystem.direction1 = new BABYLON.Vector3(-1, 1, -1);
-                    particleSystem.direction2 = new BABYLON.Vector3(1, 1, 1);
+                        toruses.push(torus);
+                    }
 
-                    // Gravity
-                    particleSystem.gravity = new BABYLON.Vector3(0, -9.81, 0);
+                    // Wave animation
+                    let time = 0;
+                    scene.registerBeforeRender(() => {
+                        time += 0.016;
 
-                    particleSystem.start();
+                        // Auto-rotate camera
+                        camera.alpha += 0.002;
 
-                    const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 10, height: 10}, scene);
+                        toruses.forEach((torus, i) => {
+                            const offset = (i / count) * Math.PI * 2;
+
+                            // Wave motion
+                            torus.position.y = Math.sin(time + offset) * 2.5;
+
+                            // Rotation
+                            torus.rotation.x = time * 0.3;
+                            torus.rotation.z = time * 0.2;
+
+                            // Pulsing scale
+                            const scale = 1 + Math.sin(time + offset) * 0.15;
+                            torus.scaling = new BABYLON.Vector3(scale, scale, scale);
+                        });
+                    });
 
                     return scene;
                 };
                 const scene = createScene();
                 """,
-                category: .effects,
+                category: .advanced,
                 difficulty: .advanced
             )
         ]

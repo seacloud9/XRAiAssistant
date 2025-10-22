@@ -146,7 +146,8 @@ enum Library3DFactory {
             BabylonJSLibrary(),
             ThreeJSLibrary(),
             AFrameLibrary(),
-            ReactThreeFiberLibrary()
+            ReactThreeFiberLibrary(),
+            ReactylonLibrary()
         ]
     }
     

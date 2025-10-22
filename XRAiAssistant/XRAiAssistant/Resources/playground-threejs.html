@@ -386,11 +386,15 @@
         <button class="menu-btn" onclick="toggleConsole()">🖥 Console</button>
         <select class="menu-btn" onchange="loadExample(this.value)">
             <option value="">Select Example...</option>
+            <option value="neon-cubes">💫 Neon Cubes</option>
             <option value="basic-scene">Basic Scene</option>
-            <option value="rotating-cube">Galaxy Cubes ✨</option>
             <option value="lighting">Orbiting Lights 💡</option>
             <option value="materials">Materials Demo</option>
             <option value="rainbow">Rainbow Arc 🌈</option>
+            <option value="particle-spiral-galaxy">🌌 Particle Spiral Galaxy</option>
+            <option value="morphing-geometry">🔮 Morphing Geometry</option>
+            <option value="interactive-color-spheres">🎨 Interactive Color Spheres</option>
+            <option value="glowing-torus-knots">✨ Glowing Torus Knots</option>
             <option value="postprocessing">Bloom Effect ✨</option>
         </select>
     </div>
@@ -1596,11 +1600,15 @@ console.log("✅ Default scene creation complete!");`;
             if (!exampleId) return;
 
             const examples = {
+                'neon-cubes': getNeonCubesCode(),
                 'basic-scene': getDefaultCode(),
-                'rotating-cube': getRotatingCubeCode(),
                 'lighting': getLightingDemoCode(),
                 'materials': getMaterialsDemoCode(),
                 'rainbow': getRainbowCode(),
+                'particle-spiral-galaxy': getParticleSpiralGalaxyCode(),
+                'morphing-geometry': getMorphingGeometryCode(),
+                'interactive-color-spheres': getInteractiveColorSpheresCode(),
+                'glowing-torus-knots': getGlowingTorusKnotsCode(),
                 'postprocessing': getPostprocessingCode()
             };
 
@@ -1688,85 +1696,374 @@ console.log("✅ Default scene creation complete!");`;
         // Console management functions already defined above
         
         // Example code templates
-        function getRotatingCubeCode() {
+        function getNeonCubesCode() {
             return `const createScene = () => {
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000033); // Deep space blue
+    scene.background = new THREE.Color(0x050510);
+    scene.fog = new THREE.Fog(0x050510, 10, 50);
 
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 3, 8);
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 3, 10);
 
-    // Dramatic lighting
-    const ambientLight = new THREE.AmbientLight(0x222244, 0.4);
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
     scene.add(ambientLight);
 
-    // Multiple colored lights for dramatic effect
-    const light1 = new THREE.PointLight(0xff0055, 2, 50);
-    light1.position.set(5, 5, 5);
-    scene.add(light1);
+    const pointLight = new THREE.PointLight(0xff00ff, 2, 50);
+    pointLight.position.set(5, 5, 5);
+    scene.add(pointLight);
 
-    const light2 = new THREE.PointLight(0x0055ff, 2, 50);
-    light2.position.set(-5, 5, -5);
-    scene.add(light2);
-    
-    // Create galaxy of glowing cubes
+    // Create neon cubes
+    const colors = [0xff0080, 0x00ff80, 0x0080ff, 0xffff00];
     const cubes = [];
-    for (let i = 0; i < 50; i++) {
-        const size = Math.random() * 0.5 + 0.2;
-        const geometry = new THREE.BoxGeometry(size, size, size);
-        const hue = Math.random();
-        const color = new THREE.Color().setHSL(hue, 1.0, 0.5);
 
+    for (let i = 0; i < 4; i++) {
+        const geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
         const material = new THREE.MeshStandardMaterial({
-            color: color,
-            emissive: color,
-            emissiveIntensity: 0.8,
-            metalness: 0.5,
+            color: colors[i],
+            emissive: colors[i],
+            emissiveIntensity: 0.5,
+            metalness: 0.8,
             roughness: 0.2
         });
 
         const cube = new THREE.Mesh(geometry, material);
-
-        // Position in a sphere
-        const radius = Math.random() * 5 + 2;
-        const theta = Math.random() * Math.PI * 2;
-        const phi = Math.random() * Math.PI;
-
-        cube.position.x = radius * Math.sin(phi) * Math.cos(theta);
-        cube.position.y = radius * Math.sin(phi) * Math.sin(theta);
-        cube.position.z = radius * Math.cos(phi);
-
-        // Random rotation speeds
-        cube.userData.rotationSpeed = {
-            x: (Math.random() - 0.5) * 0.02,
-            y: (Math.random() - 0.5) * 0.02,
-            z: (Math.random() - 0.5) * 0.02
-        };
-
+        cube.position.set(
+            (i - 1.5) * 2.5,
+            1,
+            0
+        );
         scene.add(cube);
         cubes.push(cube);
     }
 
-    // Animation - rotate each cube
+    // Ground
+    const groundGeometry = new THREE.PlaneGeometry(20, 20);
+    const groundMaterial = new THREE.MeshStandardMaterial({
+        color: 0x0f0f20,
+        roughness: 0.8,
+        metalness: 0.2
+    });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+
+    // Animation
     function animate() {
-        cubes.forEach(cube => {
-            cube.rotation.x += cube.userData.rotationSpeed.x;
-            cube.rotation.y += cube.userData.rotationSpeed.y;
-            cube.rotation.z += cube.userData.rotationSpeed.z;
+        requestAnimationFrame(animate);
+
+        cubes.forEach((cube, i) => {
+            cube.rotation.x += 0.01;
+            cube.rotation.y += 0.01;
+            cube.position.y = 1 + Math.sin(Date.now() * 0.001 + i) * 0.3;
         });
+
+        controls.update();
+        renderer.render(scene, camera);
     }
-
-    scene.userData.animate = animate;
-
-    controls.target.set(0, 0, 0);
-    controls.update();
+    animate();
 
     return { scene, camera };
 };
 
 const { scene, camera } = createScene();`;
         }
-        
+
+        function getParticleSpiralGalaxyCode() {
+            return `const createScene = () => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000000);
+
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 5, 15);
+
+    // Create particle system
+    const particleCount = 10000;
+    const positions = new Float32Array(particleCount * 3);
+    const colors = new Float32Array(particleCount * 3);
+
+    for (let i = 0; i < particleCount; i++) {
+        // Spiral galaxy formation
+        const radius = Math.random() * 10;
+        const spinAngle = radius * 2;
+        const branchAngle = (i % 3) * ((2 * Math.PI) / 3);
+
+        const randomX = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1);
+        const randomY = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1);
+        const randomZ = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1);
+
+        positions[i * 3] = Math.cos(branchAngle + spinAngle) * radius + randomX;
+        positions[i * 3 + 1] = randomY * 0.5;
+        positions[i * 3 + 2] = Math.sin(branchAngle + spinAngle) * radius + randomZ;
+
+        // Color gradient from center to edge
+        const colorInner = new THREE.Color(0xff6030);
+        const colorOuter = new THREE.Color(0x1b3984);
+        const mixedColor = colorInner.clone().lerp(colorOuter, radius / 10);
+
+        colors[i * 3] = mixedColor.r;
+        colors[i * 3 + 1] = mixedColor.g;
+        colors[i * 3 + 2] = mixedColor.b;
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const material = new THREE.PointsMaterial({
+        size: 0.1,
+        vertexColors: true,
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        depthWrite: false
+    });
+
+    const particles = new THREE.Points(geometry, material);
+    scene.add(particles);
+
+    // Animation
+    function animate() {
+        requestAnimationFrame(animate);
+
+        particles.rotation.y += 0.001;
+
+        controls.update();
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    return { scene, camera };
+};
+
+const { scene, camera } = createScene();`;
+        }
+
+        function getMorphingGeometryCode() {
+            return `const createScene = () => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1a2e);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 2, 8);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    scene.add(ambientLight);
+
+    const pointLight = new THREE.PointLight(0xffffff, 1);
+    pointLight.position.set(5, 5, 5);
+    scene.add(pointLight);
+
+    // Create geometries for morphing
+    const geometry1 = new THREE.BoxGeometry(2, 2, 2, 32, 32, 32);
+    const geometry2 = new THREE.SphereGeometry(1.5, 32, 32);
+    const geometry3 = new THREE.TorusGeometry(1, 0.4, 32, 100);
+
+    // Create morph targets
+    const geometry = geometry1.clone();
+    geometry.morphAttributes.position = [
+        geometry2.attributes.position,
+        geometry3.attributes.position
+    ];
+
+    const material = new THREE.MeshStandardMaterial({
+        color: 0x4ecdc4,
+        emissive: 0x4ecdc4,
+        emissiveIntensity: 0.2,
+        metalness: 0.7,
+        roughness: 0.3,
+        morphTargets: true
+    });
+
+    const mesh = new THREE.Mesh(geometry, material);
+    scene.add(mesh);
+
+    // Animation
+    function animate() {
+        requestAnimationFrame(animate);
+
+        const time = Date.now() * 0.001;
+
+        // Morph between shapes
+        mesh.morphTargetInfluences[0] = Math.sin(time * 0.5) * 0.5 + 0.5;
+        mesh.morphTargetInfluences[1] = Math.cos(time * 0.3) * 0.5 + 0.5;
+
+        mesh.rotation.x = time * 0.2;
+        mesh.rotation.y = time * 0.3;
+
+        controls.update();
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    return { scene, camera };
+};
+
+const { scene, camera } = createScene();`;
+        }
+
+        function getInteractiveColorSpheresCode() {
+            return `const createScene = () => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0a1a);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 0, 10);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
+
+    const pointLight = new THREE.PointLight(0xffffff, 1);
+    pointLight.position.set(10, 10, 10);
+    scene.add(pointLight);
+
+    // Create interactive spheres
+    const spheres = [];
+    const colors = [0xff6b9d, 0x4080ff, 0x4ecdc4, 0xffe66d, 0xa26cf7];
+
+    for (let i = 0; i < 5; i++) {
+        const geometry = new THREE.SphereGeometry(0.8, 32, 32);
+        const material = new THREE.MeshStandardMaterial({
+            color: colors[i],
+            emissive: colors[i],
+            emissiveIntensity: 0.1,
+            metalness: 0.5,
+            roughness: 0.2
+        });
+
+        const sphere = new THREE.Mesh(geometry, material);
+        sphere.position.set((i - 2) * 2.5, 0, 0);
+        sphere.userData = {
+            baseScale: 1,
+            targetScale: 1,
+            colorIndex: i,
+            hovered: false
+        };
+        scene.add(sphere);
+        spheres.push(sphere);
+    }
+
+    // Raycaster for interaction
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    function onMouseMove(event) {
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(spheres);
+
+        spheres.forEach(sphere => {
+            sphere.userData.hovered = false;
+            sphere.userData.targetScale = 1;
+        });
+
+        if (intersects.length > 0) {
+            intersects[0].object.userData.hovered = true;
+            intersects[0].object.userData.targetScale = 1.3;
+        }
+    }
+
+    function onClick(event) {
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(spheres);
+
+        if (intersects.length > 0) {
+            const sphere = intersects[0].object;
+            sphere.userData.colorIndex = (sphere.userData.colorIndex + 1) % colors.length;
+            sphere.material.color.setHex(colors[sphere.userData.colorIndex]);
+            sphere.material.emissive.setHex(colors[sphere.userData.colorIndex]);
+        }
+    }
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('click', onClick);
+
+    // Animation
+    function animate() {
+        requestAnimationFrame(animate);
+
+        spheres.forEach(sphere => {
+            // Smooth scale transition
+            sphere.scale.lerp(
+                new THREE.Vector3(
+                    sphere.userData.targetScale,
+                    sphere.userData.targetScale,
+                    sphere.userData.targetScale
+                ),
+                0.1
+            );
+
+            sphere.rotation.y += 0.01;
+        });
+
+        controls.update();
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    return { scene, camera };
+};
+
+const { scene, camera } = createScene();`;
+        }
+
+        function getGlowingTorusKnotsCode() {
+            return `const createScene = () => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000000);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 0, 15);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+    scene.add(ambientLight);
+
+    // Create three torus knots
+    const knots = [];
+    const colors = [0xff006e, 0x00f5ff, 0xffbe0b];
+
+    for (let i = 0; i < 3; i++) {
+        const geometry = new THREE.TorusKnotGeometry(1.5, 0.5, 100, 16, 2 + i, 3);
+        const material = new THREE.MeshStandardMaterial({
+            color: colors[i],
+            emissive: colors[i],
+            emissiveIntensity: 0.8,
+            metalness: 0.9,
+            roughness: 0.1
+        });
+
+        const knot = new THREE.Mesh(geometry, material);
+        knot.position.set((i - 1) * 5, 0, 0);
+        scene.add(knot);
+        knots.push(knot);
+    }
+
+    // Animation
+    function animate() {
+        requestAnimationFrame(animate);
+
+        const time = Date.now() * 0.001;
+
+        knots.forEach((knot, i) => {
+            knot.rotation.x = time * (0.3 + i * 0.1);
+            knot.rotation.y = time * (0.2 + i * 0.1);
+            knot.position.y = Math.sin(time + i * 2) * 1.5;
+        });
+
+        controls.update();
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    return { scene, camera };
+};
+
+const { scene, camera } = createScene();`;
+        }
+
         function getLightingDemoCode() {
             return `const createScene = () => {
     const scene = new THREE.Scene();

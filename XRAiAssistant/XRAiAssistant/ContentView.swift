@@ -323,8 +323,10 @@ struct ContentView: View {
                 .foregroundColor(.primary)
             
             Picker("Library", selection: Binding(
-                get: { chatViewModel.getCurrentLibrary().id },
-                set: { libraryId in chatViewModel.selectLibrary(id: libraryId) }
+                get: { chatViewModel.currentLibraryId },
+                set: { newValue in
+                    chatViewModel.selectLibrary(id: newValue)
+                }
             )) {
                 ForEach(chatViewModel.getAvailableLibraries(), id: \.id) { library in
                     VStack(alignment: .leading, spacing: 2) {
@@ -997,6 +999,7 @@ struct ContentView: View {
                                     self.codeSandboxCreateFunction = createFunction
                                 }
                             )
+                            .id(chatViewModel.getCurrentLibrary().id)  // Force reload when library changes
                         } else {
                             // Use traditional local playground
                             PlaygroundWebView(
@@ -1013,6 +1016,7 @@ struct ContentView: View {
                                     handleWebViewMessage(action: action, data: data)
                                 }
                             )
+                            .id(chatViewModel.getCurrentLibrary().id)  // Force reload when library changes
                         }
                         
                         // Code injection overlay

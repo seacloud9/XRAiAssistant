@@ -356,14 +356,10 @@
         <button class="menu-btn" onclick="toggleConsole()">🖥 Console</button>
         <select class="menu-btn" onchange="loadExample(this.value)">
             <option value="">Select Example...</option>
-            <option value="animated-vr-room">🏠 Animated VR Room</option>
-            <option value="enhanced-rendering">✨ Enhanced Rendering (v1.7.0)</option>
-            <option value="solar-system">🌍 Interactive Solar System</option>
-            <option value="color-changer">🎨 Interactive Color Changer</option>
-            <option value="dynamic-lighting">💡 Dynamic RGB Lighting</option>
-            <option value="vr-hand-tracking">👋 VR Hand Tracking</option>
-            <option value="advanced-materials">🔧 Advanced PBR Materials</option>
-            <option value="vr-gallery">🖼️ Immersive VR Gallery</option>
+            <option value="basic-vr">Basic VR Scene</option>
+            <option value="interactive">Interactive Scene</option>
+            <option value="animation">Animation Scene</option>
+            <option value="vr-controls">VR Controls</option>
         </select>
     </div>
     
@@ -1043,14 +1039,14 @@
 
         function loadExample(exampleId) {
             if (!exampleId) return;
-            
+
             const examples = {
                 'basic-vr': getDefaultCode(),
                 'interactive': getInteractiveCode(),
                 'animation': getAnimationCode(),
                 'vr-controls': getVRControlsCode()
             };
-            
+
             if (examples[exampleId] && editor) {
                 editor.setValue(examples[exampleId]);
                 runCode();
