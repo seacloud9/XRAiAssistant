@@ -255,7 +255,8 @@ class ChatViewModel: ObservableObject {
     }
     
     func getAvailableLibraries() -> [Library3DManager.AnyLibrary3D] {
-        return library3DManager.availableLibraries
+        // Filter out Reactylon from the available libraries
+        return library3DManager.availableLibraries.filter { $0.id != "reactylon" }
     }
     
     func getDefaultSceneCode() -> String {
@@ -915,19 +916,29 @@ class ChatViewModel: ObservableObject {
                 print("🔍 QWEN DEBUG: Contains function: \(code.contains("function"))")
                 print("🔍 QWEN DEBUG: Contains var: \(code.contains("var "))")
                 print("🔍 QWEN DEBUG: Contains let: \(code.contains("let "))")
-                
+
+                // CRITICAL FIX: Check for A-Frame HTML FIRST to avoid false positives
+                let isAFrameCode = code.contains("<a-scene") ||
+                                   code.contains("<a-") ||
+                                   code.contains("a-scene") ||
+                                   code.contains("a-box") ||
+                                   code.contains("a-sphere")
+
+                print("🔍 QWEN DEBUG: isAFrameCode = \(isAFrameCode)")
+
                 // Accept ANY code block that looks like Babylon.js code - be very flexible
-                let isBabylonCode = code.contains("createScene") || 
-                                   code.contains("BABYLON") || 
-                                   code.contains("Scene") || 
-                                   code.contains("const scene") || 
-                                   code.contains("scene") ||
-                                   code.contains("camera") ||
-                                   code.contains("light") ||
+                // BUT exclude A-Frame HTML which also contains "scene", "camera", "light"
+                let isBabylonCode = !isAFrameCode && (
+                                   code.contains("createScene") ||
+                                   code.contains("BABYLON") ||
+                                   code.contains("new Scene") ||
+                                   code.contains("const scene") ||
+                                   (code.contains("scene") && code.contains("const")) ||
+                                   (code.contains("camera") && code.contains("const")) ||
                                    code.contains("mesh") ||
                                    code.contains("engine") ||
-                                   code.contains("canvas")
-                
+                                   (code.contains("canvas") && code.contains("const")))
+
                 print("🔍 QWEN DEBUG: isBabylonCode = \(isBabylonCode)")
                 
                 if isBabylonCode {

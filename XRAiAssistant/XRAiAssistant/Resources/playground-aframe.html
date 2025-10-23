@@ -9,7 +9,7 @@
     <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
     
     <!-- A-Frame Extras for additional components -->
-    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v7.6.0/dist/aframe-extras.min.js"></script>
     
     <!-- Monaco Editor -->
     <script src="https://unpkg.com/monaco-editor@0.45.0/min/vs/loader.js"></script>
@@ -356,10 +356,19 @@
         <button class="menu-btn" onclick="toggleConsole()">🖥 Console</button>
         <select class="menu-btn" onchange="loadExample(this.value)">
             <option value="">Select Example...</option>
-            <option value="basic-vr">Basic VR Scene</option>
-            <option value="interactive">Interactive Scene</option>
-            <option value="animation">Animation Scene</option>
-            <option value="vr-controls">VR Controls</option>
+            <option value="basic-scene">Basic Scene</option>
+            <option value="rotating-cube">Rotating Cube</option>
+            <option value="interactive-objects">Interactive Objects</option>
+            <option value="textured-sphere">Textured Sphere</option>
+            <option value="sky-gradient">Sky Gradient</option>
+            <option value="physics-demo">Physics Demo</option>
+            <option value="animated-camera">Animated Camera</option>
+            <option value="360-image">360° Image</option>
+            <option value="orbiting-planets">Orbiting Planets</option>
+            <option value="particle-ring">Particle Ring</option>
+            <option value="glowing-tunnel">Glowing Tunnel</option>
+            <option value="stacked-cubes">Stacked Cubes Tower</option>
+            <option value="color-changing">Color Changing Environment</option>
         </select>
     </div>
     
@@ -485,10 +494,28 @@
         require(['vs/editor/editor.main'], function () {
             clearTimeout(monacoTimeout); // Cancel timeout since loading succeeded
             console.log('✅ Monaco modules loaded successfully, creating A-Frame editor...');
-            
+
+            // Pre-creation diagnostics
+            console.log('🔍 Pre-creation checks:');
+            console.log('  - Monaco object:', typeof monaco);
+            console.log('  - Monaco.editor:', typeof monaco?.editor);
+            console.log('  - Monaco.editor.create:', typeof monaco?.editor?.create);
+
+            const container = document.getElementById('monaco-editor');
+            console.log('  - Container element:', !!container);
+            console.log('  - Container visible:', container?.offsetWidth > 0 && container?.offsetHeight > 0);
+            console.log('  - Container dimensions:', {
+                width: container?.offsetWidth,
+                height: container?.offsetHeight
+            });
+
+            const defaultCode = getBasicSceneCode();
+            console.log('  - Default code length:', defaultCode?.length);
+            console.log('  - Default code preview:', defaultCode?.substring(0, 100));
+
             try {
                 editor = monaco.editor.create(document.getElementById('monaco-editor'), {
-                    value: getDefaultCode(),
+                    value: getBasicSceneCode(),
                     language: 'html',
                     theme: 'vs-dark',
                     automaticLayout: true,
@@ -560,6 +587,18 @@
                 
             } catch (editorError) {
                 console.error('❌ Failed to create Monaco editor:', editorError);
+                console.error('🔍 Error type:', typeof editorError);
+                console.error('🔍 Error message:', editorError?.message);
+                console.error('🔍 Error stack:', editorError?.stack);
+                console.error('🔍 Error name:', editorError?.name);
+                console.error('🔍 Full error object:', JSON.stringify(editorError, Object.getOwnPropertyNames(editorError)));
+                console.error('🔍 Monaco available:', typeof monaco);
+                console.error('🔍 Monaco.editor available:', typeof monaco?.editor);
+                console.error('🔍 Container exists:', !!document.getElementById('monaco-editor'));
+                console.error('🔍 Container dimensions:', {
+                    width: document.getElementById('monaco-editor')?.offsetWidth,
+                    height: document.getElementById('monaco-editor')?.offsetHeight
+                });
                 createFallbackEditor();
             }
         }, function(error) {
@@ -583,7 +622,7 @@
             
             const textarea = document.getElementById('fallback-editor');
             if (textarea) {
-                textarea.value = getDefaultCode();
+                textarea.value = getBasicSceneCode();
                 
                 // Create minimal editor interface
                 window.editor = {
@@ -639,46 +678,23 @@
             }, 1500);
         }
         
-        function getDefaultCode() {
-            return `<!-- Welcome to A-Frame VR Playground! -->
-<!-- Create immersive VR/AR scenes using A-Frame -->
-
-<a-scene embedded vr-mode-ui="enabled: true" background="color: #212">
-    <!-- Assets -->
-    <a-assets>
-        <!-- Add textures, models, sounds here -->
-    </a-assets>
-    
-    <!-- Lighting -->
+        function getBasicSceneCode() {
+            return `<a-scene embedded vr-mode-ui="enabled: true">
     <a-light type="ambient" color="#404040" intensity="0.6"></a-light>
-    <a-light type="directional" position="10 10 5" color="#ffffff" intensity="0.8"></a-light>
-    
-    <!-- 3D Objects -->
-    <a-sphere 
-        position="0 2 -5" 
-        radius="1" 
-        color="#ff6b6b"
+    <a-light type="directional" position="10 10 5" intensity="0.8"></a-light>
+
+    <a-sphere position="0 2 -5" radius="1" color="#ff6b6b"
         animation="property: rotation; to: 0 360 0; loop: true; dur: 4000">
     </a-sphere>
-    
-    <a-box 
-        position="-2 1 -3" 
-        rotation="0 45 0" 
-        color="#4ecdc4"
+
+    <a-box position="-2 1 -3" rotation="0 45 0" color="#4ecdc4"
         animation="property: position; to: -2 2 -3; direction: alternate; loop: true; dur: 2000">
     </a-box>
-    
-    <a-cylinder 
-        position="2 1 -3" 
-        radius="0.5" 
-        height="2" 
-        color="#ffe66d">
+
+    <a-cylinder position="2 1 -3" radius="0.5" height="2" color="#ffe66d">
     </a-cylinder>
-    
-    <!-- Ground -->
-    <a-plane 
-        position="0 0 -4" 
-        rotation="-90 0 0" 
+
+    <a-plane position="0 0 -4" rotation="-90 0 0" 
         width="20" 
         height="20" 
         color="#95e1d3"
@@ -707,11 +723,161 @@
     </a-camera>
 </a-scene>`;
         }
-        
+
+        function getRotatingCubeCode() {
+            return `<a-scene embedded vr-mode-ui="enabled: true">
+    <a-light type="ambient" color="#404040" intensity="0.6"></a-light>
+    <a-light type="directional" position="10 10 5" intensity="0.8"></a-light>
+    <a-box position="0 2 -5" rotation="0 45 0" color="#4ecdc4"
+        animation="property: rotation; to: 360 405 360; loop: true; dur: 5000">
+    </a-box>
+    <a-plane position="0 0 -4" rotation="-90 0 0" width="20" height="20" color="#95e1d3"></a-plane>
+    <a-camera look-controls wasd-controls position="0 1.6 3"><a-cursor color="#fff"></a-cursor></a-camera>
+</a-scene>`;
+        }
+
+        function getInteractiveObjectsCode() {
+            return `<a-scene embedded vr-mode-ui="enabled: true">
+    <a-light type="ambient" color="#404040" intensity="0.6"></a-light>
+    <a-light type="directional" position="10 10 5" intensity="0.8"></a-light>
+    <a-sphere position="-2 1.5 -3" radius="0.8" color="#ff6b6b" class="clickable"
+        animation__click="property: color; to: #00ff00; startEvents: click; dur: 500"></a-sphere>
+    <a-sphere position="0 1.5 -3" radius="0.8" color="#4ecdc4" class="clickable"
+        animation__click="property: scale; to: 1.5 1.5 1.5; startEvents: click; dur: 1000; direction: alternate"></a-sphere>
+    <a-sphere position="2 1.5 -3" radius="0.8" color="#ffe66d" class="clickable"
+        animation__click="property: rotation; to: 0 360 0; startEvents: click; dur: 2000"></a-sphere>
+    <a-plane position="0 0 -4" rotation="-90 0 0" width="10" height="10" color="#95e1d3"></a-plane>
+    <a-camera look-controls wasd-controls position="0 1.6 0"><a-cursor color="#fff" raycaster="objects: .clickable"></a-cursor></a-camera>
+</a-scene>`;
+        }
+
+        function getTexturedSphereCode() {
+            return `<a-scene embedded vr-mode-ui="enabled: true">
+    <a-light type="ambient" color="#404040" intensity="0.6"></a-light>
+    <a-light type="directional" position="10 10 5" intensity="0.8"></a-light>
+    <a-sphere position="0 2 -5" radius="1.5" material="color: #4080ff; metalness: 0.8; roughness: 0.2"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 8000"></a-sphere>
+    <a-plane position="0 0 -4" rotation="-90 0 0" width="20" height="20" color="#95e1d3"></a-plane>
+    <a-camera look-controls wasd-controls position="0 1.6 3"><a-cursor color="#fff"></a-cursor></a-camera>
+</a-scene>`;
+        }
+
+        function getSkyGradientCode() {
+            return `<a-scene embedded vr-mode-ui="enabled: true">
+    <a-sky color="#87CEEB"></a-sky>
+    <a-light type="ambient" color="#ffffff" intensity="0.8"></a-light>
+    <a-sphere position="0 2 -5" radius="1" color="#ff6b6b"></a-sphere>
+    <a-box position="-2 1 -3" color="#4ecdc4"></a-box>
+    <a-cylinder position="2 1 -3" radius="0.5" height="2" color="#ffe66d"></a-cylinder>
+    <a-plane position="0 0 -4" rotation="-90 0 0" width="30" height="30" color="#7BC8A4"></a-plane>
+    <a-camera look-controls wasd-controls position="0 1.6 3"><a-cursor color="#fff"></a-cursor></a-camera>
+</a-scene>`;
+        }
+
+        function getPhysicsDemoCode() {
+            return `<a-scene embedded vr-mode-ui="enabled: true" physics="gravity: -9.8">
+    <a-light type="ambient" color="#404040" intensity="0.6"></a-light>
+    <a-light type="directional" position="10 10 5" intensity="0.8"></a-light>
+    <a-sphere position="0 5 -5" radius="0.8" color="#ff6b6b" dynamic-body></a-sphere>
+    <a-box position="-1 6 -5" color="#4ecdc4" dynamic-body></a-box>
+    <a-cylinder position="1 7 -5" radius="0.5" height="1" color="#ffe66d" dynamic-body></a-cylinder>
+    <a-plane position="0 0 -5" rotation="-90 0 0" width="10" height="10" color="#95e1d3" static-body></a-plane>
+    <a-camera look-controls wasd-controls position="0 2 3"><a-cursor color="#fff"></a-cursor></a-camera>
+</a-scene>`;
+        }
+
+        function getAnimatedCameraCode() {
+            return `<a-scene embedded vr-mode-ui="enabled: true">
+    <a-light type="ambient" color="#404040" intensity="0.6"></a-light>
+    <a-light type="directional" position="10 10 5" intensity="0.8"></a-light>
+    <a-sphere position="0 2 -5" radius="1" color="#ff6b6b"></a-sphere>
+    <a-box position="-3 1 -4" color="#4ecdc4"></a-box>
+    <a-cylinder position="3 1 -4" radius="0.5" height="2" color="#ffe66d"></a-cylinder>
+    <a-plane position="0 0 -4" rotation="-90 0 0" width="20" height="20" color="#95e1d3"></a-plane>
+    <a-camera look-controls wasd-controls position="0 1.6 3" animation="property: position; to: 0 1.6 8; startEvents: click; dur: 3000">
+        <a-cursor color="#fff"></a-cursor></a-camera>
+</a-scene>`;
+        }
+
+        function get360ImageCode() {
+            return `<a-scene embedded vr-mode-ui="enabled: true">
+    <a-sky color="#7BC8A4"></a-sky>
+    <a-light type="ambient" color="#ffffff" intensity="0.9"></a-light>
+    <a-text value="360° Environment" position="0 2 -3" align="center" color="#000"></a-text>
+    <a-sphere position="0 1.5 -5" radius="0.5" color="#ff6b6b" animation="property: rotation; to: 0 360 0; loop: true; dur: 4000"></a-sphere>
+    <a-camera look-controls wasd-controls position="0 1.6 0"><a-cursor color="#fff"></a-cursor></a-camera>
+</a-scene>`;
+        }
+
+        function getOrbitingPlanetsCode() {
+            return `<a-scene embedded vr-mode-ui="enabled: true">
+    <a-light type="ambient" color="#404040" intensity="0.5"></a-light>
+    <a-light type="point" position="0 0 0" intensity="2"></a-light>
+    <a-sphere position="0 0 0" radius="1" color="#FDB813"></a-sphere>
+    <a-entity position="0 0 0" animation="property: rotation; to: 0 360 0; loop: true; dur: 10000">
+        <a-sphere position="3 0 0" radius="0.3" color="#4080ff"></a-sphere>
+    </a-entity>
+    <a-entity position="0 0 0" animation="property: rotation; to: 0 360 0; loop: true; dur: 15000">
+        <a-sphere position="5 0 0" radius="0.4" color="#ff6b6b"></a-sphere>
+    </a-entity>
+    <a-camera look-controls wasd-controls position="0 5 10"><a-cursor color="#fff"></a-cursor></a-camera>
+</a-scene>`;
+        }
+
+        function getParticleRingCode() {
+            return `<a-scene embedded vr-mode-ui="enabled: true">
+    <a-light type="ambient" color="#404040" intensity="0.5"></a-light>
+    <a-light type="point" position="0 2 0" intensity="2" color="#4080ff"></a-light>
+    <a-entity position="0 2 -5" animation="property: rotation; to: 0 360 0; loop: true; dur: 8000">
+        <a-sphere position="2 0 0" radius="0.1" color="#ff6b6b"></a-sphere>
+        <a-sphere position="1.4 1.4 0" radius="0.1" color="#4ecdc4"></a-sphere>
+        <a-sphere position="0 2 0" radius="0.1" color="#ffe66d"></a-sphere>
+        <a-sphere position="-1.4 1.4 0" radius="0.1" color="#ff6b9d"></a-sphere>
+        <a-sphere position="-2 0 0" radius="0.1" color="#4080ff"></a-sphere>
+    </a-entity>
+    <a-plane position="0 0 -5" rotation="-90 0 0" width="10" height="10" color="#1a1a2e"></a-plane>
+    <a-camera look-controls wasd-controls position="0 2 3"><a-cursor color="#fff"></a-cursor></a-camera>
+</a-scene>`;
+        }
+
+        function getGlowingTunnelCode() {
+            return `<a-scene embedded vr-mode-ui="enabled: true">
+    <a-light type="ambient" color="#202020" intensity="0.4"></a-light>
+    <a-torus position="0 2 -5" radius="2" radius-tubular="0.1" color="#ff00ff" material="emissive: #ff00ff; emissiveIntensity: 0.5"
+        animation="property: rotation; to: 360 0 0; loop: true; dur: 4000"></a-torus>
+    <a-torus position="0 2 -7" radius="2" radius-tubular="0.1" color="#00ffff" material="emissive: #00ffff; emissiveIntensity: 0.5"
+        animation="property: rotation; to: 360 0 0; loop: true; dur: 4000"></a-torus>
+    <a-torus position="0 2 -9" radius="2" radius-tubular="0.1" color="#ffff00" material="emissive: #ffff00; emissiveIntensity: 0.5"
+        animation="property: rotation; to: 360 0 0; loop: true; dur: 4000"></a-torus>
+    <a-camera look-controls wasd-controls position="0 2 0"><a-cursor color="#fff"></a-cursor></a-camera>
+</a-scene>`;
+        }
+
+        function getStackedCubesCode() {
+            return `<a-scene embedded vr-mode-ui="enabled: true">
+    <a-light type="ambient" color="#404040" intensity="0.6"></a-light>
+    <a-light type="directional" position="10 10 5" intensity="0.8"></a-light>
+    <a-box position="0 0.5 -5" color="#ff6b6b" animation="property: rotation; to: 0 360 0; loop: true; dur: 4000"></a-box>
+    <a-box position="0 1.5 -5" color="#4ecdc4" animation="property: rotation; to: 0 360 0; loop: true; dur: 3000"></a-box>
+    <a-box position="0 2.5 -5" color="#ffe66d" animation="property: rotation; to: 0 360 0; loop: true; dur: 2000"></a-box>
+    <a-plane position="0 0 -5" rotation="-90 0 0" width="10" height="10" color="#95e1d3"></a-plane>
+    <a-camera look-controls wasd-controls position="0 2 3"><a-cursor color="#fff"></a-cursor></a-camera>
+</a-scene>`;
+        }
+
+        function getColorChangingCode() {
+            return `<a-scene embedded vr-mode-ui="enabled: true">
+    <a-light type="ambient" color="#ffffff" intensity="0.8" animation="property: intensity; to: 0.3; direction: alternate; loop: true; dur: 2000"></a-light>
+    <a-sphere position="0 2 -5" radius="1" color="#ff6b6b" animation="property: color; to: #4080ff; direction: alternate; loop: true; dur: 3000"></a-sphere>
+    <a-plane position="0 0 -4" rotation="-90 0 0" width="20" height="20" color="#1a1a2e" animation="property: color; to: #7BC8A4; direction: alternate; loop: true; dur: 4000"></a-plane>
+    <a-camera look-controls wasd-controls position="0 1.6 3"><a-cursor color="#fff"></a-cursor></a-camera>
+</a-scene>`;
+        }
+
         function createDefaultScene() {
             try {
                 // Execute user code
-                const userCode = editor ? editor.getValue() : getDefaultCode();
+                const userCode = editor ? editor.getValue() : getBasicSceneCode();
                 executeUserCode(userCode);
                 
                 hideError();
@@ -792,7 +958,7 @@
         
         function clearCode() {
             if (editor) {
-                editor.setValue(getDefaultCode());
+                editor.setValue(getBasicSceneCode());
                 notifySwift('codeCleared', {});
             }
         }
@@ -1041,10 +1207,19 @@
             if (!exampleId) return;
 
             const examples = {
-                'basic-vr': getDefaultCode(),
-                'interactive': getInteractiveCode(),
-                'animation': getAnimationCode(),
-                'vr-controls': getVRControlsCode()
+                'basic-scene': getBasicSceneCode(),
+                'rotating-cube': getRotatingCubeCode(),
+                'interactive-objects': getInteractiveObjectsCode(),
+                'textured-sphere': getTexturedSphereCode(),
+                'sky-gradient': getSkyGradientCode(),
+                'physics-demo': getPhysicsDemoCode(),
+                'animated-camera': getAnimatedCameraCode(),
+                '360-image': get360ImageCode(),
+                'orbiting-planets': getOrbitingPlanetsCode(),
+                'particle-ring': getParticleRingCode(),
+                'glowing-tunnel': getGlowingTunnelCode(),
+                'stacked-cubes': getStackedCubesCode(),
+                'color-changing': getColorChangingCode()
             };
 
             if (examples[exampleId] && editor) {

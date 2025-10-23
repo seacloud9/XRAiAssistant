@@ -602,6 +602,363 @@ struct ThreeJSLibrary: Library3D {
                 """,
                 category: .advanced,
                 difficulty: .advanced
+            ),
+
+            CodeExample(
+                title: "Wireframe Geometry Dance",
+                description: "Animated wireframe geometries with pulsing effects",
+                code: """
+                const createScene = () => {
+                    const scene = new THREE.Scene();
+                    scene.background = new THREE.Color(0x0a0a0a);
+
+                    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+                    camera.position.set(0, 5, 12);
+
+                    const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+                    scene.add(ambientLight);
+
+                    // Create wireframe objects
+                    const objects = [];
+                    const geometries = [
+                        new THREE.IcosahedronGeometry(1.5, 0),
+                        new THREE.OctahedronGeometry(1.5),
+                        new THREE.TetrahedronGeometry(1.5)
+                    ];
+
+                    const colors = [0xff00ff, 0x00ffff, 0xffff00];
+
+                    for (let i = 0; i < 3; i++) {
+                        const material = new THREE.MeshBasicMaterial({
+                            color: colors[i],
+                            wireframe: true,
+                            wireframeLinewidth: 2
+                        });
+
+                        const mesh = new THREE.Mesh(geometries[i], material);
+                        mesh.position.set((i - 1) * 4, 0, 0);
+                        scene.add(mesh);
+                        objects.push(mesh);
+
+                        // Add inner solid mesh
+                        const innerMaterial = new THREE.MeshStandardMaterial({
+                            color: colors[i],
+                            emissive: colors[i],
+                            emissiveIntensity: 0.3,
+                            metalness: 0.8,
+                            roughness: 0.2,
+                            transparent: true,
+                            opacity: 0.3
+                        });
+                        const innerMesh = new THREE.Mesh(geometries[i].clone(), innerMaterial);
+                        innerMesh.scale.set(0.8, 0.8, 0.8);
+                        mesh.add(innerMesh);
+                    }
+
+                    // Ground grid
+                    const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
+                    scene.add(gridHelper);
+
+                    // Animation
+                    function animate() {
+                        requestAnimationFrame(animate);
+
+                        const time = Date.now() * 0.001;
+
+                        objects.forEach((obj, i) => {
+                            obj.rotation.x = time * (0.5 + i * 0.2);
+                            obj.rotation.y = time * (0.3 + i * 0.15);
+
+                            const pulse = Math.sin(time * 2 + i) * 0.3 + 1;
+                            obj.scale.set(pulse, pulse, pulse);
+
+                            obj.position.y = Math.sin(time + i * 1.5) * 1.5;
+                        });
+
+                        controls.update();
+                        renderer.render(scene, camera);
+                    }
+                    animate();
+
+                    return { scene, camera };
+                };
+
+                const { scene, camera } = createScene();
+                """,
+                category: .effects,
+                difficulty: .intermediate
+            ),
+
+            CodeExample(
+                title: "Gradient Plane Wave",
+                description: "Undulating plane with vertex displacement and gradient colors",
+                code: """
+                const createScene = () => {
+                    const scene = new THREE.Scene();
+                    scene.background = new THREE.Color(0x000033);
+
+                    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+                    camera.position.set(0, 8, 15);
+                    camera.lookAt(0, 0, 0);
+
+                    const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+                    scene.add(ambientLight);
+
+                    const pointLight = new THREE.PointLight(0xff00ff, 2, 50);
+                    pointLight.position.set(0, 5, 0);
+                    scene.add(pointLight);
+
+                    // Create undulating plane
+                    const geometry = new THREE.PlaneGeometry(20, 20, 50, 50);
+                    const material = new THREE.MeshStandardMaterial({
+                        color: 0x4080ff,
+                        emissive: 0x2040ff,
+                        emissiveIntensity: 0.5,
+                        metalness: 0.7,
+                        roughness: 0.3,
+                        wireframe: false,
+                        side: THREE.DoubleSide
+                    });
+
+                    const plane = new THREE.Mesh(geometry, material);
+                    plane.rotation.x = -Math.PI / 2;
+                    scene.add(plane);
+
+                    const positionAttribute = geometry.getAttribute('position');
+                    const originalPositions = positionAttribute.array.slice();
+
+                    // Animation
+                    function animate() {
+                        requestAnimationFrame(animate);
+
+                        const time = Date.now() * 0.001;
+
+                        for (let i = 0; i < positionAttribute.count; i++) {
+                            const x = originalPositions[i * 3];
+                            const y = originalPositions[i * 3 + 1];
+
+                            const distance = Math.sqrt(x * x + y * y);
+                            const wave = Math.sin(distance * 0.5 - time * 2) * Math.cos(x * 0.3 + time) * 1.5;
+
+                            positionAttribute.setZ(i, wave);
+                        }
+
+                        positionAttribute.needsUpdate = true;
+                        geometry.computeVertexNormals();
+
+                        pointLight.position.x = Math.sin(time) * 5;
+                        pointLight.position.z = Math.cos(time) * 5;
+
+                        controls.update();
+                        renderer.render(scene, camera);
+                    }
+                    animate();
+
+                    return { scene, camera };
+                };
+
+                const { scene, camera } = createScene();
+                """,
+                category: .animation,
+                difficulty: .advanced
+            ),
+
+            CodeExample(
+                title: "Ring Portal",
+                description: "Concentric rings creating a portal effect with light trails",
+                code: """
+                const createScene = () => {
+                    const scene = new THREE.Scene();
+                    scene.background = new THREE.Color(0x000000);
+                    scene.fog = new THREE.Fog(0x000000, 10, 40);
+
+                    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+                    camera.position.set(0, 0, 20);
+
+                    const ambientLight = new THREE.AmbientLight(0x202020, 0.3);
+                    scene.add(ambientLight);
+
+                    // Create concentric rings
+                    const rings = [];
+                    const ringCount = 15;
+
+                    for (let i = 0; i < ringCount; i++) {
+                        const radius = 0.5 + i * 0.5;
+                        const geometry = new THREE.TorusGeometry(radius, 0.05, 16, 100);
+
+                        const hue = i / ringCount;
+                        const color = new THREE.Color().setHSL(hue, 1.0, 0.5);
+
+                        const material = new THREE.MeshStandardMaterial({
+                            color: color,
+                            emissive: color,
+                            emissiveIntensity: 0.8,
+                            metalness: 0.9,
+                            roughness: 0.1
+                        });
+
+                        const ring = new THREE.Mesh(geometry, material);
+                        ring.position.z = -i * 1.5;
+                        scene.add(ring);
+                        rings.push(ring);
+                    }
+
+                    // Central point light
+                    const centerLight = new THREE.PointLight(0x00ffff, 3, 30);
+                    centerLight.position.set(0, 0, -20);
+                    scene.add(centerLight);
+
+                    // Animation
+                    function animate() {
+                        requestAnimationFrame(animate);
+
+                        const time = Date.now() * 0.001;
+
+                        rings.forEach((ring, i) => {
+                            ring.rotation.z = time * (0.2 + i * 0.05);
+
+                            const pulse = Math.sin(time * 2 - i * 0.3) * 0.1 + 1;
+                            ring.scale.set(pulse, pulse, 1);
+
+                            const zOffset = ((time * 5 + i) % ringCount) * 1.5 - ringCount * 1.5;
+                            ring.position.z = zOffset;
+                        });
+
+                        centerLight.intensity = 2 + Math.sin(time * 4) * 1;
+
+                        controls.update();
+                        renderer.render(scene, camera);
+                    }
+                    animate();
+
+                    return { scene, camera };
+                };
+
+                const { scene, camera } = createScene();
+                """,
+                category: .advanced,
+                difficulty: .advanced
+            ),
+
+            CodeExample(
+                title: "Bouncing Spheres Physics",
+                description: "Multiple spheres with simulated physics and collision effects",
+                code: """
+                const createScene = () => {
+                    const scene = new THREE.Scene();
+                    scene.background = new THREE.Color(0x1a1a2e);
+
+                    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+                    camera.position.set(0, 8, 15);
+
+                    const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+                    scene.add(ambientLight);
+
+                    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                    directionalLight.position.set(5, 10, 5);
+                    scene.add(directionalLight);
+
+                    // Create spheres with physics properties
+                    const spheres = [];
+                    const colors = [0xff6b9d, 0x4080ff, 0x4ecdc4, 0xffe66d, 0xa26cf7];
+
+                    for (let i = 0; i < 5; i++) {
+                        const geometry = new THREE.SphereGeometry(0.7, 32, 32);
+                        const material = new THREE.MeshStandardMaterial({
+                            color: colors[i],
+                            emissive: colors[i],
+                            emissiveIntensity: 0.2,
+                            metalness: 0.5,
+                            roughness: 0.3
+                        });
+
+                        const sphere = new THREE.Mesh(geometry, material);
+                        sphere.position.set(
+                            (Math.random() - 0.5) * 8,
+                            5 + Math.random() * 5,
+                            (Math.random() - 0.5) * 8
+                        );
+
+                        sphere.userData.velocity = new THREE.Vector3(
+                            (Math.random() - 0.5) * 0.2,
+                            0,
+                            (Math.random() - 0.5) * 0.2
+                        );
+
+                        scene.add(sphere);
+                        spheres.push(sphere);
+                    }
+
+                    // Ground
+                    const groundGeometry = new THREE.PlaneGeometry(20, 20);
+                    const groundMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x16213e,
+                        roughness: 0.8,
+                        metalness: 0.2
+                    });
+                    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+                    ground.rotation.x = -Math.PI / 2;
+                    scene.add(ground);
+
+                    // Walls
+                    const wallMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x0f3460,
+                        transparent: true,
+                        opacity: 0.3
+                    });
+
+                    // Physics simulation
+                    const gravity = -0.015;
+                    const damping = 0.98;
+                    const bounds = 9;
+
+                    function animate() {
+                        requestAnimationFrame(animate);
+
+                        spheres.forEach(sphere => {
+                            // Apply gravity
+                            sphere.userData.velocity.y += gravity;
+
+                            // Update position
+                            sphere.position.add(sphere.userData.velocity);
+
+                            // Ground collision
+                            if (sphere.position.y - 0.7 <= 0) {
+                                sphere.position.y = 0.7;
+                                sphere.userData.velocity.y *= -0.8;
+                            }
+
+                            // Wall collisions
+                            if (Math.abs(sphere.position.x) > bounds) {
+                                sphere.position.x = Math.sign(sphere.position.x) * bounds;
+                                sphere.userData.velocity.x *= -1;
+                            }
+
+                            if (Math.abs(sphere.position.z) > bounds) {
+                                sphere.position.z = Math.sign(sphere.position.z) * bounds;
+                                sphere.userData.velocity.z *= -1;
+                            }
+
+                            // Apply damping
+                            sphere.userData.velocity.multiplyScalar(damping);
+
+                            // Rotation
+                            sphere.rotation.x += sphere.userData.velocity.length();
+                            sphere.rotation.y += sphere.userData.velocity.length();
+                        });
+
+                        controls.update();
+                        renderer.render(scene, camera);
+                    }
+                    animate();
+
+                    return { scene, camera };
+                };
+
+                const { scene, camera } = createScene();
+                """,
+                category: .animation,
+                difficulty: .intermediate
             )
         ]
     }

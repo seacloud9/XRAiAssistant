@@ -709,6 +709,378 @@ struct AFrameLibrary: Library3D {
                 """,
                 category: .advanced,
                 difficulty: .advanced
+            ),
+
+            CodeExample(
+                title: "Orbiting Planets",
+                description: "Solar system with orbiting planets and moons",
+                code: """
+                <a-scene embedded vr-mode-ui="enabled: true" background="color: #000000">
+                <a-light type="ambient" color="#333333" intensity="0.4"></a-light>
+                <a-light type="point" position="0 0 0" color="#fff5e6" intensity="2.5"></a-light>
+
+                <a-sphere
+                position="0 0 0"
+                radius="1"
+                color="#fff5e6"
+                material="emissive: #fff5e6; emissiveIntensity: 0.8">
+                </a-sphere>
+
+                <a-entity
+                animation="property: rotation; to: 0 360 0; loop: true; dur: 10000; easing: linear">
+                <a-sphere
+                position="3 0 0"
+                radius="0.3"
+                color="#4080ff"
+                material="metalness: 0.5; roughness: 0.3">
+                </a-sphere>
+                </a-entity>
+
+                <a-entity
+                animation="property: rotation; to: 0 360 0; loop: true; dur: 20000; easing: linear">
+                <a-sphere
+                position="5 0 0"
+                radius="0.5"
+                color="#ff6b9d"
+                material="metalness: 0.6; roughness: 0.4">
+                </a-sphere>
+                </a-entity>
+
+                <a-entity
+                animation="property: rotation; to: 0 360 0; loop: true; dur: 30000; easing: linear">
+                <a-sphere
+                position="7 0 0"
+                radius="0.4"
+                color="#4ecdc4"
+                material="metalness: 0.7; roughness: 0.2">
+                </a-sphere>
+                </a-entity>
+
+                <a-torus
+                position="0 0 0"
+                radius="3"
+                radius-tubular="0.01"
+                color="#ffffff"
+                material="opacity: 0.3"
+                rotation="90 0 0">
+                </a-torus>
+
+                <a-torus
+                position="0 0 0"
+                radius="5"
+                radius-tubular="0.01"
+                color="#ffffff"
+                material="opacity: 0.3"
+                rotation="90 0 0">
+                </a-torus>
+
+                <a-torus
+                position="0 0 0"
+                radius="7"
+                radius-tubular="0.01"
+                color="#ffffff"
+                material="opacity: 0.3"
+                rotation="90 0 0">
+                </a-torus>
+
+                <a-camera look-controls wasd-controls position="0 5 12">
+                <a-cursor color="#ffffff"></a-cursor>
+                </a-camera>
+                </a-scene>
+                """,
+                category: .animation,
+                difficulty: .intermediate
+            ),
+
+            CodeExample(
+                title: "Particle Ring",
+                description: "Ring of small spheres with wave animation",
+                code: """
+                <a-scene embedded vr-mode-ui="enabled: true" background="color: #0a0a1a">
+                <a-assets>
+                <script>
+                AFRAME.registerComponent('orbit-ring', {
+                init: function () {
+                const el = this.el;
+                const count = 20;
+                const radius = 4;
+
+                for (let i = 0; i < count; i++) {
+                const angle = (i / count) * Math.PI * 2;
+                const x = Math.cos(angle) * radius;
+                const z = Math.sin(angle) * radius;
+
+                const sphere = document.createElement('a-sphere');
+                sphere.setAttribute('position', x + ' 0 ' + z);
+                sphere.setAttribute('radius', '0.15');
+                sphere.setAttribute('color', '#ff00ff');
+                sphere.setAttribute('material', 'emissive: #ff00ff; emissiveIntensity: 0.5; metalness: 0.8; roughness: 0.2');
+
+                const delay = i * 100;
+                sphere.setAttribute('animation', 'property: position; to: ' + x + ' ' + (Math.sin(i) * 2) + ' ' + z + '; direction: alternate; loop: true; dur: 2000; delay: ' + delay + '; easing: easeInOutSine');
+
+                el.appendChild(sphere);
+                }
+                }
+                });
+                </script>
+                </a-assets>
+
+                <a-light type="ambient" color="#404040" intensity="0.5"></a-light>
+                <a-light type="point" position="0 3 0" color="#ff00ff" intensity="1.5"></a-light>
+
+                <a-entity
+                orbit-ring
+                animation="property: rotation; to: 0 360 0; loop: true; dur: 15000; easing: linear">
+                </a-entity>
+
+                <a-plane
+                position="0 0 0"
+                rotation="-90 0 0"
+                width="20"
+                height="20"
+                color="#1a1a2e"
+                material="metalness: 0.2; roughness: 0.8">
+                </a-plane>
+
+                <a-camera look-controls wasd-controls position="0 3 8">
+                <a-cursor color="#ffffff"></a-cursor>
+                </a-camera>
+                </a-scene>
+                """,
+                category: .effects,
+                difficulty: .advanced
+            ),
+
+            CodeExample(
+                title: "Glowing Tunnel",
+                description: "Infinite tunnel effect with glowing rings",
+                code: """
+                <a-scene embedded vr-mode-ui="enabled: true" background="color: #000000">
+                <a-light type="ambient" color="#202020" intensity="0.3"></a-light>
+
+                <a-torus
+                position="0 1.6 -5"
+                radius="2"
+                radius-tubular="0.1"
+                color="#ff006e"
+                material="emissive: #ff006e; emissiveIntensity: 0.8"
+                animation="property: rotation; to: 0 0 360; loop: true; dur: 3000; easing: linear">
+                </a-torus>
+
+                <a-torus
+                position="0 1.6 -8"
+                radius="2"
+                radius-tubular="0.1"
+                color="#00f5ff"
+                material="emissive: #00f5ff; emissiveIntensity: 0.8"
+                animation="property: rotation; to: 0 0 -360; loop: true; dur: 4000; easing: linear">
+                </a-torus>
+
+                <a-torus
+                position="0 1.6 -11"
+                radius="2"
+                radius-tubular="0.1"
+                color="#ffbe0b"
+                material="emissive: #ffbe0b; emissiveIntensity: 0.8"
+                animation="property: rotation; to: 0 0 360; loop: true; dur: 5000; easing: linear">
+                </a-torus>
+
+                <a-torus
+                position="0 1.6 -14"
+                radius="2"
+                radius-tubular="0.1"
+                color="#4ecdc4"
+                material="emissive: #4ecdc4; emissiveIntensity: 0.8"
+                animation="property: rotation; to: 0 0 -360; loop: true; dur: 6000; easing: linear">
+                </a-torus>
+
+                <a-torus
+                position="0 1.6 -17"
+                radius="2"
+                radius-tubular="0.1"
+                color="#a26cf7"
+                material="emissive: #a26cf7; emissiveIntensity: 0.8"
+                animation="property: rotation; to: 0 0 360; loop: true; dur: 7000; easing: linear">
+                </a-torus>
+
+                <a-light type="point" position="0 1.6 -5" color="#ff006e" intensity="1.5"></a-light>
+                <a-light type="point" position="0 1.6 -11" color="#ffbe0b" intensity="1.5"></a-light>
+                <a-light type="point" position="0 1.6 -17" color="#a26cf7" intensity="1.5"></a-light>
+
+                <a-camera look-controls wasd-controls position="0 1.6 2">
+                <a-cursor color="#ffffff"></a-cursor>
+                </a-camera>
+                </a-scene>
+                """,
+                category: .effects,
+                difficulty: .intermediate
+            ),
+
+            CodeExample(
+                title: "Stacked Cubes Tower",
+                description: "Tower of rotating cubes with different speeds",
+                code: """
+                <a-scene embedded vr-mode-ui="enabled: true" background="color: #1a1a2e">
+                <a-light type="ambient" color="#505050" intensity="0.6"></a-light>
+                <a-light type="directional" position="5 5 5" intensity="0.8"></a-light>
+                <a-light type="point" position="0 8 0" color="#ff6b9d" intensity="1.5"></a-light>
+
+                <a-box
+                position="0 0.5 -5"
+                scale="2 0.5 2"
+                color="#ff6b9d"
+                material="metalness: 0.7; roughness: 0.3"
+                animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear">
+                </a-box>
+
+                <a-box
+                position="0 1.5 -5"
+                scale="1.8 0.5 1.8"
+                color="#4080ff"
+                material="metalness: 0.7; roughness: 0.3"
+                animation="property: rotation; to: 0 -360 0; loop: true; dur: 7000; easing: linear">
+                </a-box>
+
+                <a-box
+                position="0 2.5 -5"
+                scale="1.6 0.5 1.6"
+                color="#4ecdc4"
+                material="metalness: 0.7; roughness: 0.3"
+                animation="property: rotation; to: 0 360 0; loop: true; dur: 6000; easing: linear">
+                </a-box>
+
+                <a-box
+                position="0 3.5 -5"
+                scale="1.4 0.5 1.4"
+                color="#ffe66d"
+                material="metalness: 0.7; roughness: 0.3"
+                animation="property: rotation; to: 0 -360 0; loop: true; dur: 5000; easing: linear">
+                </a-box>
+
+                <a-box
+                position="0 4.5 -5"
+                scale="1.2 0.5 1.2"
+                color="#a26cf7"
+                material="metalness: 0.7; roughness: 0.3"
+                animation="property: rotation; to: 0 360 0; loop: true; dur: 4000; easing: linear">
+                </a-box>
+
+                <a-box
+                position="0 5.5 -5"
+                scale="1 0.5 1"
+                color="#ff9f9f"
+                material="metalness: 0.7; roughness: 0.3"
+                animation="property: rotation; to: 0 -360 0; loop: true; dur: 3000; easing: linear">
+                </a-box>
+
+                <a-plane
+                position="0 0 -5"
+                rotation="-90 0 0"
+                width="15"
+                height="15"
+                color="#0f3460"
+                material="metalness: 0.2; roughness: 0.8">
+                </a-plane>
+
+                <a-camera look-controls wasd-controls position="0 3 3">
+                <a-cursor color="#ffffff"></a-cursor>
+                </a-camera>
+                </a-scene>
+                """,
+                category: .animation,
+                difficulty: .beginner
+            ),
+
+            CodeExample(
+                title: "Color Changing Environment",
+                description: "Scene with smoothly transitioning ambient colors",
+                code: """
+                <a-scene embedded vr-mode-ui="enabled: true">
+                <a-assets>
+                <script>
+                AFRAME.registerComponent('color-cycle', {
+                init: function () {
+                const el = this.el;
+                const colors = ['#ff6b9d', '#4080ff', '#4ecdc4', '#ffe66d', '#a26cf7'];
+                let index = 0;
+
+                setInterval(() => {
+                index = (index + 1) % colors.length;
+                el.setAttribute('animation', 'property: components.material.material.color; type: color; to: ' + colors[index] + '; dur: 2000; easing: easeInOutSine');
+                }, 3000);
+                }
+                });
+
+                AFRAME.registerComponent('background-cycle', {
+                init: function () {
+                const scene = this.el.sceneEl;
+                const colors = ['#1a1a2e', '#16213e', '#0f3460', '#533483', '#c71585'];
+                let index = 0;
+
+                setInterval(() => {
+                index = (index + 1) % colors.length;
+                scene.setAttribute('animation', 'property: background; to: ' + colors[index] + '; dur: 2000; easing: easeInOutSine');
+                }, 3000);
+                }
+                });
+                </script>
+                </a-assets>
+
+                <a-light type="ambient" color="#606060" intensity="0.6"></a-light>
+                <a-light type="directional" position="5 5 5" intensity="0.8"></a-light>
+
+                <a-entity background-cycle></a-entity>
+
+                <a-sphere
+                position="-2 1.5 -5"
+                radius="0.8"
+                color="#ff6b9d"
+                material="metalness: 0.6; roughness: 0.4"
+                color-cycle>
+                </a-sphere>
+
+                <a-box
+                position="0 1.5 -5"
+                scale="1 1 1"
+                color="#4080ff"
+                material="metalness: 0.6; roughness: 0.4"
+                color-cycle>
+                </a-box>
+
+                <a-cylinder
+                position="2 1.5 -5"
+                radius="0.5"
+                height="1.5"
+                color="#4ecdc4"
+                material="metalness: 0.6; roughness: 0.4"
+                color-cycle>
+                </a-cylinder>
+
+                <a-text
+                value="Color Changing World"
+                position="0 3.5 -4"
+                align="center"
+                color="#ffffff"
+                width="6">
+                </a-text>
+
+                <a-plane
+                position="0 0 -5"
+                rotation="-90 0 0"
+                width="15"
+                height="15"
+                color="#2c3e50"
+                material="metalness: 0.1; roughness: 0.9">
+                </a-plane>
+
+                <a-camera look-controls wasd-controls position="0 1.6 2">
+                <a-cursor color="#ffffff"></a-cursor>
+                </a-camera>
+                </a-scene>
+                """,
+                category: .advanced,
+                difficulty: .advanced
             )
         ]
     }

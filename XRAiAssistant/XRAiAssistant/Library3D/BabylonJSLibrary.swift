@@ -615,6 +615,373 @@ struct BabylonJSLibrary: Library3D {
                 """,
                 category: .advanced,
                 difficulty: .advanced
+            ),
+
+            CodeExample(
+                title: "Particle Fountain",
+                description: "Colorful particle system creating a fountain effect",
+                code: """
+                const createScene = () => {
+                    const scene = new BABYLON.Scene(engine);
+                    scene.clearColor = new BABYLON.Color3(0.05, 0.05, 0.15);
+
+                    const camera = new BABYLON.ArcRotateCamera("camera1", -Math.PI / 2, Math.PI / 3, 15, new BABYLON.Vector3(0, 0, 0), scene);
+                    if (camera.attachControls) {
+                        camera.attachControls(canvas, true);
+                    }
+
+                    const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+                    light.intensity = 0.6;
+
+                    // Create particle system
+                    const particleSystem = new BABYLON.ParticleSystem("particles", 2000, scene);
+                    particleSystem.particleTexture = new BABYLON.Texture("https://assets.babylonjs.com/textures/flare.png", scene);
+
+                    // Fountain emitter
+                    particleSystem.emitter = new BABYLON.Vector3(0, 0, 0);
+                    particleSystem.minEmitBox = new BABYLON.Vector3(-0.5, 0, -0.5);
+                    particleSystem.maxEmitBox = new BABYLON.Vector3(0.5, 0, 0.5);
+
+                    // Colors
+                    particleSystem.color1 = new BABYLON.Color4(1, 0.2, 0.6, 1.0);
+                    particleSystem.color2 = new BABYLON.Color4(0.2, 0.6, 1, 1.0);
+                    particleSystem.colorDead = new BABYLON.Color4(0, 0, 0, 0.0);
+
+                    // Size
+                    particleSystem.minSize = 0.1;
+                    particleSystem.maxSize = 0.3;
+
+                    // Life time
+                    particleSystem.minLifeTime = 1.0;
+                    particleSystem.maxLifeTime = 2.0;
+
+                    // Emission rate
+                    particleSystem.emitRate = 300;
+
+                    // Blend mode
+                    particleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
+
+                    // Gravity
+                    particleSystem.gravity = new BABYLON.Vector3(0, -9.81, 0);
+
+                    // Direction
+                    particleSystem.direction1 = new BABYLON.Vector3(-1, 8, -1);
+                    particleSystem.direction2 = new BABYLON.Vector3(1, 10, 1);
+
+                    // Speed
+                    particleSystem.minEmitPower = 1;
+                    particleSystem.maxEmitPower = 3;
+                    particleSystem.updateSpeed = 0.01;
+
+                    particleSystem.start();
+
+                    // Base platform
+                    const base = BABYLON.MeshBuilder.CreateCylinder("base", {diameter: 3, height: 0.5}, scene);
+                    base.position.y = -0.25;
+                    const baseMat = new BABYLON.StandardMaterial("baseMat", scene);
+                    baseMat.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.3);
+                    base.material = baseMat;
+
+                    return scene;
+                };
+                const scene = createScene();
+                """,
+                category: .effects,
+                difficulty: .intermediate
+            ),
+
+            CodeExample(
+                title: "Fractal Sphere Grid",
+                description: "Grid of spheres with fractal-like scaling and rotation patterns",
+                code: """
+                const createScene = () => {
+                    const scene = new BABYLON.Scene(engine);
+                    scene.clearColor = new BABYLON.Color3(0.02, 0.02, 0.05);
+
+                    const camera = new BABYLON.ArcRotateCamera("camera1", 0, Math.PI / 4, 25, new BABYLON.Vector3(0, 0, 0), scene);
+                    if (camera.attachControls) {
+                        camera.attachControls(canvas, true);
+                    }
+
+                    const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+                    light.intensity = 0.7;
+
+                    const gl = new BABYLON.GlowLayer("glow", scene);
+                    gl.intensity = 0.8;
+
+                    // Create grid of spheres
+                    const spheres = [];
+                    const gridSize = 5;
+
+                    for (let x = 0; x < gridSize; x++) {
+                        for (let z = 0; z < gridSize; z++) {
+                            const sphere = BABYLON.MeshBuilder.CreateSphere("sphere" + x + "_" + z, {diameter: 1}, scene);
+                            sphere.position.x = (x - gridSize / 2) * 2.5;
+                            sphere.position.z = (z - gridSize / 2) * 2.5;
+
+                            // Distance from center for fractal pattern
+                            const distFromCenter = Math.sqrt(Math.pow(x - gridSize / 2, 2) + Math.pow(z - gridSize / 2, 2));
+                            const normalizedDist = distFromCenter / (gridSize / 2);
+
+                            const material = new BABYLON.PBRMaterial("mat" + x + "_" + z, scene);
+                            const hue = (x + z) / (gridSize * 2);
+                            material.albedoColor = new BABYLON.Color3(
+                                Math.abs(Math.sin(hue * Math.PI * 2)),
+                                Math.abs(Math.sin((hue + 0.33) * Math.PI * 2)),
+                                Math.abs(Math.sin((hue + 0.66) * Math.PI * 2))
+                            );
+                            material.metallic = 0.9;
+                            material.roughness = 0.1;
+                            material.emissiveColor = material.albedoColor;
+                            material.emissiveIntensity = 0.4;
+                            sphere.material = material;
+
+                            spheres.push({mesh: sphere, dist: normalizedDist, x: x, z: z});
+                        }
+                    }
+
+                    // Animation
+                    scene.registerBeforeRender(() => {
+                        const time = Date.now() * 0.001;
+
+                        spheres.forEach(data => {
+                            const wave = Math.sin(time + data.dist * 3);
+                            data.mesh.position.y = wave * 1.5;
+                            data.mesh.rotation.y = time + data.dist;
+                            const scale = 0.5 + wave * 0.3;
+                            data.mesh.scaling = new BABYLON.Vector3(scale, scale, scale);
+                        });
+                    });
+
+                    return scene;
+                };
+                const scene = createScene();
+                """,
+                category: .advanced,
+                difficulty: .advanced
+            ),
+
+            CodeExample(
+                title: "Skybox with Fog",
+                description: "Atmospheric scene with skybox and volumetric fog effects",
+                code: """
+                const createScene = () => {
+                    const scene = new BABYLON.Scene(engine);
+
+                    const camera = new BABYLON.ArcRotateCamera("camera1", -Math.PI / 2, Math.PI / 3, 20, new BABYLON.Vector3(0, 0, 0), scene);
+                    if (camera.attachControls) {
+                        camera.attachControls(canvas, true);
+                    }
+
+                    // Skybox
+                    const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", {size: 1000}, scene);
+                    const skyboxMaterial = new BABYLON.StandardMaterial("skyBoxMat", scene);
+                    skyboxMaterial.backFaceCulling = false;
+                    skyboxMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0);
+                    skyboxMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
+                    skyboxMaterial.emissiveColor = new BABYLON.Color3(0.05, 0.05, 0.15);
+                    skybox.material = skyboxMaterial;
+
+                    // Fog
+                    scene.fogMode = BABYLON.Scene.FOGMODE_EXP;
+                    scene.fogDensity = 0.02;
+                    scene.fogColor = new BABYLON.Color3(0.1, 0.05, 0.15);
+
+                    const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+                    light.intensity = 0.5;
+
+                    // Create floating monoliths
+                    for (let i = 0; i < 8; i++) {
+                        const angle = (i / 8) * Math.PI * 2;
+                        const radius = 10;
+
+                        const monolith = BABYLON.MeshBuilder.CreateBox("monolith" + i, {
+                            width: 1.5,
+                            height: 5,
+                            depth: 1.5
+                        }, scene);
+
+                        monolith.position.x = Math.cos(angle) * radius;
+                        monolith.position.z = Math.sin(angle) * radius;
+                        monolith.position.y = 2.5;
+                        monolith.rotation.y = -angle;
+
+                        const material = new BABYLON.PBRMaterial("monolithMat" + i, scene);
+                        material.albedoColor = new BABYLON.Color3(0.3, 0.2, 0.5);
+                        material.metallic = 0.8;
+                        material.roughness = 0.2;
+                        material.emissiveColor = new BABYLON.Color3(0.5, 0.2, 0.8);
+                        material.emissiveIntensity = 0.3;
+                        monolith.material = material;
+                    }
+
+                    // Ground
+                    const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 50, height: 50}, scene);
+                    const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
+                    groundMat.diffuseColor = new BABYLON.Color3(0.1, 0.05, 0.15);
+                    groundMat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+                    ground.material = groundMat;
+
+                    return scene;
+                };
+                const scene = createScene();
+                """,
+                category: .effects,
+                difficulty: .intermediate
+            ),
+
+            CodeExample(
+                title: "Plasma Orb",
+                description: "Pulsating orb with dynamic material and electric effects",
+                code: """
+                const createScene = () => {
+                    const scene = new BABYLON.Scene(engine);
+                    scene.clearColor = new BABYLON.Color3(0, 0, 0);
+
+                    const camera = new BABYLON.ArcRotateCamera("camera1", -Math.PI / 2, Math.PI / 2.5, 8, new BABYLON.Vector3(0, 0, 0), scene);
+                    if (camera.attachControls) {
+                        camera.attachControls(canvas, true);
+                    }
+
+                    const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+                    light.intensity = 0.3;
+
+                    const gl = new BABYLON.GlowLayer("glow", scene);
+                    gl.intensity = 1.8;
+
+                    // Main orb
+                    const orb = BABYLON.MeshBuilder.CreateSphere("orb", {diameter: 3, segments: 64}, scene);
+                    const orbMat = new BABYLON.PBRMaterial("orbMat", scene);
+                    orbMat.albedoColor = new BABYLON.Color3(0.5, 0.1, 1);
+                    orbMat.metallic = 0.95;
+                    orbMat.roughness = 0.05;
+                    orbMat.emissiveColor = new BABYLON.Color3(0.8, 0.2, 1);
+                    orbMat.emissiveIntensity = 1.5;
+                    orb.material = orbMat;
+
+                    // Electric rings
+                    const rings = [];
+                    for (let i = 0; i < 3; i++) {
+                        const ring = BABYLON.MeshBuilder.CreateTorus("ring" + i, {
+                            diameter: 4 + i * 0.5,
+                            thickness: 0.05,
+                            tessellation: 64
+                        }, scene);
+
+                        const ringMat = new BABYLON.StandardMaterial("ringMat" + i, scene);
+                        ringMat.emissiveColor = new BABYLON.Color3(0, 1, 1);
+                        ring.material = ringMat;
+
+                        rings.push(ring);
+                    }
+
+                    // Point lights
+                    const light1 = new BABYLON.PointLight("light1", new BABYLON.Vector3(0, 0, 0), scene);
+                    light1.diffuse = new BABYLON.Color3(0.8, 0.2, 1);
+                    light1.intensity = 2;
+
+                    // Animation
+                    scene.registerBeforeRender(() => {
+                        const time = Date.now() * 0.001;
+
+                        // Pulsating orb
+                        const scale = 1 + Math.sin(time * 2) * 0.1;
+                        orb.scaling = new BABYLON.Vector3(scale, scale, scale);
+
+                        // Rotating rings at different speeds
+                        rings.forEach((ring, i) => {
+                            ring.rotation.x = time * (0.5 + i * 0.2);
+                            ring.rotation.y = time * (0.3 + i * 0.15);
+                        });
+
+                        // Pulsating glow
+                        gl.intensity = 1.5 + Math.sin(time * 3) * 0.5;
+
+                        // Color shift
+                        const hue = (time * 0.1) % 1;
+                        orbMat.emissiveColor = new BABYLON.Color3(
+                            0.5 + Math.sin(hue * Math.PI * 2) * 0.5,
+                            0.2,
+                            0.8 + Math.cos(hue * Math.PI * 2) * 0.2
+                        );
+                    });
+
+                    return scene;
+                };
+                const scene = createScene();
+                """,
+                category: .advanced,
+                difficulty: .advanced
+            ),
+
+            CodeExample(
+                title: "Spotlight Showcase",
+                description: "Multiple spotlights illuminating objects with shadows",
+                code: """
+                const createScene = () => {
+                    const scene = new BABYLON.Scene(engine);
+                    scene.clearColor = new BABYLON.Color3(0.05, 0.05, 0.1);
+
+                    const camera = new BABYLON.ArcRotateCamera("camera1", -Math.PI / 2, Math.PI / 2.5, 15, new BABYLON.Vector3(0, 0, 0), scene);
+                    if (camera.attachControls) {
+                        camera.attachControls(canvas, true);
+                    }
+
+                    const light = new BABYLON.HemisphericLight("ambient", new BABYLON.Vector3(0, 1, 0), scene);
+                    light.intensity = 0.2;
+
+                    // Create three spotlights
+                    const colors = [
+                        new BABYLON.Color3(1, 0.2, 0.2),
+                        new BABYLON.Color3(0.2, 1, 0.2),
+                        new BABYLON.Color3(0.2, 0.2, 1)
+                    ];
+
+                    const spotlights = [];
+                    for (let i = 0; i < 3; i++) {
+                        const spotlight = new BABYLON.SpotLight(
+                            "spot" + i,
+                            new BABYLON.Vector3((i - 1) * 4, 8, 0),
+                            new BABYLON.Vector3(0, -1, 0),
+                            Math.PI / 3,
+                            2,
+                            scene
+                        );
+                        spotlight.diffuse = colors[i];
+                        spotlight.intensity = 3;
+
+                        // Shadow generator
+                        const shadowGenerator = new BABYLON.ShadowGenerator(1024, spotlight);
+                        shadowGenerator.useBlurExponentialShadowMap = true;
+
+                        spotlights.push({light: spotlight, shadow: shadowGenerator});
+
+                        // Create object under each spotlight
+                        const box = BABYLON.MeshBuilder.CreateBox("box" + i, {size: 2}, scene);
+                        box.position.x = (i - 1) * 4;
+                        box.position.y = 1;
+
+                        const material = new BABYLON.StandardMaterial("mat" + i, scene);
+                        material.diffuseColor = new BABYLON.Color3(0.8, 0.8, 0.8);
+                        material.specularColor = colors[i];
+                        box.material = material;
+
+                        shadowGenerator.addShadowCaster(box);
+                    }
+
+                    // Ground with shadow receiving
+                    const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 20, height: 10}, scene);
+                    const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
+                    groundMat.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.25);
+                    ground.material = groundMat;
+                    ground.receiveShadows = true;
+
+                    return scene;
+                };
+                const scene = createScene();
+                """,
+                category: .lighting,
+                difficulty: .intermediate
             )
         ]
     }
