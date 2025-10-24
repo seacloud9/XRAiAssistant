@@ -134,7 +134,32 @@ class Library3DManager: ObservableObject {
     // MARK: - Helper Methods
     
     func getWelcomeMessage() -> String {
-        return "Hello! I'm your \(selectedLibrary.displayName) assistant. I can help you create 3D scenes, explain concepts, and write code. Try asking me to create a scene or help with specific \(selectedLibrary.displayName) features!"
+        // Get a random example from the selected library
+        guard !selectedLibrary.examples.isEmpty else {
+            return "Hello! I'm your \(selectedLibrary.displayName) assistant. I can help you create 3D scenes, explain concepts, and write code. Try asking me to create a scene or help with specific \(selectedLibrary.displayName) features!"
+        }
+
+        let randomExample = selectedLibrary.examples.randomElement()!
+
+        // Create welcome message with random example
+        let baseMessage = "Hello! I'm your \(selectedLibrary.displayName) assistant. I can help you create 3D scenes, explain concepts, and write code."
+
+        // Add example with "Run the Scene" button
+        // The code block will automatically be detected by ChatViewModel and create a yellow "Run the Scene" button
+        let exampleMessage = """
+        \(baseMessage)
+
+        Here's a quick example to get you started - **\(randomExample.title)**:
+        \(randomExample.description)
+
+        ```\(selectedLibrary.codeLanguage.rawValue)
+        \(randomExample.code)
+        ```
+
+        Try asking me to create your own scene or help with specific \(selectedLibrary.displayName) features!
+        """
+
+        return exampleMessage
     }
     
     func getLibrarySpecificPrompt(for userMessage: String, currentCode: String? = nil) -> String {
