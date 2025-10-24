@@ -679,198 +679,893 @@
         }
         
         function getBasicSceneCode() {
-            return `<a-scene embedded vr-mode-ui="enabled: true">
-    <a-light type="ambient" color="#404040" intensity="0.6"></a-light>
-    <a-light type="directional" position="10 10 5" intensity="0.8"></a-light>
+            return `<!-- Neon Cyberpunk City Scene -->
+<!-- Features: Glowing buildings, animated lights, particle effects -->
+<a-scene embedded vr-mode-ui="enabled: true" background="color: #0a0015" fog="type: exponential; color: #0a0015; density: 0.05">
+    <!-- Sky with stars -->
+    <a-sky color="#0a0015" material="shader: flat"></a-sky>
 
-    <a-sphere position="0 2 -5" radius="1" color="#ff6b6b"
-        animation="property: rotation; to: 0 360 0; loop: true; dur: 4000">
+    <!-- Lighting -->
+    <a-light type="ambient" color="#220033" intensity="0.5"></a-light>
+
+    <!-- Neon cyan light -->
+    <a-light type="point" color="#00ffff" intensity="2" position="5 5 -5"
+        animation="property: position; to: -5 5 -5; dir: alternate; loop: true; dur: 4000; easing: easeInOutSine"></a-light>
+
+    <!-- Neon magenta light -->
+    <a-light type="point" color="#ff00ff" intensity="2" position="-5 5 -5"
+        animation="property: position; to: 5 5 -5; dir: alternate; loop: true; dur: 4000; easing: easeInOutSine"></a-light>
+
+    <!-- Central glowing orb -->
+    <a-sphere position="0 2.5 -6" radius="0.8" color="#00ffff"
+        material="shader: flat; emissive: #00ffff; emissiveIntensity: 2"
+        animation__rotate="property: rotation; to: 0 360 0; loop: true; dur: 3000"
+        animation__float="property: position; to: 0 3.5 -6; dir: alternate; loop: true; dur: 2000; easing: easeInOutSine"
+        animation__pulse="property: scale; to: 1.2 1.2 1.2; dir: alternate; loop: true; dur: 1000">
     </a-sphere>
 
-    <a-box position="-2 1 -3" rotation="0 45 0" color="#4ecdc4"
-        animation="property: position; to: -2 2 -3; direction: alternate; loop: true; dur: 2000">
-    </a-box>
+    <!-- Neon buildings -->
+    <a-box position="-3 1.5 -8" width="1.5" height="3" depth="1.5" color="#ff00ff"
+        material="shader: flat; emissive: #ff00ff; emissiveIntensity: 1.5"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 8000"></a-box>
 
-    <a-cylinder position="2 1 -3" radius="0.5" height="2" color="#ffe66d">
-    </a-cylinder>
+    <a-box position="3 2 -8" width="1.5" height="4" depth="1.5" color="#00ffff"
+        material="shader: flat; emissive: #00ffff; emissiveIntensity: 1.5"
+        animation="property: rotation; to: 0 -360 0; loop: true; dur: 8000"></a-box>
 
-    <a-plane position="0 0 -4" rotation="-90 0 0" 
-        width="20" 
-        height="20" 
-        color="#95e1d3"
-        shadow="receive: true">
-    </a-plane>
-    
-    <!-- Interactive text -->
-    <a-text 
-        value="Welcome to A-Frame!" 
-        position="0 3 -2" 
-        align="center" 
-        color="#fff"
-        animation="property: rotation; to: 0 360 0; loop: true; dur: 8000">
-    </a-text>
-    
-    <!-- VR Camera with controls -->
-    <a-camera 
-        look-controls 
-        wasd-controls 
-        position="0 1.6 3"
-        animation="property: position; to: 0 1.6 8; startEvents: click; dur: 3000">
-        <a-cursor 
-            color="#fff" 
-            raycaster="objects: [clickable]">
-        </a-cursor>
+    <a-box position="0 1 -10" width="2" height="2" depth="2" color="#ffff00"
+        material="shader: flat; emissive: #ffff00; emissiveIntensity: 1.5"
+        animation="property: rotation; to: 360 360 0; loop: true; dur: 10000"></a-box>
+
+    <!-- Floating neon rings -->
+    <a-torus position="-2 2 -5" radius="0.5" radius-tubular="0.05" color="#ff0080"
+        material="shader: flat; emissive: #ff0080; emissiveIntensity: 2"
+        animation__rotate="property: rotation; to: 360 0 360; loop: true; dur: 5000"
+        animation__float="property: position; to: -2 3 -5; dir: alternate; loop: true; dur: 2500"></a-torus>
+
+    <a-torus position="2 2 -5" radius="0.5" radius-tubular="0.05" color="#0080ff"
+        material="shader: flat; emissive: #0080ff; emissiveIntensity: 2"
+        animation__rotate="property: rotation; to: 0 360 360; loop: true; dur: 5000"
+        animation__float="property: position; to: 2 3 -5; dir: alternate; loop: true; dur: 2500"></a-torus>
+
+    <!-- Grid floor (cyberpunk style) -->
+    <a-plane position="0 0 -6" rotation="-90 0 0" width="20" height="20"
+        color="#0a0a0a"
+        material="wireframe: true; wireframeLinewidth: 2; color: #ff00ff; opacity: 0.5; transparent: true"></a-plane>
+
+    <!-- Glowing text -->
+    <a-text value="NEON CITY" position="0 4 -7" align="center" width="6"
+        color="#00ffff"
+        material="shader: flat; emissive: #00ffff"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 12000"></a-text>
+
+    <!-- Camera -->
+    <a-camera look-controls wasd-controls position="0 1.6 0">
+        <a-cursor color="#00ffff"></a-cursor>
     </a-camera>
 </a-scene>`;
         }
 
         function getRotatingCubeCode() {
-            return `<a-scene embedded vr-mode-ui="enabled: true">
-    <a-light type="ambient" color="#404040" intensity="0.6"></a-light>
-    <a-light type="directional" position="10 10 5" intensity="0.8"></a-light>
-    <a-box position="0 2 -5" rotation="0 45 0" color="#4ecdc4"
-        animation="property: rotation; to: 360 405 360; loop: true; dur: 5000">
-    </a-box>
-    <a-plane position="0 0 -4" rotation="-90 0 0" width="20" height="20" color="#95e1d3"></a-plane>
-    <a-camera look-controls wasd-controls position="0 1.6 3"><a-cursor color="#fff"></a-cursor></a-camera>
+            return `<a-scene embedded vr-mode-ui="enabled: true" background="color: #0a001a">
+    <!-- Dim ambient for dramatic lighting -->
+    <a-light type="ambient" color="#2d1b4e" intensity="0.4"></a-light>
+
+    <!-- Central rotating cube cluster - 3 cubes with emissive glow -->
+    <a-box position="0 2.5 -5" rotation="0 45 0" width="1.5" height="1.5" depth="1.5" color="#ff00ff"
+        material="shader: flat; emissive: #ff00ff; emissiveIntensity: 2"
+        animation="property: rotation; to: 360 405 360; loop: true; dur: 5000; easing: linear"></a-box>
+
+    <a-box position="0 2.5 -5" rotation="45 0 0" width="1.2" height="1.2" depth="1.2" color="#00ffff"
+        material="shader: flat; emissive: #00ffff; emissiveIntensity: 1.8; opacity: 0.7; transparent: true"
+        animation="property: rotation; to: 405 360 0; loop: true; dur: 4000; easing: linear"></a-box>
+
+    <a-box position="0 2.5 -5" rotation="0 0 45" width="0.9" height="0.9" depth="0.9" color="#ffff00"
+        material="shader: flat; emissive: #ffff00; emissiveIntensity: 1.5; opacity: 0.8; transparent: true"
+        animation="property: rotation; to: 0 360 405; loop: true; dur: 3000; easing: linear"></a-box>
+
+    <!-- Point lights at cube positions -->
+    <a-light type="point" position="0 2.5 -5" intensity="2.5" color="#ff00ff" distance="8"></a-light>
+
+    <!-- Orbiting satellite cubes -->
+    <a-entity position="0 2.5 -5" animation="property: rotation; to: 0 360 0; loop: true; dur: 8000">
+        <a-box position="3 0 0" width="0.5" height="0.5" depth="0.5" color="#ff1493"
+            material="shader: flat; emissive: #ff1493; emissiveIntensity: 2"
+            animation="property: rotation; to: 360 360 360; loop: true; dur: 2000"></a-box>
+        <a-light type="point" position="3 0 0" intensity="1" color="#ff1493" distance="4"></a-light>
+    </a-entity>
+
+    <a-entity position="0 2.5 -5" animation="property: rotation; to: 0 -360 0; loop: true; dur: 6000">
+        <a-box position="3 0 0" width="0.5" height="0.5" depth="0.5" color="#00ff80"
+            material="shader: flat; emissive: #00ff80; emissiveIntensity: 2"
+            animation="property: rotation; to: -360 -360 -360; loop: true; dur: 2500"></a-box>
+        <a-light type="point" position="3 0 0" intensity="1" color="#00ff80" distance="4"></a-light>
+    </a-entity>
+
+    <!-- Wireframe spinning cubes on sides -->
+    <a-box position="-4 2.5 -5" width="1.5" height="1.5" depth="1.5" color="#00ffff"
+        material="shader: flat; wireframe: true; emissive: #00ffff; emissiveIntensity: 1.5"
+        animation="property: rotation; to: 360 0 360; loop: true; dur: 6000"></a-box>
+
+    <a-box position="4 2.5 -5" width="1.5" height="1.5" depth="1.5" color="#ff8800"
+        material="shader: flat; wireframe: true; emissive: #ff8800; emissiveIntensity: 1.5"
+        animation="property: rotation; to: 0 360 360; loop: true; dur: 7000"></a-box>
+
+    <!-- Glowing grid floor -->
+    <a-plane position="0 0 -5" rotation="-90 0 0" width="20" height="20" color="#1a0030"
+        material="shader: flat; wireframe: true; emissive: #8000ff; emissiveIntensity: 1"></a-plane>
+
+    <!-- Gently moving camera -->
+    <a-camera look-controls wasd-controls position="0 2.5 4"
+        animation="property: position; to: 1 3 4; dir: alternate; loop: true; dur: 8000; easing: easeInOutSine">
+        <a-cursor color="#fff"></a-cursor>
+    </a-camera>
 </a-scene>`;
         }
 
         function getInteractiveObjectsCode() {
-            return `<a-scene embedded vr-mode-ui="enabled: true">
-    <a-light type="ambient" color="#404040" intensity="0.6"></a-light>
-    <a-light type="directional" position="10 10 5" intensity="0.8"></a-light>
-    <a-sphere position="-2 1.5 -3" radius="0.8" color="#ff6b6b" class="clickable"
-        animation__click="property: color; to: #00ff00; startEvents: click; dur: 500"></a-sphere>
-    <a-sphere position="0 1.5 -3" radius="0.8" color="#4ecdc4" class="clickable"
-        animation__click="property: scale; to: 1.5 1.5 1.5; startEvents: click; dur: 1000; direction: alternate"></a-sphere>
-    <a-sphere position="2 1.5 -3" radius="0.8" color="#ffe66d" class="clickable"
-        animation__click="property: rotation; to: 0 360 0; startEvents: click; dur: 2000"></a-sphere>
-    <a-plane position="0 0 -4" rotation="-90 0 0" width="10" height="10" color="#95e1d3"></a-plane>
-    <a-camera look-controls wasd-controls position="0 1.6 0"><a-cursor color="#fff" raycaster="objects: .clickable"></a-cursor></a-camera>
+            return `<a-scene embedded vr-mode-ui="enabled: true" background="color: #0f0020">
+    <!-- Dim ambient lighting -->
+    <a-light type="ambient" color="#2a1850" intensity="0.5"></a-light>
+
+    <!-- Left sphere - Color change on click (Magenta to Cyan) -->
+    <a-sphere position="-3 2 -4" radius="0.9" color="#ff00ff" class="clickable"
+        material="shader: flat; emissive: #ff00ff; emissiveIntensity: 1.5"
+        animation__idle="property: position; to: -3 2.3 -4; dir: alternate; loop: true; dur: 2000; easing: easeInOutSine"
+        animation__click="property: components.material.material.color; type: color; from: #ff00ff; to: #00ffff; startEvents: click; dur: 500"
+        animation__click_emissive="property: components.material.material.emissive; type: color; from: #ff00ff; to: #00ffff; startEvents: click; dur: 500">
+    </a-sphere>
+    <a-light type="point" position="-3 2 -4" intensity="1.5" color="#ff00ff" distance="5"></a-light>
+
+    <!-- Center-left cube - Scale pulse on click -->
+    <a-box position="-1.5 2 -4" width="0.9" height="0.9" depth="0.9" color="#00ffff" class="clickable"
+        material="shader: flat; emissive: #00ffff; emissiveIntensity: 2"
+        animation__rotate="property: rotation; to: 0 360 0; loop: true; dur: 4000"
+        animation__click="property: scale; from: 1 1 1; to: 1.8 1.8 1.8; startEvents: click; dur: 600; dir: alternate; loop: 1; easing: easeOutElastic">
+    </a-box>
+    <a-light type="point" position="-1.5 2 -4" intensity="1.5" color="#00ffff" distance="5"></a-light>
+
+    <!-- Center torus - Spin on click -->
+    <a-torus position="0 2 -4" radius="0.7" radius-tubular="0.2" color="#ffff00" class="clickable"
+        material="shader: flat; emissive: #ffff00; emissiveIntensity: 2"
+        animation__float="property: position; to: 0 2.4 -4; dir: alternate; loop: true; dur: 2500; easing: easeInOutSine"
+        animation__click="property: rotation; to: 360 720 0; startEvents: click; dur: 1500; easing: easeOutBack">
+    </a-torus>
+    <a-light type="point" position="0 2 -4" intensity="2" color="#ffff00" distance="5"></a-light>
+
+    <!-- Center-right cylinder - Bounce on click -->
+    <a-cylinder position="1.5 2 -4" radius="0.4" height="1.2" color="#ff1493" class="clickable"
+        material="shader: flat; emissive: #ff1493; emissiveIntensity: 1.8"
+        animation__spin="property: rotation; to: 0 360 0; loop: true; dur: 3000"
+        animation__click="property: position; from: 1.5 2 -4; to: 1.5 4 -4; startEvents: click; dur: 800; dir: alternate; loop: 1; easing: easeOutBounce">
+    </a-cylinder>
+    <a-light type="point" position="1.5 2 -4" intensity="1.5" color="#ff1493" distance="5"></a-light>
+
+    <!-- Right octahedron - Explode effect on click -->
+    <a-octahedron position="3 2 -4" radius="0.8" color="#00ff80" class="clickable"
+        material="shader: flat; emissive: #00ff80; emissiveIntensity: 2"
+        animation__idle="property: rotation; to: 360 360 0; loop: true; dur: 5000; easing: linear"
+        animation__click_scale="property: scale; from: 1 1 1; to: 2.5 2.5 2.5; startEvents: click; dur: 500; dir: alternate; loop: 1; easing: easeOutQuint"
+        animation__click_opacity="property: components.material.material.opacity; from: 1; to: 0.2; startEvents: click; dur: 500; dir: alternate; loop: 1">
+    </a-octahedron>
+    <a-light type="point" position="3 2 -4" intensity="1.8" color="#00ff80" distance="5"></a-light>
+
+    <!-- Floating text instruction -->
+    <a-text value="CLICK THE OBJECTS!" position="0 3.5 -4" align="center" width="8" color="#ffffff"
+        material="shader: flat; emissive: #ffffff; emissiveIntensity: 1.5"
+        animation="property: position; to: 0 3.8 -4; dir: alternate; loop: true; dur: 2000; easing: easeInOutSine"></a-text>
+
+    <!-- Glowing floor grid -->
+    <a-plane position="0 0 -4" rotation="-90 0 0" width="20" height="20" color="#1a0030"
+        material="shader: flat; wireframe: true; emissive: #8000ff; emissiveIntensity: 1"></a-plane>
+
+    <!-- Camera with cursor -->
+    <a-camera look-controls wasd-controls position="0 2 2">
+        <a-cursor color="#ffffff" opacity="0.8" scale="0.7 0.7 0.7" raycaster="objects: .clickable"
+            material="shader: flat; emissive: #00ffff; emissiveIntensity: 2"
+            animation__hover="property: scale; from: 0.7 0.7 0.7; to: 1.2 1.2 1.2; startEvents: mouseenter; dur: 200"
+            animation__leave="property: scale; from: 1.2 1.2 1.2; to: 0.7 0.7 0.7; startEvents: mouseleave; dur: 200">
+        </a-cursor>
+    </a-camera>
 </a-scene>`;
         }
 
         function getTexturedSphereCode() {
-            return `<a-scene embedded vr-mode-ui="enabled: true">
-    <a-light type="ambient" color="#404040" intensity="0.6"></a-light>
-    <a-light type="directional" position="10 10 5" intensity="0.8"></a-light>
-    <a-sphere position="0 2 -5" radius="1.5" material="color: #4080ff; metalness: 0.8; roughness: 0.2"
+            return `<a-scene embedded vr-mode-ui="enabled: true" background="color: #0a0020">
+    <!-- Ambient purple lighting -->
+    <a-light type="ambient" color="#3d1e6d" intensity="0.5"></a-light>
+
+    <!-- Central metallic sphere - Magenta with high metalness -->
+    <a-sphere position="0 2.5 -5" radius="1.5"
+        material="color: #ff00ff; metalness: 0.9; roughness: 0.1; emissive: #ff00ff; emissiveIntensity: 0.5"
         animation="property: rotation; to: 0 360 0; loop: true; dur: 8000"></a-sphere>
-    <a-plane position="0 0 -4" rotation="-90 0 0" width="20" height="20" color="#95e1d3"></a-plane>
-    <a-camera look-controls wasd-controls position="0 1.6 3"><a-cursor color="#fff"></a-cursor></a-camera>
+    <a-light type="point" position="0 2.5 -5" intensity="2" color="#ff00ff" distance="8"></a-light>
+
+    <!-- Left metallic sphere - Cyan mirror -->
+    <a-sphere position="-3 2.5 -5" radius="1"
+        material="color: #00ffff; metalness: 0.95; roughness: 0.05; emissive: #00ffff; emissiveIntensity: 0.8"
+        animation="property: rotation; to: 360 0 360; loop: true; dur: 6000"></a-sphere>
+    <a-light type="point" position="-3 2.5 -5" intensity="1.5" color="#00ffff" distance="6"></a-light>
+
+    <!-- Right metallic sphere - Gold chrome -->
+    <a-sphere position="3 2.5 -5" radius="1"
+        material="color: #ffd700; metalness: 1.0; roughness: 0.0; emissive: #ffff00; emissiveIntensity: 0.6"
+        animation="property: rotation; to: 0 360 360; loop: true; dur: 7000"></a-sphere>
+    <a-light type="point" position="3 2.5 -5" intensity="1.8" color="#ffff00" distance="6"></a-light>
+
+    <!-- Orbiting rough sphere - Hot pink with texture -->
+    <a-entity position="0 2.5 -5" animation="property: rotation; to: 0 360 0; loop: true; dur: 10000">
+        <a-sphere position="4 0 0" radius="0.6"
+            material="color: #ff1493; metalness: 0.3; roughness: 0.9; emissive: #ff1493; emissiveIntensity: 1.5"
+            animation="property: rotation; to: 360 360 0; loop: true; dur: 3000"></a-sphere>
+        <a-light type="point" position="4 0 0" intensity="1" color="#ff1493" distance="4"></a-light>
+    </a-entity>
+
+    <!-- Orbiting smooth sphere - Lime green glossy -->
+    <a-entity position="0 2.5 -5" animation="property: rotation; to: 0 -360 0; loop: true; dur: 8000">
+        <a-sphere position="4 0 0" radius="0.6"
+            material="color: #00ff80; metalness: 0.7; roughness: 0.2; emissive: #00ff80; emissiveIntensity: 1.2"
+            animation="property: rotation; to: -360 -360 0; loop: true; dur: 4000"></a-sphere>
+        <a-light type="point" position="4 0 0" intensity="1.2" color="#00ff80" distance="4"></a-light>
+    </a-entity>
+
+    <!-- Top floating wireframe sphere -->
+    <a-sphere position="0 4.5 -5" radius="0.8"
+        material="shader: flat; wireframe: true; color: #ffffff; emissive: #ffffff; emissiveIntensity: 2"
+        animation__float="property: position; to: 0 5 -5; dir: alternate; loop: true; dur: 3000; easing: easeInOutSine"
+        animation__spin="property: rotation; to: 360 360 360; loop: true; dur: 5000"></a-sphere>
+
+    <!-- Colored directional lights -->
+    <a-light type="directional" position="5 5 5" intensity="1.5" color="#ff00ff"></a-light>
+    <a-light type="directional" position="-5 5 5" intensity="1.5" color="#00ffff"></a-light>
+
+    <!-- Reflective floor grid -->
+    <a-plane position="0 0 -5" rotation="-90 0 0" width="20" height="20"
+        material="color: #1a0030; metalness: 0.8; roughness: 0.3; wireframe: true; emissive: #8000ff; emissiveIntensity: 1"></a-plane>
+
+    <!-- Camera with gentle movement -->
+    <a-camera look-controls wasd-controls position="0 2.5 4"
+        animation="property: position; to: 1.5 3 4; dir: alternate; loop: true; dur: 12000; easing: easeInOutSine">
+        <a-cursor color="#fff"></a-cursor>
+    </a-camera>
 </a-scene>`;
         }
 
         function getSkyGradientCode() {
             return `<a-scene embedded vr-mode-ui="enabled: true">
-    <a-sky color="#87CEEB"></a-sky>
-    <a-light type="ambient" color="#ffffff" intensity="0.8"></a-light>
-    <a-sphere position="0 2 -5" radius="1" color="#ff6b6b"></a-sphere>
-    <a-box position="-2 1 -3" color="#4ecdc4"></a-box>
-    <a-cylinder position="2 1 -3" radius="0.5" height="2" color="#ffe66d"></a-cylinder>
-    <a-plane position="0 0 -4" rotation="-90 0 0" width="30" height="30" color="#7BC8A4"></a-plane>
-    <a-camera look-controls wasd-controls position="0 1.6 3"><a-cursor color="#fff"></a-cursor></a-camera>
+    <!-- Animated gradient sky - Purple to cyan transition -->
+    <a-sky color="#ff00ff"
+        animation__color="property: color; from: #ff00ff; to: #00ffff; dir: alternate; loop: true; dur: 15000; easing: easeInOutSine"></a-sky>
+
+    <!-- Bright ambient with color shift -->
+    <a-light type="ambient" color="#ff88ff" intensity="0.8"
+        animation="property: light.color; from: #ff88ff; to: #88ffff; dir: alternate; loop: true; dur: 15000"></a-light>
+
+    <!-- Central glowing sphere - Magenta -->
+    <a-sphere position="0 3 -6" radius="1.2" color="#ff00ff"
+        material="shader: flat; emissive: #ff00ff; emissiveIntensity: 2"
+        animation__float="property: position; to: 0 3.8 -6; dir: alternate; loop: true; dur: 4000; easing: easeInOutSine"
+        animation__rotate="property: rotation; to: 0 360 0; loop: true; dur: 6000"></a-sphere>
+    <a-light type="point" position="0 3 -6" intensity="2.5" color="#ff00ff" distance="10"></a-light>
+
+    <!-- Left tower - Cyan gradient boxes -->
+    <a-box position="-4 0.5 -5" width="1" height="1" depth="1" color="#00ffff"
+        material="shader: flat; emissive: #00ffff; emissiveIntensity: 1.5"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 5000"></a-box>
+    <a-box position="-4 1.5 -5" width="0.9" height="0.9" depth="0.9" color="#00e5ff"
+        material="shader: flat; emissive: #00e5ff; emissiveIntensity: 1.5"
+        animation="property: rotation; to: 360 0 360; loop: true; dur: 4500"></a-box>
+    <a-box position="-4 2.3 -5" width="0.8" height="0.8" depth="0.8" color="#00bfff"
+        material="shader: flat; emissive: #00bfff; emissiveIntensity: 1.5"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 4000"></a-box>
+
+    <!-- Right tower - Yellow gradient cylinders -->
+    <a-cylinder position="4 1 -5" radius="0.5" height="2" color="#ffff00"
+        material="shader: flat; emissive: #ffff00; emissiveIntensity: 1.8"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 5500"></a-cylinder>
+    <a-cylinder position="4 2.7 -5" radius="0.4" height="1.4" color="#ffd700"
+        material="shader: flat; emissive: #ffd700; emissiveIntensity: 1.8"
+        animation="property: rotation; to: 360 0 0; loop: true; dur: 5000"></a-cylinder>
+
+    <!-- Floating torus rings -->
+    <a-torus position="-2 2.5 -4" radius="0.8" radius-tubular="0.15" color="#ff1493"
+        material="shader: flat; emissive: #ff1493; emissiveIntensity: 2"
+        animation__float="property: position; to: -2 3 -4; dir: alternate; loop: true; dur: 3000; easing: easeInOutSine"
+        animation__spin="property: rotation; to: 360 0 360; loop: true; dur: 4000"></a-torus>
+
+    <a-torus position="2 2.5 -4" radius="0.8" radius-tubular="0.15" color="#00ff80"
+        material="shader: flat; emissive: #00ff80; emissiveIntensity: 2"
+        animation__float="property: position; to: 2 3 -4; dir: alternate; loop: true; dur: 3500; easing: easeInOutSine"
+        animation__spin="property: rotation; to: 0 360 360; loop: true; dur: 4500"></a-torus>
+
+    <!-- Colorful floor with animated emissive -->
+    <a-plane position="0 0 -5" rotation="-90 0 0" width="30" height="30" color="#1a0030"
+        material="shader: flat; wireframe: true; emissive: #ff00ff; emissiveIntensity: 1"
+        animation="property: components.material.material.emissive; type: color; from: #ff00ff; to: #00ffff; dir: alternate; loop: true; dur: 15000"></a-plane>
+
+    <!-- Directional lights matching sky gradient -->
+    <a-light type="directional" position="10 10 5" intensity="1.5" color="#ff00ff"
+        animation="property: light.color; from: #ff00ff; to: #00ffff; dir: alternate; loop: true; dur: 15000"></a-light>
+
+    <!-- Camera with gentle orbit -->
+    <a-camera look-controls wasd-controls position="0 2 5"
+        animation="property: position; to: 2 2.5 5; dir: alternate; loop: true; dur: 10000; easing: easeInOutSine">
+        <a-cursor color="#fff"></a-cursor>
+    </a-camera>
 </a-scene>`;
         }
 
         function getPhysicsDemoCode() {
-            return `<a-scene embedded vr-mode-ui="enabled: true" physics="gravity: -9.8">
-    <a-light type="ambient" color="#404040" intensity="0.6"></a-light>
-    <a-light type="directional" position="10 10 5" intensity="0.8"></a-light>
-    <a-sphere position="0 5 -5" radius="0.8" color="#ff6b6b" dynamic-body></a-sphere>
-    <a-box position="-1 6 -5" color="#4ecdc4" dynamic-body></a-box>
-    <a-cylinder position="1 7 -5" radius="0.5" height="1" color="#ffe66d" dynamic-body></a-cylinder>
-    <a-plane position="0 0 -5" rotation="-90 0 0" width="10" height="10" color="#95e1d3" static-body></a-plane>
-    <a-camera look-controls wasd-controls position="0 2 3"><a-cursor color="#fff"></a-cursor></a-camera>
+            return `<a-scene embedded vr-mode-ui="enabled: true" background="color: #0a0015" physics="gravity: -9.8">
+    <!-- Dim ambient for dramatic glow -->
+    <a-light type="ambient" color="#2a1540" intensity="0.5"></a-light>
+
+    <!-- Falling glowing spheres - Magenta gradient -->
+    <a-sphere position="-1.5 8 -5" radius="0.6" color="#ff00ff" dynamic-body
+        material="shader: flat; emissive: #ff00ff; emissiveIntensity: 2"></a-sphere>
+    <a-sphere position="0 9 -5" radius="0.7" color="#ff1493" dynamic-body
+        material="shader: flat; emissive: #ff1493; emissiveIntensity: 2"></a-sphere>
+    <a-sphere position="1.5 10 -5" radius="0.6" color="#ff69b4" dynamic-body
+        material="shader: flat; emissive: #ff69b4; emissiveIntensity: 2"></a-sphere>
+
+    <!-- Falling glowing cubes - Cyan gradient -->
+    <a-box position="-2 11 -5" width="0.8" height="0.8" depth="0.8" color="#00ffff" dynamic-body
+        material="shader: flat; emissive: #00ffff; emissiveIntensity: 2.5"></a-box>
+    <a-box position="0 12 -5" width="0.9" height="0.9" depth="0.9" color="#00e5ff" dynamic-body
+        material="shader: flat; emissive: #00e5ff; emissiveIntensity: 2.5"></a-box>
+    <a-box position="2 13 -5" width="0.7" height="0.7" depth="0.7" color="#00bfff" dynamic-body
+        material="shader: flat; emissive: #00bfff; emissiveIntensity: 2.5"></a-box>
+
+    <!-- Falling glowing cylinders - Yellow gradient -->
+    <a-cylinder position="-1 14 -5" radius="0.4" height="1.2" color="#ffff00" dynamic-body
+        material="shader: flat; emissive: #ffff00; emissiveIntensity: 2.2"></a-cylinder>
+    <a-cylinder position="1 15 -5" radius="0.35" height="1" color="#ffd700" dynamic-body
+        material="shader: flat; emissive: #ffd700; emissiveIntensity: 2.2"></a-cylinder>
+
+    <!-- Static glowing platform (floor) -->
+    <a-plane position="0 0 -5" rotation="-90 0 0" width="12" height="12" color="#1a0030" static-body
+        material="shader: flat; wireframe: true; emissive: #8000ff; emissiveIntensity: 1.5"></a-plane>
+
+    <!-- Static glowing walls -->
+    <a-box position="-6 2 -5" width="0.3" height="4" depth="12" color="#ff00ff" static-body
+        material="shader: flat; wireframe: true; emissive: #ff00ff; emissiveIntensity: 1.2"></a-box>
+    <a-box position="6 2 -5" width="0.3" height="4" depth="12" color="#00ffff" static-body
+        material="shader: flat; wireframe: true; emissive: #00ffff; emissiveIntensity: 1.2"></a-box>
+
+    <!-- Colored point lights for falling objects -->
+    <a-light type="point" position="0 8 -5" intensity="2" color="#ff00ff" distance="8"></a-light>
+    <a-light type="point" position="0 12 -5" intensity="2.5" color="#00ffff" distance="10"></a-light>
+    <a-light type="point" position="0 14 -5" intensity="2" color="#ffff00" distance="8"></a-light>
+
+    <!-- Camera positioned to watch the physics -->
+    <a-camera look-controls wasd-controls position="0 3 5"
+        animation="property: position; to: 2 3.5 5; dir: alternate; loop: true; dur: 8000; easing: easeInOutSine">
+        <a-cursor color="#fff"></a-cursor>
+    </a-camera>
 </a-scene>`;
         }
 
         function getAnimatedCameraCode() {
-            return `<a-scene embedded vr-mode-ui="enabled: true">
-    <a-light type="ambient" color="#404040" intensity="0.6"></a-light>
-    <a-light type="directional" position="10 10 5" intensity="0.8"></a-light>
-    <a-sphere position="0 2 -5" radius="1" color="#ff6b6b"></a-sphere>
-    <a-box position="-3 1 -4" color="#4ecdc4"></a-box>
-    <a-cylinder position="3 1 -4" radius="0.5" height="2" color="#ffe66d"></a-cylinder>
-    <a-plane position="0 0 -4" rotation="-90 0 0" width="20" height="20" color="#95e1d3"></a-plane>
-    <a-camera look-controls wasd-controls position="0 1.6 3" animation="property: position; to: 0 1.6 8; startEvents: click; dur: 3000">
-        <a-cursor color="#fff"></a-cursor></a-camera>
+            return `<a-scene embedded vr-mode-ui="enabled: true" background="color: #0d0025">
+    <!-- Dim ambient -->
+    <a-light type="ambient" color="#2d1560" intensity="0.4"></a-light>
+
+    <!-- Central attraction - Glowing magenta sphere -->
+    <a-sphere position="0 2.5 -8" radius="1.5" color="#ff00ff"
+        material="shader: flat; emissive: #ff00ff; emissiveIntensity: 3"
+        animation__pulse="property: scale; to: 1.3 1.3 1.3; dir: alternate; loop: true; dur: 2000; easing: easeInOutSine"
+        animation__spin="property: rotation; to: 0 360 0; loop: true; dur: 6000"></a-sphere>
+    <a-light type="point" position="0 2.5 -8" intensity="3" color="#ff00ff" distance="12"></a-light>
+
+    <!-- Left monument - Cyan tower -->
+    <a-box position="-5 1 -6" width="1.5" height="2" depth="1.5" color="#00ffff"
+        material="shader: flat; emissive: #00ffff; emissiveIntensity: 2"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 8000"></a-box>
+    <a-box position="-5 3.5 -6" width="1" height="1" depth="1" color="#00e5ff"
+        material="shader: flat; emissive: #00e5ff; emissiveIntensity: 2.2"></a-box>
+    <a-light type="point" position="-5 3 -6" intensity="2" color="#00ffff" distance="8"></a-light>
+
+    <!-- Right monument - Yellow obelisk -->
+    <a-cylinder position="5 2 -6" radius="0.6" height="4" color="#ffff00"
+        material="shader: flat; emissive: #ffff00; emissiveIntensity: 2.5"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 7000"></a-cylinder>
+    <a-cone position="5 4.5 -6" radius-bottom="0.7" radius-top="0" height="1.5" color="#ffd700"
+        material="shader: flat; emissive: #ffd700; emissiveIntensity: 2.5"></a-cone>
+    <a-light type="point" position="5 3 -6" intensity="2.2" color="#ffff00" distance="8"></a-light>
+
+    <!-- Back left - Pink crystal -->
+    <a-octahedron position="-4 2 -12" radius="1.2" color="#ff1493"
+        material="shader: flat; emissive: #ff1493; emissiveIntensity: 2.8"
+        animation="property: rotation; to: 360 360 0; loop: true; dur: 5000"></a-octahedron>
+    <a-light type="point" position="-4 2 -12" intensity="2" color="#ff1493" distance="8"></a-light>
+
+    <!-- Back right - Green prism -->
+    <a-box position="4 1.5 -12" width="1.2" height="3" depth="1.2" color="#00ff80"
+        material="shader: flat; emissive: #00ff80; emissiveIntensity: 2.5"
+        animation="property: rotation; to: 0 360 360; loop: true; dur: 6000"></a-box>
+    <a-light type="point" position="4 2 -12" intensity="2" color="#00ff80" distance="8"></a-light>
+
+    <!-- Glowing grid floor -->
+    <a-plane position="0 0 -8" rotation="-90 0 0" width="30" height="30" color="#1a0030"
+        material="shader: flat; wireframe: true; emissive: #8000ff; emissiveIntensity: 1.2"></a-plane>
+
+    <!-- Animated camera - Automatic tour through the scene -->
+    <a-camera look-controls="enabled: false" wasd-controls="enabled: false" position="0 2 6"
+        animation__path="property: position; to: 0 4 -2; loop: true; dur: 8000; dir: alternate; easing: easeInOutSine"
+        animation__look="property: rotation; to: 0 360 0; loop: true; dur: 16000; easing: linear">
+        <a-cursor color="#ffffff" opacity="0.8"
+            material="shader: flat; emissive: #00ffff; emissiveIntensity: 2"></a-cursor>
+        <a-text value="CINEMATIC CAMERA MODE" position="0 0.3 -1" align="center" width="2" color="#00ffff"
+            material="shader: flat; emissive: #00ffff; emissiveIntensity: 2"></a-text>
+    </a-camera>
 </a-scene>`;
         }
 
         function get360ImageCode() {
             return `<a-scene embedded vr-mode-ui="enabled: true">
-    <a-sky color="#7BC8A4"></a-sky>
-    <a-light type="ambient" color="#ffffff" intensity="0.9"></a-light>
-    <a-text value="360° Environment" position="0 2 -3" align="center" color="#000"></a-text>
-    <a-sphere position="0 1.5 -5" radius="0.5" color="#ff6b6b" animation="property: rotation; to: 0 360 0; loop: true; dur: 4000"></a-sphere>
-    <a-camera look-controls wasd-controls position="0 1.6 0"><a-cursor color="#fff"></a-cursor></a-camera>
+    <!-- Gradient sky with color animation - Purple to Cyan -->
+    <a-sky color="#ff00ff" radius="500"
+        animation="property: color; from: #ff00ff; to: #00ffff; dir: alternate; loop: true; dur: 20000; easing: easeInOutSine"></a-sky>
+
+    <!-- Bright ambient with matching color shift -->
+    <a-light type="ambient" color="#ff88ff" intensity="0.9"
+        animation="property: light.color; from: #ff88ff; to: #88ffff; dir: alternate; loop: true; dur: 20000"></a-light>
+
+    <!-- Floating title text -->
+    <a-text value="360° IMMERSIVE ENVIRONMENT" position="0 3.5 -4" align="center" width="10" color="#ffffff"
+        material="shader: flat; emissive: #ffffff; emissiveIntensity: 2"
+        animation__float="property: position; to: 0 4 -4; dir: alternate; loop: true; dur: 4000; easing: easeInOutSine"></a-text>
+
+    <!-- Central glowing sphere constellation -->
+    <a-sphere position="0 2 -5" radius="0.8" color="#ff00ff"
+        material="shader: flat; emissive: #ff00ff; emissiveIntensity: 3"
+        animation__spin="property: rotation; to: 0 360 0; loop: true; dur: 4000"
+        animation__pulse="property: scale; to: 1.3 1.3 1.3; dir: alternate; loop: true; dur: 2000"></a-sphere>
+    <a-light type="point" position="0 2 -5" intensity="2.5" color="#ff00ff" distance="10"></a-light>
+
+    <!-- Orbiting spheres around center -->
+    <a-entity position="0 2 -5" animation="property: rotation; to: 0 360 0; loop: true; dur: 8000">
+        <a-sphere position="2 0 0" radius="0.3" color="#00ffff"
+            material="shader: flat; emissive: #00ffff; emissiveIntensity: 3"></a-sphere>
+        <a-sphere position="-2 0 0" radius="0.3" color="#ffff00"
+            material="shader: flat; emissive: #ffff00; emissiveIntensity: 3"></a-sphere>
+        <a-sphere position="0 0 2" radius="0.3" color="#ff1493"
+            material="shader: flat; emissive: #ff1493; emissiveIntensity: 3"></a-sphere>
+        <a-sphere position="0 0 -2" radius="0.3" color="#00ff80"
+            material="shader: flat; emissive: #00ff80; emissiveIntensity: 3"></a-sphere>
+    </a-entity>
+
+    <!-- Distant glowing monuments in cardinal directions -->
+    <a-box position="0 1.5 -15" width="2" height="3" depth="2" color="#ff00ff"
+        material="shader: flat; emissive: #ff00ff; emissiveIntensity: 2"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 10000"></a-box>
+
+    <a-cylinder position="15 2 0" radius="1" height="4" color="#00ffff"
+        material="shader: flat; emissive: #00ffff; emissiveIntensity: 2.5"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 12000"></a-cylinder>
+
+    <a-octahedron position="-15 2 0" radius="1.5" color="#ffff00"
+        material="shader: flat; emissive: #ffff00; emissiveIntensity: 2.2"
+        animation="property: rotation; to: 360 360 0; loop: true; dur: 9000"></a-octahedron>
+
+    <a-torus position="0 2.5 15" radius="2" radius-tubular="0.4" color="#ff1493"
+        material="shader: flat; emissive: #ff1493; emissiveIntensity: 2.8"
+        animation="property: rotation; to: 360 0 360; loop: true; dur: 8000"></a-torus>
+
+    <!-- Floating rings in the sky -->
+    <a-ring position="0 8 0" radius-inner="8" radius-outer="9" rotation="-90 0 0" color="#00ffff"
+        material="shader: flat; emissive: #00ffff; emissiveIntensity: 1.5; opacity: 0.6; transparent: true; side: double"
+        animation="property: rotation; to: -90 360 0; loop: true; dur: 30000; easing: linear"></a-ring>
+
+    <a-ring position="0 12 0" radius-inner="12" radius-outer="13" rotation="-90 0 0" color="#ff00ff"
+        material="shader: flat; emissive: #ff00ff; emissiveIntensity: 1.5; opacity: 0.5; transparent: true; side: double"
+        animation="property: rotation; to: -90 -360 0; loop: true; dur: 40000; easing: linear"></a-ring>
+
+    <!-- Glowing floor grid -->
+    <a-plane position="0 0 0" rotation="-90 0 0" width="50" height="50" color="#1a0030"
+        material="shader: flat; wireframe: true; emissive: #8000ff; emissiveIntensity: 1"></a-plane>
+
+    <!-- Camera at center for full 360° view -->
+    <a-camera look-controls wasd-controls position="0 1.6 0"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 60000; easing: linear">
+        <a-cursor color="#ffffff" opacity="0.7"
+            material="shader: flat; emissive: #00ffff; emissiveIntensity: 2"></a-cursor>
+        <a-text value="Look around in 360°!" position="0 -0.5 -1.5" align="center" width="3" color="#00ffff"
+            material="shader: flat; emissive: #00ffff; emissiveIntensity: 1.5"></a-text>
+    </a-camera>
 </a-scene>`;
         }
 
         function getOrbitingPlanetsCode() {
-            return `<a-scene embedded vr-mode-ui="enabled: true">
-    <a-light type="ambient" color="#404040" intensity="0.5"></a-light>
-    <a-light type="point" position="0 0 0" intensity="2"></a-light>
-    <a-sphere position="0 0 0" radius="1" color="#FDB813"></a-sphere>
+            return `<a-scene embedded vr-mode-ui="enabled: true" background="color: #000510" fog="type: exponential; color: #000510; density: 0.015">
+    <!-- Ambient starlight -->
+    <a-light type="ambient" color="#1a1a3e" intensity="0.4"></a-light>
+
+    <!-- Central Sun - Glowing yellow with pulsing light -->
+    <a-sphere position="0 0 0" radius="1.2" color="#ffff00"
+        material="shader: flat; emissive: #ffff00; emissiveIntensity: 3"
+        animation__pulse="property: scale; to: 1.3 1.3 1.3; dir: alternate; loop: true; dur: 2000; easing: easeInOutSine"
+        animation__rotate="property: rotation; to: 0 360 0; loop: true; dur: 20000"></a-sphere>
+    <a-light type="point" position="0 0 0" intensity="3" color="#ffff00" distance="20"></a-light>
+
+    <!-- Mercury - Fast silver orbit -->
+    <a-entity position="0 0 0" animation="property: rotation; to: 0 360 0; loop: true; dur: 4000">
+        <a-sphere position="2.5 0 0" radius="0.15" color="#c0c0c0"
+            material="shader: flat; emissive: #c0c0c0; emissiveIntensity: 0.8"
+            animation="property: rotation; to: 360 360 0; loop: true; dur: 3000"></a-sphere>
+        <a-light type="point" position="2.5 0 0" intensity="0.5" color="#c0c0c0" distance="3"></a-light>
+    </a-entity>
+
+    <!-- Venus - Bright cyan with glow -->
+    <a-entity position="0 0 0" animation="property: rotation; to: 0 360 0; loop: true; dur: 7000">
+        <a-sphere position="4 0 0" radius="0.25" color="#00ffff"
+            material="shader: flat; emissive: #00ffff; emissiveIntensity: 2"
+            animation="property: rotation; to: 0 360 360; loop: true; dur: 5000"></a-sphere>
+        <a-light type="point" position="4 0 0" intensity="1.5" color="#00ffff" distance="5"></a-light>
+        <!-- Venus ring trail -->
+        <a-ring position="4 0 0" radius-inner="0.3" radius-outer="0.4" color="#00ffff"
+            material="shader: flat; emissive: #00ffff; emissiveIntensity: 1; opacity: 0.3; transparent: true"
+            rotation="-90 0 0"></a-ring>
+    </a-entity>
+
+    <!-- Earth - Blue with green glow -->
     <a-entity position="0 0 0" animation="property: rotation; to: 0 360 0; loop: true; dur: 10000">
-        <a-sphere position="3 0 0" radius="0.3" color="#4080ff"></a-sphere>
+        <a-sphere position="6 0 0" radius="0.3" color="#0080ff"
+            material="shader: flat; emissive: #00ff80; emissiveIntensity: 1.5"
+            animation="property: rotation; to: 0 360 0; loop: true; dur: 6000"></a-sphere>
+        <a-light type="point" position="6 0 0" intensity="1.2" color="#00ff80" distance="4"></a-light>
+        <!-- Moon orbiting Earth -->
+        <a-entity position="6 0 0" animation="property: rotation; to: 0 360 0; loop: true; dur: 2000">
+            <a-sphere position="0.6 0 0" radius="0.08" color="#d0d0d0"
+                material="shader: flat; emissive: #d0d0d0; emissiveIntensity: 1"></a-sphere>
+        </a-entity>
     </a-entity>
-    <a-entity position="0 0 0" animation="property: rotation; to: 0 360 0; loop: true; dur: 15000">
-        <a-sphere position="5 0 0" radius="0.4" color="#ff6b6b"></a-sphere>
+
+    <!-- Mars - Red warrior planet -->
+    <a-entity position="0 0 0" animation="property: rotation; to: 0 360 0; loop: true; dur: 13000">
+        <a-sphere position="8.5 0 0" radius="0.28" color="#ff4500"
+            material="shader: flat; emissive: #ff4500; emissiveIntensity: 1.8"
+            animation="property: rotation; to: 360 0 360; loop: true; dur: 7000"></a-sphere>
+        <a-light type="point" position="8.5 0 0" intensity="1" color="#ff4500" distance="4"></a-light>
     </a-entity>
-    <a-camera look-controls wasd-controls position="0 5 10"><a-cursor color="#fff"></a-cursor></a-camera>
+
+    <!-- Jupiter - Massive magenta giant -->
+    <a-entity position="0 0 0" animation="property: rotation; to: 0 360 0; loop: true; dur: 18000">
+        <a-sphere position="12 0 0" radius="0.6" color="#ff00ff"
+            material="shader: flat; emissive: #ff00ff; emissiveIntensity: 2.5"
+            animation="property: rotation; to: 0 360 0; loop: true; dur: 4000"></a-sphere>
+        <a-light type="point" position="12 0 0" intensity="2" color="#ff00ff" distance="8"></a-light>
+        <!-- Jupiter's ring -->
+        <a-ring position="12 0 0" radius-inner="0.8" radius-outer="1.2" color="#ff00ff"
+            material="shader: flat; emissive: #ff00ff; emissiveIntensity: 1.5; opacity: 0.4; transparent: true"
+            rotation="-80 0 0"></a-ring>
+    </a-entity>
+
+    <!-- Saturn - Yellow with bright rings -->
+    <a-entity position="0 0 0" animation="property: rotation; to: 0 360 0; loop: true; dur: 22000">
+        <a-sphere position="16 0 0" radius="0.5" color="#ffff00"
+            material="shader: flat; emissive: #ffe600; emissiveIntensity: 2"
+            animation="property: rotation; to: 0 360 0; loop: true; dur: 5000"></a-sphere>
+        <a-light type="point" position="16 0 0" intensity="1.8" color="#ffff00" distance="7"></a-light>
+        <!-- Saturn's iconic rings -->
+        <a-ring position="16 0 0" radius-inner="0.7" radius-outer="1.1" color="#ffe600"
+            material="shader: flat; emissive: #ffe600; emissiveIntensity: 2; opacity: 0.6; transparent: true"
+            rotation="-75 0 0"></a-ring>
+        <a-ring position="16 0 0" radius-inner="1.15" radius-outer="1.4" color="#ffd700"
+            material="shader: flat; emissive: #ffd700; emissiveIntensity: 1.5; opacity: 0.5; transparent: true"
+            rotation="-75 0 0"></a-ring>
+    </a-entity>
+
+    <!-- Starfield particles -->
+    <a-entity position="0 0 0">
+        <a-sphere position="25 15 -20" radius="0.05" color="#ffffff" material="shader: flat; emissive: #ffffff; emissiveIntensity: 2"></a-sphere>
+        <a-sphere position="-30 20 -25" radius="0.06" color="#00ffff" material="shader: flat; emissive: #00ffff; emissiveIntensity: 2"></a-sphere>
+        <a-sphere position="35 -18 -30" radius="0.05" color="#ff00ff" material="shader: flat; emissive: #ff00ff; emissiveIntensity: 2"></a-sphere>
+        <a-sphere position="-25 -22 -28" radius="0.07" color="#ffff00" material="shader: flat; emissive: #ffff00; emissiveIntensity: 2"></a-sphere>
+        <a-sphere position="28 25 -35" radius="0.05" color="#ff8800" material="shader: flat; emissive: #ff8800; emissiveIntensity: 2"></a-sphere>
+        <a-sphere position="-32 -15 -32" radius="0.06" color="#00ff80" material="shader: flat; emissive: #00ff80; emissiveIntensity: 2"></a-sphere>
+    </a-entity>
+
+    <!-- Orbiting camera with smooth movement -->
+    <a-camera look-controls wasd-controls position="0 8 18"
+        animation="property: position; to: 5 10 18; dir: alternate; loop: true; dur: 15000; easing: easeInOutSine">
+        <a-cursor color="#fff"></a-cursor>
+    </a-camera>
 </a-scene>`;
         }
 
         function getParticleRingCode() {
-            return `<a-scene embedded vr-mode-ui="enabled: true">
-    <a-light type="ambient" color="#404040" intensity="0.5"></a-light>
-    <a-light type="point" position="0 2 0" intensity="2" color="#4080ff"></a-light>
+            return `<a-scene embedded vr-mode-ui="enabled: true" background="color: #0d0015" fog="type: linear; color: #0d0015; near: 5; far: 30">
+    <!-- Dim ambient for particle visibility -->
+    <a-light type="ambient" color="#1a0030" intensity="0.3"></a-light>
+
+    <!-- Central glowing core -->
+    <a-sphere position="0 2 -5" radius="0.4" color="#ff00ff"
+        material="shader: flat; emissive: #ff00ff; emissiveIntensity: 3"
+        animation__pulse="property: scale; to: 0.5 0.5 0.5; dir: alternate; loop: true; dur: 1500; easing: easeInOutSine"
+        animation__rotate="property: rotation; to: 0 360 360; loop: true; dur: 6000"></a-sphere>
+    <a-light type="point" position="0 2 -5" intensity="2.5" color="#ff00ff" distance="10"></a-light>
+
+    <!-- Outer rotating ring - Hot pink particles -->
     <a-entity position="0 2 -5" animation="property: rotation; to: 0 360 0; loop: true; dur: 8000">
-        <a-sphere position="2 0 0" radius="0.1" color="#ff6b6b"></a-sphere>
-        <a-sphere position="1.4 1.4 0" radius="0.1" color="#4ecdc4"></a-sphere>
-        <a-sphere position="0 2 0" radius="0.1" color="#ffe66d"></a-sphere>
-        <a-sphere position="-1.4 1.4 0" radius="0.1" color="#ff6b9d"></a-sphere>
-        <a-sphere position="-2 0 0" radius="0.1" color="#4080ff"></a-sphere>
+        <a-sphere position="3 0 0" radius="0.12" color="#ff1493" material="shader: flat; emissive: #ff1493; emissiveIntensity: 2"></a-sphere>
+        <a-sphere position="2.12 2.12 0" radius="0.12" color="#ff00ff" material="shader: flat; emissive: #ff00ff; emissiveIntensity: 2"></a-sphere>
+        <a-sphere position="0 3 0" radius="0.12" color="#ff69b4" material="shader: flat; emissive: #ff69b4; emissiveIntensity: 2"></a-sphere>
+        <a-sphere position="-2.12 2.12 0" radius="0.12" color="#ff1493" material="shader: flat; emissive: #ff1493; emissiveIntensity: 2"></a-sphere>
+        <a-sphere position="-3 0 0" radius="0.12" color="#ff00ff" material="shader: flat; emissive: #ff00ff; emissiveIntensity: 2"></a-sphere>
+        <a-sphere position="-2.12 -2.12 0" radius="0.12" color="#ff69b4" material="shader: flat; emissive: #ff69b4; emissiveIntensity: 2"></a-sphere>
+        <a-sphere position="0 -3 0" radius="0.12" color="#ff1493" material="shader: flat; emissive: #ff1493; emissiveIntensity: 2"></a-sphere>
+        <a-sphere position="2.12 -2.12 0" radius="0.12" color="#ff00ff" material="shader: flat; emissive: #ff00ff; emissiveIntensity: 2"></a-sphere>
     </a-entity>
-    <a-plane position="0 0 -5" rotation="-90 0 0" width="10" height="10" color="#1a1a2e"></a-plane>
-    <a-camera look-controls wasd-controls position="0 2 3"><a-cursor color="#fff"></a-cursor></a-camera>
+
+    <!-- Middle ring - Cyan particles (counter-rotating) -->
+    <a-entity position="0 2 -5" animation="property: rotation; to: 0 -360 0; loop: true; dur: 6000">
+        <a-sphere position="2 0 0" radius="0.1" color="#00ffff" material="shader: flat; emissive: #00ffff; emissiveIntensity: 2.5"></a-sphere>
+        <a-sphere position="1.41 1.41 0" radius="0.1" color="#00e5ff" material="shader: flat; emissive: #00e5ff; emissiveIntensity: 2.5"></a-sphere>
+        <a-sphere position="0 2 0" radius="0.1" color="#00bfff" material="shader: flat; emissive: #00bfff; emissiveIntensity: 2.5"></a-sphere>
+        <a-sphere position="-1.41 1.41 0" radius="0.1" color="#00ffff" material="shader: flat; emissive: #00ffff; emissiveIntensity: 2.5"></a-sphere>
+        <a-sphere position="-2 0 0" radius="0.1" color="#00e5ff" material="shader: flat; emissive: #00e5ff; emissiveIntensity: 2.5"></a-sphere>
+        <a-sphere position="-1.41 -1.41 0" radius="0.1" color="#00bfff" material="shader: flat; emissive: #00bfff; emissiveIntensity: 2.5"></a-sphere>
+        <a-sphere position="0 -2 0" radius="0.1" color="#00ffff" material="shader: flat; emissive: #00ffff; emissiveIntensity: 2.5"></a-sphere>
+        <a-sphere position="1.41 -1.41 0" radius="0.1" color="#00e5ff" material="shader: flat; emissive: #00e5ff; emissiveIntensity: 2.5"></a-sphere>
+    </a-entity>
+
+    <!-- Inner ring - Yellow particles (fastest) -->
+    <a-entity position="0 2 -5" animation="property: rotation; to: 0 360 0; loop: true; dur: 4000">
+        <a-sphere position="1 0 0" radius="0.08" color="#ffff00" material="shader: flat; emissive: #ffff00; emissiveIntensity: 3"></a-sphere>
+        <a-sphere position="0.71 0.71 0" radius="0.08" color="#ffd700" material="shader: flat; emissive: #ffd700; emissiveIntensity: 3"></a-sphere>
+        <a-sphere position="0 1 0" radius="0.08" color="#ffea00" material="shader: flat; emissive: #ffea00; emissiveIntensity: 3"></a-sphere>
+        <a-sphere position="-0.71 0.71 0" radius="0.08" color="#ffff00" material="shader: flat; emissive: #ffff00; emissiveIntensity: 3"></a-sphere>
+        <a-sphere position="-1 0 0" radius="0.08" color="#ffd700" material="shader: flat; emissive: #ffd700; emissiveIntensity: 3"></a-sphere>
+        <a-sphere position="-0.71 -0.71 0" radius="0.08" color="#ffea00" material="shader: flat; emissive: #ffea00; emissiveIntensity: 3"></a-sphere>
+        <a-sphere position="0 -1 0" radius="0.08" color="#ffff00" material="shader: flat; emissive: #ffff00; emissiveIntensity: 3"></a-sphere>
+        <a-sphere position="0.71 -0.71 0" radius="0.08" color="#ffd700" material="shader: flat; emissive: #ffd700; emissiveIntensity: 3"></a-sphere>
+    </a-entity>
+
+    <!-- Orbital lights -->
+    <a-entity position="0 2 -5" animation="property: rotation; to: 0 360 0; loop: true; dur: 5000">
+        <a-light type="point" position="4 0 0" intensity="1.5" color="#00ffff" distance="6"></a-light>
+    </a-entity>
+    <a-entity position="0 2 -5" animation="property: rotation; to: 0 -360 0; loop: true; dur: 7000">
+        <a-light type="point" position="4 0 0" intensity="1.5" color="#ff00ff" distance="6"></a-light>
+    </a-entity>
+
+    <!-- Energy waves (expanding rings) -->
+    <a-ring position="0 2 -5" radius-inner="1.5" radius-outer="1.7" color="#00ffff"
+        material="shader: flat; emissive: #00ffff; emissiveIntensity: 2; opacity: 0.5; transparent: true; side: double"
+        animation__scale="property: scale; to: 3 3 3; loop: true; dur: 3000; easing: easeOutQuad"
+        animation__opacity="property: components.material.material.opacity; from: 0.5; to: 0; loop: true; dur: 3000; easing: easeOutQuad"></a-ring>
+
+    <!-- Glowing floor grid -->
+    <a-plane position="0 0 -5" rotation="-90 0 0" width="20" height="20" color="#1a0030"
+        material="shader: flat; wireframe: true; wireframeLinewidth: 2; emissive: #ff00ff; emissiveIntensity: 0.8"></a-plane>
+
+    <!-- Camera with subtle movement -->
+    <a-camera look-controls wasd-controls position="0 3 2"
+        animation="property: position; to: 1 3.5 2; dir: alternate; loop: true; dur: 8000; easing: easeInOutSine">
+        <a-cursor color="#fff"></a-cursor>
+    </a-camera>
 </a-scene>`;
         }
 
         function getGlowingTunnelCode() {
-            return `<a-scene embedded vr-mode-ui="enabled: true">
-    <a-light type="ambient" color="#202020" intensity="0.4"></a-light>
-    <a-torus position="0 2 -5" radius="2" radius-tubular="0.1" color="#ff00ff" material="emissive: #ff00ff; emissiveIntensity: 0.5"
-        animation="property: rotation; to: 360 0 0; loop: true; dur: 4000"></a-torus>
-    <a-torus position="0 2 -7" radius="2" radius-tubular="0.1" color="#00ffff" material="emissive: #00ffff; emissiveIntensity: 0.5"
-        animation="property: rotation; to: 360 0 0; loop: true; dur: 4000"></a-torus>
-    <a-torus position="0 2 -9" radius="2" radius-tubular="0.1" color="#ffff00" material="emissive: #ffff00; emissiveIntensity: 0.5"
-        animation="property: rotation; to: 360 0 0; loop: true; dur: 4000"></a-torus>
-    <a-camera look-controls wasd-controls position="0 2 0"><a-cursor color="#fff"></a-cursor></a-camera>
+            return `<a-scene embedded vr-mode-ui="enabled: true" background="color: #05000a" fog="type: exponential; color: #05000a; density: 0.03">
+    <!-- Very dark ambient for dramatic glow -->
+    <a-light type="ambient" color="#0a0010" intensity="0.2"></a-light>
+
+    <!-- Magenta ring 1 - closest -->
+    <a-torus position="0 2 -3" radius="2.5" radius-tubular="0.15" color="#ff00ff"
+        material="shader: flat; emissive: #ff00ff; emissiveIntensity: 2.5"
+        animation="property: rotation; to: 360 0 0; loop: true; dur: 3000; easing: linear"></a-torus>
+    <a-light type="point" position="0 2 -3" intensity="2" color="#ff00ff" distance="8"></a-light>
+
+    <!-- Cyan ring 2 -->
+    <a-torus position="0 2 -6" radius="2.5" radius-tubular="0.15" color="#00ffff"
+        material="shader: flat; emissive: #00ffff; emissiveIntensity: 2.5"
+        animation="property: rotation; to: -360 360 0; loop: true; dur: 3500; easing: linear"></a-torus>
+    <a-light type="point" position="0 2 -6" intensity="2" color="#00ffff" distance="8"></a-light>
+
+    <!-- Yellow ring 3 -->
+    <a-torus position="0 2 -9" radius="2.5" radius-tubular="0.15" color="#ffff00"
+        material="shader: flat; emissive: #ffff00; emissiveIntensity: 2.5"
+        animation="property: rotation; to: 360 0 360; loop: true; dur: 4000; easing: linear"></a-torus>
+    <a-light type="point" position="0 2 -9" intensity="2" color="#ffff00" distance="8"></a-light>
+
+    <!-- Hot Pink ring 4 -->
+    <a-torus position="0 2 -12" radius="2.5" radius-tubular="0.15" color="#ff1493"
+        material="shader: flat; emissive: #ff1493; emissiveIntensity: 2.5"
+        animation="property: rotation; to: 0 -360 360; loop: true; dur: 4500; easing: linear"></a-torus>
+    <a-light type="point" position="0 2 -12" intensity="2" color="#ff1493" distance="8"></a-light>
+
+    <!-- Lime green ring 5 -->
+    <a-torus position="0 2 -15" radius="2.5" radius-tubular="0.15" color="#00ff80"
+        material="shader: flat; emissive: #00ff80; emissiveIntensity: 2.5"
+        animation="property: rotation; to: 360 360 0; loop: true; dur: 5000; easing: linear"></a-torus>
+    <a-light type="point" position="0 2 -15" intensity="2" color="#00ff80" distance="8"></a-light>
+
+    <!-- Orange ring 6 -->
+    <a-torus position="0 2 -18" radius="2.5" radius-tubular="0.15" color="#ff8800"
+        material="shader: flat; emissive: #ff8800; emissiveIntensity: 2.5"
+        animation="property: rotation; to: -360 0 -360; loop: true; dur: 5500; easing: linear"></a-torus>
+    <a-light type="point" position="0 2 -18" intensity="2" color="#ff8800" distance="8"></a-light>
+
+    <!-- Deep blue ring 7 -->
+    <a-torus position="0 2 -21" radius="2.5" radius-tubular="0.15" color="#0080ff"
+        material="shader: flat; emissive: #0080ff; emissiveIntensity: 2.5"
+        animation="property: rotation; to: 360 -360 0; loop: true; dur: 6000; easing: linear"></a-torus>
+    <a-light type="point" position="0 2 -21" intensity="2" color="#0080ff" distance="8"></a-light>
+
+    <!-- Purple ring 8 - furthest -->
+    <a-torus position="0 2 -24" radius="2.5" radius-tubular="0.15" color="#8000ff"
+        material="shader: flat; emissive: #8000ff; emissiveIntensity: 2.5"
+        animation="property: rotation; to: 0 360 360; loop: true; dur: 6500; easing: linear"></a-torus>
+    <a-light type="point" position="0 2 -24" intensity="2" color="#8000ff" distance="8"></a-light>
+
+    <!-- Floating energy orbs inside tunnel -->
+    <a-entity position="0 2 -12" animation="property: rotation; to: 0 360 0; loop: true; dur: 8000">
+        <a-sphere position="1.5 0 0" radius="0.1" color="#ff00ff" material="shader: flat; emissive: #ff00ff; emissiveIntensity: 3"></a-sphere>
+        <a-sphere position="-1.5 0 0" radius="0.1" color="#00ffff" material="shader: flat; emissive: #00ffff; emissiveIntensity: 3"></a-sphere>
+        <a-sphere position="0 1.5 0" radius="0.1" color="#ffff00" material="shader: flat; emissive: #ffff00; emissiveIntensity: 3"></a-sphere>
+        <a-sphere position="0 -1.5 0" radius="0.1" color="#ff1493" material="shader: flat; emissive: #ff1493; emissiveIntensity: 3"></a-sphere>
+    </a-entity>
+
+    <!-- Camera with automatic forward movement through tunnel -->
+    <a-camera look-controls wasd-controls position="0 2 2"
+        animation="property: position; to: 0 2 -26; loop: true; dur: 20000; easing: linear; dir: alternate">
+        <a-cursor color="#fff"></a-cursor>
+    </a-camera>
 </a-scene>`;
         }
 
         function getStackedCubesCode() {
-            return `<a-scene embedded vr-mode-ui="enabled: true">
-    <a-light type="ambient" color="#404040" intensity="0.6"></a-light>
-    <a-light type="directional" position="10 10 5" intensity="0.8"></a-light>
-    <a-box position="0 0.5 -5" color="#ff6b6b" animation="property: rotation; to: 0 360 0; loop: true; dur: 4000"></a-box>
-    <a-box position="0 1.5 -5" color="#4ecdc4" animation="property: rotation; to: 0 360 0; loop: true; dur: 3000"></a-box>
-    <a-box position="0 2.5 -5" color="#ffe66d" animation="property: rotation; to: 0 360 0; loop: true; dur: 2000"></a-box>
-    <a-plane position="0 0 -5" rotation="-90 0 0" width="10" height="10" color="#95e1d3"></a-plane>
-    <a-camera look-controls wasd-controls position="0 2 3"><a-cursor color="#fff"></a-cursor></a-camera>
+            return `<a-scene embedded vr-mode-ui="enabled: true" background="color: #1a0030">
+    <!-- Ambient purple lighting -->
+    <a-light type="ambient" color="#3d1e6d" intensity="0.5"></a-light>
+
+    <!-- Tower 1 - Magenta gradient tower (left) -->
+    <a-box position="-3 0.5 -6" width="1" height="1" depth="1" color="#ff00ff"
+        material="shader: flat; emissive: #ff00ff; emissiveIntensity: 1.5"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 4000"></a-box>
+    <a-box position="-3 1.5 -6" width="0.9" height="0.9" depth="0.9" color="#ff1493"
+        material="shader: flat; emissive: #ff1493; emissiveIntensity: 1.5"
+        animation="property: rotation; to: 360 0 360; loop: true; dur: 3500"></a-box>
+    <a-box position="-3 2.4 -6" width="0.8" height="0.8" depth="0.8" color="#ff69b4"
+        material="shader: flat; emissive: #ff69b4; emissiveIntensity: 1.5"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 3000"></a-box>
+    <a-box position="-3 3.2 -6" width="0.7" height="0.7" depth="0.7" color="#ff87c3"
+        material="shader: flat; emissive: #ff87c3; emissiveIntensity: 1.5"
+        animation="property: rotation; to: 360 0 360; loop: true; dur: 2500"></a-box>
+    <a-light type="point" position="-3 3.5 -6" intensity="1.5" color="#ff00ff" distance="6"></a-light>
+
+    <!-- Tower 2 - Cyan gradient tower (center) -->
+    <a-box position="0 0.5 -6" width="1" height="1" depth="1" color="#00ffff"
+        material="shader: flat; emissive: #00ffff; emissiveIntensity: 2"
+        animation="property: rotation; to: 360 360 0; loop: true; dur: 4500"></a-box>
+    <a-box position="0 1.5 -6" width="0.9" height="0.9" depth="0.9" color="#00e5ff"
+        material="shader: flat; emissive: #00e5ff; emissiveIntensity: 2"
+        animation="property: rotation; to: 0 360 360; loop: true; dur: 4000"></a-box>
+    <a-box position="0 2.4 -6" width="0.8" height="0.8" depth="0.8" color="#00bfff"
+        material="shader: flat; emissive: #00bfff; emissiveIntensity: 2"
+        animation="property: rotation; to: 360 0 360; loop: true; dur: 3500"></a-box>
+    <a-box position="0 3.2 -6" width="0.7" height="0.7" depth="0.7" color="#87ceeb"
+        material="shader: flat; emissive: #87ceeb; emissiveIntensity: 2"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 3000"></a-box>
+    <a-box position="0 3.9 -6" width="0.6" height="0.6" depth="0.6" color="#add8e6"
+        material="shader: flat; emissive: #add8e6; emissiveIntensity: 2"
+        animation="property: rotation; to: 360 360 0; loop: true; dur: 2500"></a-box>
+    <a-light type="point" position="0 4.2 -6" intensity="2" color="#00ffff" distance="7"></a-light>
+
+    <!-- Tower 3 - Yellow-Orange gradient tower (right) -->
+    <a-box position="3 0.5 -6" width="1" height="1" depth="1" color="#ffff00"
+        material="shader: flat; emissive: #ffff00; emissiveIntensity: 1.8"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 3800"></a-box>
+    <a-box position="3 1.5 -6" width="0.9" height="0.9" depth="0.9" color="#ffd700"
+        material="shader: flat; emissive: #ffd700; emissiveIntensity: 1.8"
+        animation="property: rotation; to: 360 0 360; loop: true; dur: 3300"></a-box>
+    <a-box position="3 2.4 -6" width="0.8" height="0.8" depth="0.8" color="#ffa500"
+        material="shader: flat; emissive: #ffa500; emissiveIntensity: 1.8"
+        animation="property: rotation; to: 0 360 360; loop: true; dur: 2800"></a-box>
+    <a-light type="point" position="3 3 -6" intensity="1.5" color="#ffff00" distance="5"></a-light>
+
+    <!-- Floating accent cubes -->
+    <a-entity position="0 2 -6" animation="property: rotation; to: 0 360 0; loop: true; dur: 10000">
+        <a-box position="5 0 0" width="0.3" height="0.3" depth="0.3" color="#00ff80"
+            material="shader: flat; emissive: #00ff80; emissiveIntensity: 2"
+            animation="property: rotation; to: 360 360 360; loop: true; dur: 3000"></a-box>
+        <a-box position="-5 0 0" width="0.3" height="0.3" depth="0.3" color="#ff0080"
+            material="shader: flat; emissive: #ff0080; emissiveIntensity: 2"
+            animation="property: rotation; to: -360 -360 -360; loop: true; dur: 3000"></a-box>
+    </a-entity>
+
+    <!-- Glowing grid floor -->
+    <a-plane position="0 0 -6" rotation="-90 0 0" width="20" height="20" color="#1a0030"
+        material="shader: flat; wireframe: true; emissive: #8000ff; emissiveIntensity: 1"></a-plane>
+
+    <!-- Orbiting camera -->
+    <a-camera look-controls wasd-controls position="0 3 4"
+        animation="property: position; to: 3 3 4; dir: alternate; loop: true; dur: 12000; easing: easeInOutSine">
+        <a-cursor color="#fff"></a-cursor>
+    </a-camera>
 </a-scene>`;
         }
 
         function getColorChangingCode() {
-            return `<a-scene embedded vr-mode-ui="enabled: true">
-    <a-light type="ambient" color="#ffffff" intensity="0.8" animation="property: intensity; to: 0.3; direction: alternate; loop: true; dur: 2000"></a-light>
-    <a-sphere position="0 2 -5" radius="1" color="#ff6b6b" animation="property: color; to: #4080ff; direction: alternate; loop: true; dur: 3000"></a-sphere>
-    <a-plane position="0 0 -4" rotation="-90 0 0" width="20" height="20" color="#1a1a2e" animation="property: color; to: #7BC8A4; direction: alternate; loop: true; dur: 4000"></a-plane>
-    <a-camera look-controls wasd-controls position="0 1.6 3"><a-cursor color="#fff"></a-cursor></a-camera>
+            return `<a-scene embedded vr-mode-ui="enabled: true" background="color: #000000">
+    <!-- Animated ambient lighting - cycles through colors -->
+    <a-light type="ambient" color="#ff00ff" intensity="0.6"
+        animation__color="property: light.color; from: #ff00ff; to: #00ffff; dir: alternate; loop: true; dur: 4000"
+        animation__intensity="property: light.intensity; from: 0.4; to: 0.8; dir: alternate; loop: true; dur: 3000"></a-light>
+
+    <!-- Central sphere - Rainbow color cycle with emissive glow -->
+    <a-sphere position="0 2.5 -5" radius="1.2" color="#ff00ff"
+        material="shader: flat; emissive: #ff00ff; emissiveIntensity: 2"
+        animation__color="property: components.material.material.color; type: color; from: #ff00ff; to: #ff0000; dir: normal; loop: true; dur: 6000; easing: linear"
+        animation__emissive="property: components.material.material.emissive; type: color; from: #ff00ff; to: #ff0000; dir: normal; loop: true; dur: 6000; easing: linear"
+        animation__rotate="property: rotation; to: 0 360 0; loop: true; dur: 5000"
+        animation__scale="property: scale; to: 1.3 1.3 1.3; dir: alternate; loop: true; dur: 2000"></a-sphere>
+
+    <!-- Left cube - Cyan to Yellow transition -->
+    <a-box position="-3 1.5 -5" width="1.5" height="1.5" depth="1.5" color="#00ffff"
+        material="shader: flat; emissive: #00ffff; emissiveIntensity: 1.5"
+        animation__color="property: components.material.material.color; type: color; from: #00ffff; to: #ffff00; dir: alternate; loop: true; dur: 4000"
+        animation__emissive="property: components.material.material.emissive; type: color; from: #00ffff; to: #ffff00; dir: alternate; loop: true; dur: 4000"
+        animation="property: rotation; to: 360 360 0; loop: true; dur: 6000"></a-box>
+
+    <!-- Right cube - Magenta to Lime transition -->
+    <a-box position="3 1.5 -5" width="1.5" height="1.5" depth="1.5" color="#ff00ff"
+        material="shader: flat; emissive: #ff00ff; emissiveIntensity: 1.5"
+        animation__color="property: components.material.material.color; type: color; from: #ff00ff; to: #00ff80; dir: alternate; loop: true; dur: 5000"
+        animation__emissive="property: components.material.material.emissive; type: color; from: #ff00ff; to: #00ff80; dir: alternate; loop: true; dur: 5000"
+        animation="property: rotation; to: 0 360 360; loop: true; dur: 7000"></a-box>
+
+    <!-- Top floating torus - Orange to Blue -->
+    <a-torus position="0 4 -5" radius="0.8" radius-tubular="0.15" color="#ff8800"
+        material="shader: flat; emissive: #ff8800; emissiveIntensity: 2"
+        animation__color="property: components.material.material.color; type: color; from: #ff8800; to: #0080ff; dir: alternate; loop: true; dur: 3500"
+        animation__emissive="property: components.material.material.emissive; type: color; from: #ff8800; to: #0080ff; dir: alternate; loop: true; dur: 3500"
+        animation="property: rotation; to: 360 0 360; loop: true; dur: 4000"></a-torus>
+
+    <!-- Orbiting color-changing particles -->
+    <a-entity position="0 2.5 -5" animation="property: rotation; to: 0 360 0; loop: true; dur: 8000">
+        <a-sphere position="2 0 0" radius="0.2" color="#ff0000"
+            material="shader: flat; emissive: #ff0000; emissiveIntensity: 3"
+            animation__color="property: components.material.material.color; type: color; from: #ff0000; to: #00ff00; dir: alternate; loop: true; dur: 2500"
+            animation__emissive="property: components.material.material.emissive; type: color; from: #ff0000; to: #00ff00; dir: alternate; loop: true; dur: 2500"></a-sphere>
+        <a-sphere position="-2 0 0" radius="0.2" color="#0000ff"
+            material="shader: flat; emissive: #0000ff; emissiveIntensity: 3"
+            animation__color="property: components.material.material.color; type: color; from: #0000ff; to: #ffff00; dir: alternate; loop: true; dur: 3000"
+            animation__emissive="property: components.material.material.emissive; type: color; from: #0000ff; to: #ffff00; dir: alternate; loop: true; dur: 3000"></a-sphere>
+        <a-sphere position="0 2 0" radius="0.2" color="#00ff00"
+            material="shader: flat; emissive: #00ff00; emissiveIntensity: 3"
+            animation__color="property: components.material.material.color; type: color; from: #00ff00; to: #ff00ff; dir: alternate; loop: true; dur: 2000"
+            animation__emissive="property: components.material.material.emissive; type: color; from: #00ff00; to: #ff00ff; dir: alternate; loop: true; dur: 2000"></a-sphere>
+        <a-sphere position="0 -2 0" radius="0.2" color="#ffff00"
+            material="shader: flat; emissive: #ffff00; emissiveIntensity: 3"
+            animation__color="property: components.material.material.color; type: color; from: #ffff00; to: #00ffff; dir: alternate; loop: true; dur: 2800"
+            animation__emissive="property: components.material.material.emissive; type: color; from: #ffff00; to: #00ffff; dir: alternate; loop: true; dur: 2800"></a-sphere>
+    </a-entity>
+
+    <!-- Dynamic floor - Color morphing grid -->
+    <a-plane position="0 0 -5" rotation="-90 0 0" width="20" height="20" color="#1a0030"
+        material="shader: flat; wireframe: true; emissive: #ff00ff; emissiveIntensity: 1"
+        animation__color="property: components.material.material.color; type: color; from: #1a0030; to: #001a30; dir: alternate; loop: true; dur: 6000"
+        animation__emissive="property: components.material.material.emissive; type: color; from: #ff00ff; to: #00ffff; dir: alternate; loop: true; dur: 5000"></a-plane>
+
+    <!-- Animated colored point lights -->
+    <a-entity position="0 2.5 -5" animation="property: rotation; to: 0 -360 0; loop: true; dur: 6000">
+        <a-light type="point" position="4 0 0" intensity="2" color="#ff00ff" distance="10"
+            animation__color="property: light.color; from: #ff00ff; to: #00ffff; dir: alternate; loop: true; dur: 4000"></a-light>
+    </a-entity>
+    <a-entity position="0 2.5 -5" animation="property: rotation; to: 0 360 0; loop: true; dur: 7000">
+        <a-light type="point" position="4 0 0" intensity="2" color="#ffff00" distance="10"
+            animation__color="property: light.color; from: #ffff00; to: #ff8800; dir: alternate; loop: true; dur: 3500"></a-light>
+    </a-entity>
+
+    <!-- Camera with gentle movement -->
+    <a-camera look-controls wasd-controls position="0 2.5 5"
+        animation="property: position; to: 1 3 5; dir: alternate; loop: true; dur: 10000; easing: easeInOutSine">
+        <a-cursor color="#fff"></a-cursor>
+    </a-camera>
 </a-scene>`;
         }
 
