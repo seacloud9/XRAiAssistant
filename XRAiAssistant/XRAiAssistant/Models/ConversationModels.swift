@@ -8,14 +8,16 @@ struct EnhancedChatMessage: Identifiable, Codable, Equatable {
     let timestamp: Date
     var threadParentID: UUID? // Reference to parent message for threading
     var replies: [UUID] // Child message IDs
+    var libraryId: String? // Track which 3D library was active when this message was created
 
-    init(id: UUID = UUID(), content: String, isUser: Bool, timestamp: Date = Date(), threadParentID: UUID? = nil, replies: [UUID] = []) {
+    init(id: UUID = UUID(), content: String, isUser: Bool, timestamp: Date = Date(), threadParentID: UUID? = nil, replies: [UUID] = [], libraryId: String? = nil) {
         self.id = id
         self.content = content
         self.isUser = isUser
         self.timestamp = timestamp
         self.threadParentID = threadParentID
         self.replies = replies
+        self.libraryId = libraryId
     }
 
     // Convert from legacy ChatMessage
@@ -26,6 +28,7 @@ struct EnhancedChatMessage: Identifiable, Codable, Equatable {
         self.timestamp = legacyMessage.timestamp
         self.threadParentID = nil
         self.replies = []
+        self.libraryId = legacyMessage.libraryId
     }
 }
 

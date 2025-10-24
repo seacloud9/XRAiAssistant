@@ -164,7 +164,8 @@ class ChatViewModel: ObservableObject {
             id: UUID().uuidString,
             content: welcomeContent,
             isUser: false,
-            timestamp: Date()
+            timestamp: Date(),
+            libraryId: library3DManager.selectedLibrary.id
         )
         messages.append(welcomeMessage)
     }
@@ -218,7 +219,8 @@ class ChatViewModel: ObservableObject {
                 id: messages[0].id,
                 content: library3DManager.getWelcomeMessage(),
                 isUser: false,
-                timestamp: messages[0].timestamp
+                timestamp: messages[0].timestamp,
+                libraryId: library3DManager.selectedLibrary.id
             )
         }
 
@@ -241,7 +243,8 @@ class ChatViewModel: ObservableObject {
                 id: messages[0].id,
                 content: library3DManager.getWelcomeMessage(),
                 isUser: false,
-                timestamp: messages[0].timestamp
+                timestamp: messages[0].timestamp,
+                libraryId: library3DManager.selectedLibrary.id
             )
         }
 
@@ -297,7 +300,8 @@ class ChatViewModel: ObservableObject {
             id: UUID().uuidString,
             content: text,
             isUser: true,
-            timestamp: Date()
+            timestamp: Date(),
+            libraryId: library3DManager.selectedLibrary.id
         )
         messages.append(userMessage)
         
@@ -354,7 +358,8 @@ class ChatViewModel: ObservableObject {
                 id: UUID().uuidString,
                 content: processedResponse,
                 isUser: false,
-                timestamp: Date()
+                timestamp: Date(),
+                libraryId: library3DManager.selectedLibrary.id
             )
             messages.append(assistantMessage)
             
@@ -1381,6 +1386,7 @@ struct ChatMessage: Identifiable, Equatable {
     let content: String
     let isUser: Bool
     let timestamp: Date
+    let libraryId: String? // Track which 3D library was active when this message was created
 }
 
 enum ChatError: Error, LocalizedError {

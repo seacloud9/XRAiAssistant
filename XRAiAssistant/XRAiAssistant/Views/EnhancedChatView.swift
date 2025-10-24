@@ -4,7 +4,7 @@ import SwiftUI
 struct EnhancedChatView: View {
     @ObservedObject var viewModel: ChatViewModel
     @ObservedObject var storageManager: ConversationStorageManager
-    var onRunCode: ((String) -> Void)?
+    var onRunCode: ((_ code: String, _ libraryId: String?) -> Void)?
 
     @State private var currentConversation: Conversation?
     @State private var expandedThreads: Set<UUID> = []
@@ -66,8 +66,8 @@ struct EnhancedChatView: View {
                                                 }
                                             }
                                         },
-                                        onRun: { code in
-                                            onRunCode?(code)
+                                        onRun: { code, libraryId in
+                                            onRunCode?(code, libraryId)
                                         }
                                     )
                                     .id(message.id)
@@ -417,11 +417,11 @@ struct EnhancedChatView: View {
                         Button(action: {
                             // Try to extract code first, fallback to full content if no code blocks found
                             if let code = extractCode(from: message.content) {
-                                print("🎯 Running extracted code (\(code.count) chars)")
-                                onRunCode?(code)
+                                print("🎯 Running extracted code (\(code.count) chars) with library: \(message.libraryId ?? "current")")
+                                onRunCode?(code, message.libraryId)
                             } else {
-                                print("⚠️ No code blocks found, running full message content")
-                                onRunCode?(message.content)
+                                print("⚠️ No code blocks found, running full message content with library: \(message.libraryId ?? "current")")
+                                onRunCode?(message.content, message.libraryId)
                             }
                         }) {
                             HStack(spacing: 4) {
@@ -647,7 +647,8 @@ struct EnhancedChatView: View {
                     id: enhanced.id.uuidString,
                     content: enhanced.content,
                     isUser: enhanced.isUser,
-                    timestamp: enhanced.timestamp
+                    timestamp: enhanced.timestamp,
+                    libraryId: enhanced.libraryId
                 )
             }
 
@@ -656,7 +657,8 @@ struct EnhancedChatView: View {
                 id: UUID().uuidString,
                 content: userMessage,
                 isUser: true,
-                timestamp: Date()
+                timestamp: Date(),
+                libraryId: viewModel.currentLibraryId
             )
             viewModel.messages.append(userChatMessage)
         }

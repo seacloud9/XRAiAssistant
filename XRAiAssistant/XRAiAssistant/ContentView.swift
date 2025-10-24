@@ -657,7 +657,15 @@ struct ContentView: View {
         EnhancedChatView(
             viewModel: chatViewModel,
             storageManager: conversationStorage,
-            onRunCode: { code in
+            onRunCode: { code, libraryId in
+                print("🎯 Running code with library: \(libraryId ?? "current")")
+
+                // If libraryId is provided and different from current, switch to it temporarily
+                if let targetLibraryId = libraryId, targetLibraryId != chatViewModel.currentLibraryId {
+                    print("🔄 Switching from \(chatViewModel.currentLibraryId) to \(targetLibraryId) for this code")
+                    chatViewModel.selectLibrary(id: targetLibraryId)
+                }
+
                 // Switch to scene view and inject code
                 currentView = .scene
                 currentCode = code

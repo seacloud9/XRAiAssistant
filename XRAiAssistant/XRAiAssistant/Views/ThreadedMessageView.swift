@@ -7,7 +7,7 @@ struct ThreadedMessageView: View {
     let isExpanded: Bool
     let onReply: (UUID) -> Void
     let onToggleThread: (UUID) -> Void
-    let onRun: ((String) -> Void)?
+    let onRun: ((_ code: String, _ libraryId: String?) -> Void)?
 
     @State private var showReplyField = false
 
@@ -132,11 +132,11 @@ struct ThreadedMessageView: View {
                             Button(action: {
                                 // Try to extract code first, fallback to full content if no code blocks found
                                 if let code = extractedCode {
-                                    print("🎯 Running extracted code (\(code.count) chars)")
-                                    onRun?(code)
+                                    print("🎯 Running extracted code (\(code.count) chars) with library: \(message.libraryId ?? "current")")
+                                    onRun?(code, message.libraryId)
                                 } else {
-                                    print("⚠️ No code blocks found, running full message content")
-                                    onRun?(message.content)
+                                    print("⚠️ No code blocks found, running full message content with library: \(message.libraryId ?? "current")")
+                                    onRun?(message.content, message.libraryId)
                                 }
                             }) {
                                 HStack(spacing: 4) {
@@ -199,7 +199,7 @@ struct ThreadedMessageView: View {
 struct ThreadReplyView: View {
     let message: EnhancedChatMessage
     let onReply: (UUID) -> Void
-    let onRun: ((String) -> Void)?
+    let onRun: ((_ code: String, _ libraryId: String?) -> Void)?
 
     private var extractedCode: String? {
         let content = message.content
@@ -313,11 +313,11 @@ struct ThreadReplyView: View {
                         Button(action: {
                             // Try to extract code first, fallback to full content if no code blocks found
                             if let code = extractedCode {
-                                print("🎯 Running extracted code from reply (\(code.count) chars)")
-                                onRun?(code)
+                                print("🎯 Running extracted code from reply (\(code.count) chars) with library: \(message.libraryId ?? "current")")
+                                onRun?(code, message.libraryId)
                             } else {
-                                print("⚠️ No code blocks found in reply, running full message content")
-                                onRun?(message.content)
+                                print("⚠️ No code blocks found in reply, running full message content with library: \(message.libraryId ?? "current")")
+                                onRun?(message.content, message.libraryId)
                             }
                         }) {
                             HStack(spacing: 4) {
@@ -397,8 +397,8 @@ struct ThreadReplyView: View {
                                     expandedThreads.insert(messageID)
                                 }
                             },
-                            onRun: { code in
-                                print("Run code: \(code)")
+                            onRun: { code, libraryId in
+                                print("Run code: \(code) with library: \(libraryId ?? "none")")
                             }
                         )
                     }
