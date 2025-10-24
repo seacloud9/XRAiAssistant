@@ -35,7 +35,8 @@
       "Bash(timeout 120 xcodebuild:*)",
       "Bash(xcrun simctl list:*)",
       "Bash(../scripts/xcode_recovery.sh:*)",
-      "Bash(awk:*)"
+      "Bash(awk:*)",
+      "Bash(cat:*)"
     ],
     "deny": []
   }
