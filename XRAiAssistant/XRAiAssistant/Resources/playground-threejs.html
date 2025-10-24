@@ -406,6 +406,8 @@
             <option value="glowing-torus-knots">✨ Glowing Torus Knots</option>
             <option value="postprocessing">Bloom Effect ✨</option>
             <option value="enhanced-bloom">💎 Enhanced Unreal Bloom</option>
+            <option value="glitch-effect">📺 Glitch Effect</option>
+            <option value="rgb-shift">🌈 RGB Shift + Dot Screen</option>
             <option value="wireframe-dance">🎪 Wireframe Geometry Dance</option>
             <option value="gradient-wave">🌊 Gradient Plane Wave</option>
             <option value="ring-portal">🌀 Ring Portal</option>
@@ -1625,6 +1627,8 @@ console.log("✅ Default scene creation complete!");`;
                 'glowing-torus-knots': getGlowingTorusKnotsCode(),
                 'postprocessing': getPostprocessingCode(),
                 'enhanced-bloom': getEnhancedBloomCode(),
+                'glitch-effect': getGlitchEffectCode(),
+                'rgb-shift': getRGBShiftCode(),
                 'wireframe-dance': getWireframeDanceCode(),
                 'gradient-wave': getGradientWaveCode(),
                 'ring-portal': getRingPortalCode(),
@@ -2625,6 +2629,367 @@ const createScene = () => {
 const { scene, camera } = createScene();
 
 console.log("✅ Enhanced Unreal Bloom Pass enabled - real postprocessing with dynamic parameters!");`;
+        }
+
+        function getGlitchEffectCode() {
+            return `// Cyberpunk Neon Glitch Scene
+// Vibrant synthwave aesthetics with intense bloom
+// Featuring floating geometric shapes and particle effects
+
+const createScene = () => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0015);
+    scene.fog = new THREE.Fog(0x0a0015, 10, 500);
+
+    const camera = new THREE.PerspectiveCamera(70, canvas.clientWidth / canvas.clientHeight, 1, 1000);
+    camera.position.set(0, 50, 200);
+
+    // Vibrant neon lighting
+    const ambientLight = new THREE.AmbientLight(0x220033, 0.5);
+    scene.add(ambientLight);
+
+    // Cyan neon light
+    const cyanLight = new THREE.PointLight(0x00ffff, 2, 300);
+    cyanLight.position.set(100, 100, 0);
+    scene.add(cyanLight);
+
+    // Magenta neon light
+    const magentaLight = new THREE.PointLight(0xff00ff, 2, 300);
+    magentaLight.position.set(-100, 100, 0);
+    scene.add(magentaLight);
+
+    // Yellow neon light
+    const yellowLight = new THREE.PointLight(0xffff00, 1.5, 300);
+    yellowLight.position.set(0, -50, 100);
+    scene.add(yellowLight);
+
+    // Cyberpunk grid floor
+    const gridHelper = new THREE.GridHelper(400, 40, 0xff00ff, 0x00ffff);
+    gridHelper.position.y = -50;
+    scene.add(gridHelper);
+
+    // Create floating neon geometric shapes
+    const shapes = [];
+    const geometries = [
+        new THREE.IcosahedronGeometry(1, 0),
+        new THREE.OctahedronGeometry(1),
+        new THREE.TetrahedronGeometry(1),
+        new THREE.DodecahedronGeometry(1),
+        new THREE.TorusGeometry(1, 0.4, 16, 32),
+        new THREE.TorusKnotGeometry(0.8, 0.3, 64, 8)
+    ];
+
+    const neonColors = [
+        0xff00ff, 0x00ffff, 0xffff00, 0xff0080,
+        0x00ff80, 0x8000ff, 0xff8000, 0x0080ff
+    ];
+
+    for (let i = 0; i < 60; i++) {
+        const geomIndex = Math.floor(Math.random() * geometries.length);
+        const color = neonColors[Math.floor(Math.random() * neonColors.length)];
+
+        const material = new THREE.MeshStandardMaterial({
+            color: color,
+            emissive: color,
+            emissiveIntensity: 0.8,
+            metalness: 0.9,
+            roughness: 0.1,
+            wireframe: Math.random() > 0.7
+        });
+
+        const mesh = new THREE.Mesh(geometries[geomIndex].clone(), material);
+        mesh.position.x = (Math.random() - 0.5) * 300;
+        mesh.position.y = Math.random() * 150 - 25;
+        mesh.position.z = (Math.random() - 0.5) * 300;
+        mesh.scale.setScalar(Math.random() * 4 + 2);
+
+        mesh.userData.rotationSpeed = {
+            x: (Math.random() - 0.5) * 0.02,
+            y: (Math.random() - 0.5) * 0.02,
+            z: (Math.random() - 0.5) * 0.02
+        };
+        mesh.userData.floatSpeed = Math.random() * 0.5 + 0.5;
+        mesh.userData.floatOffset = Math.random() * Math.PI * 2;
+
+        scene.add(mesh);
+        shapes.push(mesh);
+    }
+
+    // Glowing particles
+    const particleGeometry = new THREE.BufferGeometry();
+    const particleCount = 500;
+    const positions = new Float32Array(particleCount * 3);
+    const colors = new Float32Array(particleCount * 3);
+
+    for (let i = 0; i < particleCount; i++) {
+        positions[i * 3] = (Math.random() - 0.5) * 400;
+        positions[i * 3 + 1] = Math.random() * 200 - 50;
+        positions[i * 3 + 2] = (Math.random() - 0.5) * 400;
+
+        const color = new THREE.Color(neonColors[Math.floor(Math.random() * neonColors.length)]);
+        colors[i * 3] = color.r;
+        colors[i * 3 + 1] = color.g;
+        colors[i * 3 + 2] = color.b;
+    }
+
+    particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const particleMaterial = new THREE.PointsMaterial({
+        size: 2,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending
+    });
+
+    const particles = new THREE.Points(particleGeometry, particleMaterial);
+    scene.add(particles);
+
+    // Postprocessing with intense bloom
+    const composer = new EffectComposer(renderer);
+    const renderPass = new RenderPass(scene, camera);
+    composer.addPass(renderPass);
+
+    const bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight),
+        2.5, 1.0, 0.1
+    );
+    composer.addPass(bloomPass);
+
+    const outputPass = new OutputPass();
+    composer.addPass(outputPass);
+
+    // Animation
+    let time = 0;
+    function animate() {
+        time += 0.01;
+
+        shapes.forEach((shape, i) => {
+            shape.rotation.x += shape.userData.rotationSpeed.x;
+            shape.rotation.y += shape.userData.rotationSpeed.y;
+            shape.rotation.z += shape.userData.rotationSpeed.z;
+
+            shape.position.y += Math.sin(time * shape.userData.floatSpeed + shape.userData.floatOffset) * 0.3;
+
+            const pulse = Math.sin(time * 2 + i * 0.1) * 0.3 + 0.8;
+            shape.material.emissiveIntensity = pulse;
+        });
+
+        particles.rotation.y = time * 0.1;
+
+        cyanLight.position.x = Math.sin(time * 0.5) * 150;
+        cyanLight.position.z = Math.cos(time * 0.5) * 150;
+        cyanLight.intensity = 1.5 + Math.sin(time * 3) * 0.5;
+
+        magentaLight.position.x = Math.cos(time * 0.7) * 150;
+        magentaLight.position.z = Math.sin(time * 0.7) * 150;
+        magentaLight.intensity = 1.5 + Math.cos(time * 3) * 0.5;
+
+        camera.position.x = Math.sin(time * 0.2) * 180;
+        camera.position.z = Math.cos(time * 0.2) * 180;
+        camera.position.y = 50 + Math.sin(time * 0.3) * 30;
+        camera.lookAt(0, 0, 0);
+
+        bloomPass.strength = 2.5 + Math.sin(time) * 0.5;
+        gridHelper.rotation.y = time * 0.1;
+    }
+
+    scene.userData.animate = animate;
+    scene.userData.composer = composer;
+
+    controls.enabled = false;
+
+    console.log("🌆 Cyberpunk scene: 60 shapes, 500 particles, 3 lights!");
+
+    return { scene, camera };
+};
+
+const { scene, camera } = createScene();
+
+console.log("✅ Neon cyberpunk scene ready!");`;
+        }
+
+        function getRGBShiftCode() {
+            return `// Rainbow Vortex with Bloom
+// Colorful spiraling spheres with intense glow
+// Demonstrates vibrant color palettes and dynamic motion
+
+const createScene = () => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000510);
+
+    const camera = new THREE.PerspectiveCamera(70, canvas.clientWidth / canvas.clientHeight, 1, 1000);
+    camera.position.set(0, 30, 150);
+
+    // Multi-colored lighting setup
+    const ambientLight = new THREE.AmbientLight(0x303030, 0.4);
+    scene.add(ambientLight);
+
+    // Rainbow colored lights
+    const lights = [];
+    const lightColors = [0xff0000, 0xff8800, 0xffff00, 0x00ff00, 0x0088ff, 0x0000ff, 0x8800ff];
+
+    for (let i = 0; i < lightColors.length; i++) {
+        const light = new THREE.PointLight(lightColors[i], 1, 200);
+        const angle = (i / lightColors.length) * Math.PI * 2;
+        light.position.set(Math.cos(angle) * 80, 0, Math.sin(angle) * 80);
+        light.userData.angle = angle;
+        scene.add(light);
+        lights.push(light);
+    }
+
+    // Create rainbow spiral of spheres
+    const spheres = [];
+    const geometries = [
+        new THREE.SphereGeometry(1, 32, 32),
+        new THREE.IcosahedronGeometry(1, 1),
+        new THREE.DodecahedronGeometry(1),
+        new THREE.OctahedronGeometry(1)
+    ];
+
+    const rainbowColors = [
+        0xff0055, 0xff3388, 0xff00ff, 0x8800ff, 0x0088ff,
+        0x00ffff, 0x00ff88, 0x88ff00, 0xffff00, 0xff8800
+    ];
+
+    for (let i = 0; i < 100; i++) {
+        const t = i / 100;
+        const angle = t * Math.PI * 8;
+        const radius = t * 80;
+        const height = Math.sin(t * Math.PI * 4) * 40;
+
+        const color = rainbowColors[Math.floor(Math.random() * rainbowColors.length)];
+        const geom = geometries[Math.floor(Math.random() * geometries.length)];
+
+        const material = new THREE.MeshStandardMaterial({
+            color: color,
+            emissive: color,
+            emissiveIntensity: 0.6,
+            metalness: 0.8,
+            roughness: 0.2
+        });
+
+        const sphere = new THREE.Mesh(geom.clone(), material);
+        sphere.position.set(
+            Math.cos(angle) * radius,
+            height,
+            Math.sin(angle) * radius
+        );
+        sphere.scale.setScalar(1 + Math.random() * 2);
+        sphere.userData.spiralIndex = i;
+
+        scene.add(sphere);
+        spheres.push(sphere);
+    }
+
+    // Add glowing particles in spiral pattern
+    const particleGeometry = new THREE.BufferGeometry();
+    const particleCount = 1000;
+    const positions = new Float32Array(particleCount * 3);
+    const colors = new Float32Array(particleCount * 3);
+
+    for (let i = 0; i < particleCount; i++) {
+        const t = i / particleCount;
+        const angle = t * Math.PI * 16;
+        const radius = t * 100;
+
+        positions[i * 3] = Math.cos(angle) * radius + (Math.random() - 0.5) * 10;
+        positions[i * 3 + 1] = (Math.random() - 0.5) * 100;
+        positions[i * 3 + 2] = Math.sin(angle) * radius + (Math.random() - 0.5) * 10;
+
+        const color = new THREE.Color(rainbowColors[Math.floor(Math.random() * rainbowColors.length)]);
+        colors[i * 3] = color.r;
+        colors[i * 3 + 1] = color.g;
+        colors[i * 3 + 2] = color.b;
+    }
+
+    particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const particleMaterial = new THREE.PointsMaterial({
+        size: 1.5,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.7,
+        blending: THREE.AdditiveBlending
+    });
+
+    const particles = new THREE.Points(particleGeometry, particleMaterial);
+    scene.add(particles);
+
+    // Intense bloom postprocessing
+    const composer = new EffectComposer(renderer);
+    const renderPass = new RenderPass(scene, camera);
+    composer.addPass(renderPass);
+
+    const bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight),
+        3.0, 1.2, 0.1
+    );
+    composer.addPass(bloomPass);
+
+    const outputPass = new OutputPass();
+    composer.addPass(outputPass);
+
+    // Animation
+    let time = 0;
+    function animate() {
+        time += 0.01;
+
+        // Rotate entire spiral
+        spheres.forEach((sphere, i) => {
+            sphere.rotation.x += 0.02;
+            sphere.rotation.y += 0.01;
+
+            // Pulse emissive
+            const pulse = Math.sin(time * 3 + sphere.userData.spiralIndex * 0.1) * 0.3 + 0.7;
+            sphere.material.emissiveIntensity = pulse;
+
+            // Additional spiral rotation
+            const currentAngle = Math.atan2(sphere.position.z, sphere.position.x);
+            const currentRadius = Math.sqrt(sphere.position.x ** 2 + sphere.position.z ** 2);
+            const newAngle = currentAngle + 0.01;
+
+            sphere.position.x = Math.cos(newAngle) * currentRadius;
+            sphere.position.z = Math.sin(newAngle) * currentRadius;
+        });
+
+        // Rotate particles
+        particles.rotation.y = time * 0.2;
+
+        // Orbit lights
+        lights.forEach((light, i) => {
+            const angle = light.userData.angle + time * 0.5;
+            light.position.x = Math.cos(angle) * 80;
+            light.position.z = Math.sin(angle) * 80;
+            light.position.y = Math.sin(time * 2 + i) * 30;
+            light.intensity = 0.8 + Math.sin(time * 4 + i) * 0.4;
+        });
+
+        // Dynamic camera
+        camera.position.x = Math.sin(time * 0.1) * 100;
+        camera.position.y = 30 + Math.sin(time * 0.15) * 20;
+        camera.position.z = Math.cos(time * 0.1) * 100 + 50;
+        camera.lookAt(0, 0, 0);
+
+        // Pulsing bloom
+        bloomPass.strength = 3.0 + Math.sin(time * 2) * 1.0;
+    }
+
+    scene.userData.animate = animate;
+    scene.userData.composer = composer;
+
+    controls.enabled = false;
+
+    console.log("🌈 Rainbow Vortex: 100 spheres, 1000 particles, 7 lights!");
+
+    return { scene, camera };
+};
+
+const { scene, camera } = createScene();
+
+console.log("✅ Vibrant rainbow spiral ready!");`;
         }
 
         function getWireframeDanceCode() {
