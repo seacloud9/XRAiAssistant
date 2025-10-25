@@ -27,7 +27,7 @@ class ChatViewModel: ObservableObject {
     private(set) var aiProviderManager = AIProviderManager()
 
     // 3D Library Management System
-    private let library3DManager = Library3DManager()
+    let library3DManager = Library3DManager()
 
     // Published property to trigger UI updates when library changes
     @Published var currentLibraryId: String = "babylonjs"

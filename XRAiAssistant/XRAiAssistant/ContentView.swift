@@ -53,6 +53,7 @@ struct ContentView: View {
     @State private var isInjectingCode = false
     @State private var showingSettings = false
     @State private var settingsSaved = false
+    @State private var showingExamples = false
     @State private var useSandpackForR3F = true // Toggle for Sandpack vs local playground
     @State private var pendingCodeSandboxCode: String?
     @State private var pendingCodeSandboxFramework: String?
@@ -649,6 +650,19 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showingSettings) {
             settingsView
+        }
+        .sheet(isPresented: $showingExamples) {
+            ExamplesView(library3DManager: chatViewModel.library3DManager) { example in
+                // When user selects an example, inject the code
+                currentView = .scene
+                currentCode = example.code
+                lastGeneratedCode = example.code
+
+                // Inject after a short delay to ensure view is loaded
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    injectCodeWithRetry(example.code, maxRetries: 3)
+                }
+            }
         }
     }
     
@@ -1265,7 +1279,24 @@ struct ContentView: View {
                 
                 Divider()
                     .frame(height: 30)
-                
+
+                // Examples Button
+                Button(action: {
+                    showingExamples = true
+                }) {
+                    VStack(spacing: 4) {
+                        Image(systemName: "book.fill")
+                        Text("Examples")
+                            .font(.caption)
+                    }
+                    .foregroundColor(.gray)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                }
+
+                Divider()
+                    .frame(height: 30)
+
                 // Settings Button
                 Button(action: {
                     showingSettings = true

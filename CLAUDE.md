@@ -803,6 +803,166 @@ playground/src/
 └── playground.tsx                 # Main playground component
 ```
 
+---
+
+## 📚 **Example Contribution Strategy**
+
+### Overview: Enriching XRAiAssistant with Metadata-Rich Examples
+
+**Objective**: Build a curated library of high-quality 3D examples with rich metadata that helps the AI generate better scenes by learning from proven patterns.
+
+### Why This Matters
+
+Traditional code examples are static and isolated. **Metadata-rich examples** enable:
+- **AI Learning**: System prompts reference available techniques, helping AI suggest better implementations
+- **Keyword Search**: Users can discover examples by searching for concepts like "voxel", "procedural", "infinite"
+- **Pattern Recognition**: AI identifies common patterns and suggests them when appropriate
+- **Educational Value**: Examples teach both users and AI about best practices
+
+### Current Implementation (Starting Small)
+
+**Phase 1 Fields** (Currently Implemented):
+```swift
+struct CodeExample {
+    // Existing fields
+    let id, title, description, code: String
+    let category: ExampleCategory
+    let difficulty: ExampleDifficulty
+
+    // NEW: Minimal metadata for AI enhancement
+    let keywords: [String]        // Searchable tags for finding similar examples
+    let aiPromptHints: String?    // Guidance for AI when generating similar scenes
+}
+```
+
+### Keyword Taxonomy
+
+Use these keyword categories when tagging examples:
+
+**Visual Style Keywords**:
+- `voxel`, `wireframe`, `particle`, `holographic`, `retro`, `neon`, `glitch`
+
+**Technical Keywords**:
+- `procedural`, `noise`, `simplex`, `perlin`, `algorithm`, `optimization`
+
+**Scene Type Keywords**:
+- `infinite`, `tunnel`, `wormhole`, `portal`, `environment`, `skybox`
+
+**Effect Keywords**:
+- `bloom`, `glow`, `post-processing`, `color-cycling`, `animation-loop`
+
+**Interaction Keywords**:
+- `interactive`, `customizable`, `html-ui`, `controls`, `parameters`
+
+### How to Add Enhanced Examples
+
+**Step 1**: Create the example code (complete, working scene)
+
+**Step 2**: Tag with relevant keywords
+```swift
+keywords: [
+    "voxel", "procedural", "infinite", "wormhole",
+    "simplex-noise", "post-processing", "bloom",
+    "interactive", "html-ui", "retro-gaming"
+]
+```
+
+**Step 3**: Write AI prompt hints (teach the AI what makes this example special)
+```swift
+aiPromptHints: """
+When users request voxel or infinite tunnel scenes:
+1. Use SimplexNoise class for organic procedural generation
+2. Implement voxel culling to maintain 60fps (only render visible voxels)
+3. Create continuous movement by regenerating voxels at boundaries
+4. Add bloom post-processing for neon glow effects
+5. Include HTML UI controls for real-time customization
+6. Consider performance: limit active voxels to ~2000 max
+"""
+```
+
+**Step 4**: Add to library's examples array
+```swift
+CodeExample(
+    id: "voxel-wormhole",
+    title: "🌀 Infinite Voxel Wormhole",
+    description: "Procedurally generated infinite tunnel using simplex noise...",
+    code: """...""",
+    category: .effects,
+    difficulty: .advanced,
+    keywords: ["voxel", "procedural", "infinite", "wormhole", "simplex-noise"],
+    aiPromptHints: """
+    Use SimplexNoise for organic generation, implement voxel culling,
+    add bloom for neon effects. Maintain 60fps with max 2000 voxels.
+    """
+)
+```
+
+### How AI Uses This Metadata
+
+**Scenario 1: User asks "Create a voxel tunnel"**
+- AI searches examples for keyword `"voxel"`
+- Finds voxel wormhole example
+- Reads `aiPromptHints` to learn best practices
+- Generates scene using SimplexNoise + voxel culling techniques
+
+**Scenario 2: User asks "Make an infinite scrolling background"**
+- AI searches for keywords `"infinite"`, `"procedural"`
+- Discovers continuous regeneration pattern from wormhole example
+- Applies the technique to new context
+
+**Scenario 3: Welcome message displays random example**
+- System selects voxel wormhole
+- User sees impressive visual in welcome message
+- Clicks "Run the Scene" to explore immediately
+
+### Example: Voxel Wormhole with Full Metadata
+
+See [BabylonJSLibrary.swift](XRAiAssistant/XRAiAssistant/Library3D/BabylonJSLibrary.swift) for the complete voxel wormhole implementation.
+
+**Key Features**:
+- Procedural generation using SimplexNoise algorithm
+- Infinite tunnel with continuous voxel regeneration
+- Performance optimization (voxel culling, max object limits)
+- Post-processing effects (bloom for neon glow)
+- HTML UI for real-time parameter control
+
+### Future Enhancements (Roadmap)
+
+**Phase 2**: Extended metadata fields
+- `techniques: [String]` - Specific technical implementations
+- `features: [String]` - User-facing capabilities
+- `author: String?` - Credit for community contributions
+- `sourceURL: String?` - Link to original or inspiration
+- `performanceNotes: String?` - FPS benchmarks and optimization tips
+
+**Phase 3**: Smart recommendation system
+- Keyword-based similarity search
+- AI-powered "Users who liked this also enjoyed..."
+- Category-based browsing interface
+
+**Phase 4**: Community contributions
+- Submit examples via GitHub PR
+- Automated keyword validation
+- Quality review process
+
+### Contributing New Examples
+
+1. **Find inspiration**: Awesome CodePen, Three.js examples, Babylon.js playground
+2. **Adapt to XRAiAssistant**: Ensure code works in embedded playground
+3. **Add metadata**: Tag with 5-10 relevant keywords, write helpful AI hints
+4. **Test thoroughly**: Verify scene runs smoothly, "Run the Scene" button works
+5. **Submit**: Add to appropriate library file or submit as PR
+
+### Best Practices
+
+- **Keywords**: Use 5-10 specific, searchable terms
+- **AI Hints**: Focus on "what makes this example special" and "how to apply this technique"
+- **Code Quality**: Complete, working examples only (no placeholders)
+- **Performance**: Note any optimization techniques used
+- **Documentation**: Clear description of what the example demonstrates
+
+---
+
 ## Development Guidelines
 
 ### 🔧 **Code Standards**

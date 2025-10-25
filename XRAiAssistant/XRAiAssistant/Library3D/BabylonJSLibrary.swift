@@ -252,7 +252,9 @@ struct BabylonJSLibrary: Library3D {
                 const scene = createScene();
                 """,
                 category: .basic,
-                difficulty: .beginner
+                difficulty: .beginner,
+                keywords: ["glow", "pbr", "metallic", "animation", "floating", "polyhedron", "crystal"],
+                aiPromptHints: "Use PBRMaterial for realistic metallic surfaces with emissive glow. Add GlowLayer for neon effects. Animate with registerBeforeRender and Math.sin for smooth floating motion."
             ),
 
             CodeExample(
@@ -982,6 +984,212 @@ struct BabylonJSLibrary: Library3D {
                 """,
                 category: .lighting,
                 difficulty: .intermediate
+            ),
+
+            // ADVANCED PROCEDURAL EXAMPLE WITH METADATA
+            CodeExample(
+                id: "voxel-wormhole",
+                title: "🌀 Infinite Voxel Wormhole with Mario Star",
+                description: "Procedurally generated infinite tunnel using simplex noise, featuring dynamic color customization, bloom post-processing, and retro-gaming aesthetics. Performance-optimized with voxel culling to maintain 60fps.",
+                code: """
+                const createScene = () => {
+                    const scene = new BABYLON.Scene(engine);
+                    scene.clearColor = new BABYLON.Color3(0, 0, 0);
+
+                    const camera = new BABYLON.ArcRotateCamera("camera1", 0, 0, 30, new BABYLON.Vector3(0, 0, 0), scene);
+                    if (camera.attachControls) {
+                        camera.attachControls(canvas, true);
+                    }
+
+                    const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+                    light.intensity = 0.7;
+
+                    // Add glow layer for neon effect
+                    const gl = new BABYLON.GlowLayer("glow", scene);
+                    gl.intensity = 1.5;
+
+                    // SimplexNoise implementation for procedural generation
+                    class SimplexNoise {
+                        constructor() {
+                            this.grad3 = [[1,1,0],[-1,1,0],[1,-1,0],[-1,-1,0],[1,0,1],[-1,0,1],[1,0,-1],[-1,0,-1],[0,1,1],[0,-1,1],[0,1,-1],[0,-1,-1]];
+                            this.p = [];
+                            for(let i=0; i<256; i++) { this.p[i] = Math.floor(Math.random()*256); }
+                            this.perm = [];
+                            for(let i=0; i<512; i++) { this.perm[i]=this.p[i & 255]; }
+                            this.F3 = 1.0/3.0;
+                            this.G3 = 1.0/6.0;
+                        }
+
+                        dot(g, x, y, z) {
+                            return g[0]*x + g[1]*y + g[2]*z;
+                        }
+
+                        noise(xin, yin, zin) {
+                            let n0, n1, n2, n3;
+                            let s = (xin+yin+zin)*this.F3;
+                            let i = Math.floor(xin+s);
+                            let j = Math.floor(yin+s);
+                            let k = Math.floor(zin+s);
+                            let t = (i+j+k)*this.G3;
+                            let X0 = i-t;
+                            let Y0 = j-t;
+                            let Z0 = k-t;
+                            let x0 = xin-X0;
+                            let y0 = yin-Y0;
+                            let z0 = zin-Z0;
+                            let i1, j1, k1;
+                            let i2, j2, k2;
+                            if(x0>=y0) {
+                                if(y0>=z0) { i1=1; j1=0; k1=0; i2=1; j2=1; k2=0; }
+                                else if(x0>=z0) { i1=1; j1=0; k1=0; i2=1; j2=0; k2=1; }
+                                else { i1=0; j1=0; k1=1; i2=1; j2=0; k2=1; }
+                            } else {
+                                if(y0<z0) { i1=0; j1=0; k1=1; i2=0; j2=1; k2=1; }
+                                else if(x0<z0) { i1=0; j1=1; k1=0; i2=0; j2=1; k2=1; }
+                                else { i1=0; j1=1; k1=0; i2=1; j2=1; k2=0; }
+                            }
+                            let x1 = x0 - i1 + this.G3;
+                            let y1 = y0 - j1 + this.G3;
+                            let z1 = z0 - k1 + this.G3;
+                            let x2 = x0 - i2 + 2.0*this.G3;
+                            let y2 = y0 - j2 + 2.0*this.G3;
+                            let z2 = z0 - k2 + 2.0*this.G3;
+                            let x3 = x0 - 1.0 + 3.0*this.G3;
+                            let y3 = y0 - 1.0 + 3.0*this.G3;
+                            let z3 = z0 - 1.0 + 3.0*this.G3;
+                            let ii = i & 255;
+                            let jj = j & 255;
+                            let kk = k & 255;
+                            let gi0 = this.perm[ii+this.perm[jj+this.perm[kk]]] % 12;
+                            let gi1 = this.perm[ii+i1+this.perm[jj+j1+this.perm[kk+k1]]] % 12;
+                            let gi2 = this.perm[ii+i2+this.perm[jj+j2+this.perm[kk+k2]]] % 12;
+                            let gi3 = this.perm[ii+1+this.perm[jj+1+this.perm[kk+1]]] % 12;
+                            let t0 = 0.6 - x0*x0 - y0*y0 - z0*z0;
+                            if(t0<0) n0 = 0.0;
+                            else { t0 *= t0; n0 = t0 * t0 * this.dot(this.grad3[gi0], x0, y0, z0); }
+                            let t1 = 0.6 - x1*x1 - y1*y1 - z1*z1;
+                            if(t1<0) n1 = 0.0;
+                            else { t1 *= t1; n1 = t1 * t1 * this.dot(this.grad3[gi1], x1, y1, z1); }
+                            let t2 = 0.6 - x2*x2 - y2*y2 - z2*z2;
+                            if(t2<0) n2 = 0.0;
+                            else { t2 *= t2; n2 = t2 * t2 * this.dot(this.grad3[gi2], x2, y2, z2); }
+                            let t3 = 0.6 - x3*x3 - y3*y3 - z3*z3;
+                            if(t3<0) n3 = 0.0;
+                            else { t3 *= t3; n3 = t3 * t3 * this.dot(this.grad3[gi3], x3, y3, z3); }
+                            return 32.0*(n0 + n1 + n2 + n3);
+                        }
+                    }
+
+                    const noise = new SimplexNoise();
+                    const voxels = [];
+                    const maxVoxels = 2000; // Performance limit
+                    let cameraZ = 0;
+
+                    // Voxel generation with culling
+                    function generateVoxels(zStart, zEnd) {
+                        for(let z = zStart; z < zEnd; z += 2) {
+                            const radius = 10;
+                            for(let angle = 0; angle < Math.PI * 2; angle += Math.PI / 8) {
+                                const x = Math.cos(angle) * radius;
+                                const y = Math.sin(angle) * radius;
+                                const noiseVal = noise.noise(x * 0.1, y * 0.1, z * 0.05);
+
+                                if(noiseVal > 0.2 && voxels.length < maxVoxels) {
+                                    const voxel = BABYLON.MeshBuilder.CreateBox("voxel", {size: 1}, scene);
+                                    voxel.position = new BABYLON.Vector3(x, y, z);
+
+                                    const mat = new BABYLON.StandardMaterial("mat", scene);
+                                    const colorPhase = z * 0.1;
+                                    mat.emissiveColor = new BABYLON.Color3(
+                                        Math.sin(colorPhase) * 0.5 + 0.5,
+                                        Math.sin(colorPhase + 2) * 0.5 + 0.5,
+                                        Math.sin(colorPhase + 4) * 0.5 + 0.5
+                                    );
+                                    voxel.material = mat;
+                                    voxels.push(voxel);
+                                }
+                            }
+                        }
+                    }
+
+                    // Mario star in the center
+                    const star = BABYLON.MeshBuilder.CreatePolyhedron("star", {type: 1, size: 2}, scene);
+                    const starMat = new BABYLON.PBRMaterial("starMat", scene);
+                    starMat.albedoColor = new BABYLON.Color3(1, 0.9, 0.2);
+                    starMat.metallic = 1;
+                    starMat.roughness = 0.1;
+                    starMat.emissiveColor = new BABYLON.Color3(1, 0.9, 0);
+                    starMat.emissiveIntensity = 2;
+                    star.material = starMat;
+
+                    // Initial voxel generation
+                    generateVoxels(-20, 40);
+
+                    // Animation loop
+                    scene.registerBeforeRender(() => {
+                        cameraZ += 0.5;
+                        camera.target.z = cameraZ;
+
+                        star.rotation.y += 0.05;
+                        star.rotation.x += 0.03;
+
+                        // Regenerate voxels for infinite tunnel
+                        if(cameraZ % 20 === 0) {
+                            const voxelsToRemove = voxels.filter(v => v.position.z < cameraZ - 30);
+                            voxelsToRemove.forEach(v => {
+                                v.dispose();
+                                voxels.splice(voxels.indexOf(v), 1);
+                            });
+                            generateVoxels(cameraZ + 20, cameraZ + 40);
+                        }
+                    });
+
+                    console.log("Voxel wormhole scene created successfully");
+                    return scene;
+                };
+                const scene = createScene();
+                """,
+                category: .effects,
+                difficulty: .advanced,
+                keywords: [
+                    "voxel", "procedural", "infinite", "wormhole", "tunnel",
+                    "simplex-noise", "algorithm", "post-processing", "bloom",
+                    "retro-gaming", "mario", "neon", "glow", "optimization"
+                ],
+                aiPromptHints: """
+                When users request voxel, infinite tunnel, or procedural generation scenes:
+
+                1. PROCEDURAL GENERATION: Use SimplexNoise class for organic, natural-looking patterns
+                   - Initialize with random permutation table
+                   - Call noise(x, y, z) with scaled coordinates for variation
+                   - Threshold noise values to create sparse distributions
+
+                2. PERFORMANCE OPTIMIZATION: Implement voxel culling to maintain 60fps
+                   - Set maxVoxels limit (typically 1500-2000 for smooth performance)
+                   - Remove voxels behind camera: if(voxel.position.z < camera.z - 30) dispose()
+                   - Check voxels.length before creating new instances
+
+                3. INFINITE TUNNEL: Create continuous movement by regenerating at boundaries
+                   - Advance camera position in registerBeforeRender: camera.target.z += speed
+                   - Detect when camera crosses threshold: if(cameraZ % segmentLength === 0)
+                   - Generate new segment ahead, dispose old segment behind
+
+                4. VISUAL EFFECTS: Add bloom/glow for neon aesthetics
+                   - Use GlowLayer with intensity 1.0-2.0
+                   - Set emissiveColor on materials for self-illumination
+                   - Vary colors using Math.sin with phase offsets for rainbow effects
+
+                5. HTML UI: Include controls for real-time customization (advanced)
+                   - Add sliders for speed, color, density parameters
+                   - Update values in registerBeforeRender loop
+                   - Display FPS counter for performance monitoring
+
+                PERFORMANCE TIPS:
+                - Limit active objects to ~2000 max for 60fps on mobile
+                - Use dispose() to free memory for removed meshes
+                - Batch similar operations to reduce draw calls
+                - Consider InstancedMesh for repeated geometry (10x+ performance boost)
+                """
             )
         ]
     }

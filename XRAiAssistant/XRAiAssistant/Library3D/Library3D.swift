@@ -26,13 +26,28 @@ struct CodeExample: Identifiable, Hashable {
     let category: ExampleCategory
     let difficulty: ExampleDifficulty
 
-    init(id: String? = nil, title: String, description: String, code: String, category: ExampleCategory, difficulty: ExampleDifficulty = .beginner) {
+    // MARK: - Enhanced Metadata (for AI-assisted scene generation)
+    let keywords: [String]           // Searchable keywords for finding similar examples
+    let aiPromptHints: String?       // Hints for AI when generating similar scenes
+
+    init(
+        id: String? = nil,
+        title: String,
+        description: String,
+        code: String,
+        category: ExampleCategory,
+        difficulty: ExampleDifficulty = .beginner,
+        keywords: [String] = [],
+        aiPromptHints: String? = nil
+    ) {
         self.id = id ?? UUID().uuidString
         self.title = title
         self.description = description
         self.code = code
         self.category = category
         self.difficulty = difficulty
+        self.keywords = keywords
+        self.aiPromptHints = aiPromptHints
     }
 }
 
