@@ -1190,6 +1190,709 @@ struct BabylonJSLibrary: Library3D {
                 - Batch similar operations to reduce draw calls
                 - Consider InstancedMesh for repeated geometry (10x+ performance boost)
                 """
+            ),
+
+            // RETRO SYNTHWAVE TRONSCAPE
+            CodeExample(
+                id: "tronscape-demo",
+                title: "🌆 Retrowave Tronscape",
+                description: "Epic synthwave landscape with fractal terrain, warp star background, pink sun, and chromatic aberration. Features procedural grid material, infinite scrolling terrain, and retro 80s aesthetics.",
+                code: """
+                // Minimal Perlin-like noise for fractal terrain
+                function fade(t) {
+                    return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
+                }
+                function lerp(a, b, t) {
+                    return a + (b - a) * t;
+                }
+                function random2D(i, j) {
+                    let seed = (i * 49632) ^ (j * 325176);
+                    let s = Math.sin(seed) * 43758.5453;
+                    return s - Math.floor(s);
+                }
+                function noise2D(x, z) {
+                    let xi = Math.floor(x);
+                    let zi = Math.floor(z);
+                    let xf = x - xi;
+                    let zf = z - zi;
+
+                    let tl = random2D(xi,   zi);
+                    let tr = random2D(xi+1, zi);
+                    let bl = random2D(xi,   zi+1);
+                    let br = random2D(xi+1, zi+1);
+
+                    let u = fade(xf);
+                    let v = fade(zf);
+
+                    let top    = lerp(tl, tr, u);
+                    let bottom = lerp(bl, br, u);
+                    return lerp(top, bottom, v);
+                }
+                function fractalNoise2D(x, z, octaves, lacunarity, gain) {
+                    let sum = 0.0;
+                    let amp = 1.0;
+                    let freq = 1.0;
+                    let norm = 0.0;
+
+                    for (let i = 0; i < octaves; i++) {
+                        sum += amp * noise2D(x * freq, z * freq);
+                        norm += amp;
+                        freq *= lacunarity;
+                        amp *= gain;
+                    }
+                    return sum / norm;
+                }
+
+                var url = "https://cdn.rawgit.com/BabylonJS/Extensions/master/DynamicTerrain/dist/babylon.dynamicTerrain.min.js";
+                var s = document.createElement("script");
+                s.src = url;
+                document.head.appendChild(s);
+
+                const createScene = () => {
+                    const scene = new BABYLON.Scene(engine);
+
+                    // Set background to BLACK
+                    scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
+
+                    // Camera
+                    const camera = new BABYLON.ArcRotateCamera("camera", 0, 1.2, 180, BABYLON.Vector3.Zero(), scene);
+                    if (camera.attachControl) {
+                        camera.attachControl(canvas, true);
+                    }
+                    camera.fov = 1.2;
+                    camera.maxZ = 5000;
+
+                    // Lock zoom
+                    camera.lowerRadiusLimit = camera.radius;
+                    camera.upperRadiusLimit = camera.radius;
+
+                    // Light
+                    new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+
+                    // Load DynamicTerrain
+                    s.onload = function() {
+                        let mapSize = 200;
+                        let mapData = [];
+                        for (let z = 0; z <= mapSize; z++) {
+                            for (let x = 0; x <= mapSize; x++) {
+                                let worldX = x - mapSize / 2;
+                                let worldZ = z - mapSize / 2;
+                                let n = fractalNoise2D(worldX * 0.04, worldZ * 0.04, 4, 2.0, 0.5);
+                                let y = n * 10.0;
+                                mapData.push(worldX, y, worldZ);
+                            }
+                        }
+
+                        let terrainOpts = {
+                            mapData: mapData,
+                            mapSubX: mapSize,
+                            mapSubZ: mapSize,
+                            terrainSub: 60
+                        };
+                        let terrain = new BABYLON.DynamicTerrain("terrain", terrainOpts, scene);
+                        terrain.createUVMap();
+                        terrain.update(true);
+
+                        let gridMat = new BABYLON.GridMaterial("gridMaterial", scene);
+                        gridMat.majorUnitFrequency = 1;
+                        gridMat.minorUnitVisibility = 0;
+                        gridMat.gridRatio = 1;
+                        gridMat.backFaceCulling = false;
+                        gridMat.mainColor = new BABYLON.Color3(0, 0, 0);
+                        gridMat.lineColor = new BABYLON.Color3(0, 1, 1);
+                        terrain.mesh.material = gridMat;
+                        terrain.mesh.position.y = -2;
+
+                        scene.onBeforeRenderObservable.add(() => {
+                            terrain.mesh.position.z -= 0.2;
+                        });
+                    };
+
+                    // Bigger pink sun
+                    let sun = BABYLON.MeshBuilder.CreateDisc("sun", { radius: 15, tessellation: 64 }, scene);
+                    let sunMat = new BABYLON.StandardMaterial("sunMat", scene);
+                    sunMat.emissiveColor = new BABYLON.Color3(1, 0.2, 0.6);
+                    sun.material = sunMat;
+                    sun.position.set(0, 10, -30);
+
+                    camera.position.set(-6.1, 5.69, -213.73);
+                    camera.setTarget(sun.position);
+
+                    // Skybox
+                    let skybox = BABYLON.MeshBuilder.CreateBox("skyBox", { size: 10000 }, scene);
+                    skybox.infiniteDistance = true;
+                    skybox.applyFog = false;
+
+                    // Warp star shader
+                    BABYLON.Effect.ShadersStore["warpStarVertexShader"] = `
+                        precision highp float;
+                        attribute vec3 position;
+                        attribute vec2 uv;
+                        uniform mat4 worldViewProjection;
+                        varying vec2 vUV;
+                        void main() {
+                            vUV = uv;
+                            gl_Position = worldViewProjection * vec4(position, 1.0);
+                        }
+                    `;
+                    BABYLON.Effect.ShadersStore["warpStarFragmentShader"] = `
+                        precision highp float;
+                        varying vec2 vUV;
+                        uniform float iTime;
+                        uniform vec3  starColor;
+                        float hash12(vec2 p) {
+                            float h = dot(p, vec2(127.1, 311.7));
+                            return fract(sin(h)*43758.5453);
+                        }
+                        void main() {
+                            vec2 uv = vUV * 2.0 - 1.0;
+                            float r = length(uv);
+                            float angle = atan(uv.y, uv.x);
+                            float warpSpeed = 1.2;
+                            float radial = r - iTime * warpSpeed;
+                            float slices = 40.0;
+                            float rings  = 25.0;
+                            float sliceIndex = floor(angle * slices);
+                            float ringIndex  = floor(radial * rings);
+                            float starChance = hash12(vec2(sliceIndex, ringIndex));
+                            float ringPos = fract(radial * rings);
+                            float starIntensity = 0.0;
+                            if (starChance < 0.25) {
+                                float bandWidth = 0.15;
+                                if (ringPos < bandWidth) {
+                                    float fade = 1.0 - (ringPos / bandWidth);
+                                    starIntensity = fade;
+                                }
+                            }
+                            float centerGlow = max(0.0, 0.15 - r) * 4.0;
+                            starIntensity = max(starIntensity, centerGlow);
+                            vec3 col = mix(vec3(0.0), starColor, starIntensity);
+                            gl_FragColor = vec4(col, 1.0);
+                        }
+                    `;
+                    let warpStarMat = new BABYLON.ShaderMaterial(
+                        "warpStarMat",
+                        scene,
+                        { vertex: "warpStar", fragment: "warpStar" },
+                        {
+                            attributes: ["position", "uv"],
+                            uniforms: ["worldViewProjection", "iTime", "starColor"]
+                        }
+                    );
+                    warpStarMat.setColor3("starColor", new BABYLON.Color3(0.9, 0.9, 1.0));
+                    let startTime = Date.now();
+                    scene.onBeforeRenderObservable.add(() => {
+                        let t = (Date.now() - startTime) * 0.001;
+                        warpStarMat.setFloat("iTime", t);
+                    });
+                    skybox.material = warpStarMat;
+
+                    // Fog
+                    scene.fogMode = BABYLON.Scene.FOGMODE_LINEAR;
+                    scene.fogStart = 300;
+                    scene.fogEnd = 900;
+                    scene.fogColor = new BABYLON.Color3(0,0,0);
+
+                    // Postprocess pipeline
+                    let pipeline = new BABYLON.DefaultRenderingPipeline("DefaultPipeline", true, scene, [camera]);
+                    pipeline.bloomEnabled = true;
+                    pipeline.bloomThreshold = 0.2;
+                    pipeline.bloomWeight = 1.0;
+                    pipeline.bloomKernel = 64;
+                    pipeline.bloomScale = 0.5;
+                    pipeline.chromaticAberrationEnabled = true;
+                    pipeline.chromaticAberration.aberrationAmount = 4.0;
+                    pipeline.chromaticAberration.radialIntensity = 1.0;
+
+                    console.log("Tronscape scene created successfully");
+                    return scene;
+                };
+                const scene = createScene();
+                """,
+                category: .effects,
+                difficulty: .advanced,
+                keywords: [
+                    "synthwave", "retrowave", "tron", "80s", "neon",
+                    "procedural", "terrain", "fractal", "noise", "perlin",
+                    "shader", "glsl", "custom-material", "warp-stars",
+                    "bloom", "chromatic-aberration", "post-processing",
+                    "grid", "infinite-scroll", "dynamic-terrain"
+                ],
+                aiPromptHints: """
+                When users request synthwave, retrowave, Tron, or 80s aesthetic scenes:
+
+                1. FRACTAL TERRAIN: Use Perlin/simplex noise for procedural landscapes
+                   - Implement fade, lerp, and noise functions for smooth terrain
+                   - Use fractalNoise2D with multiple octaves (4+) for detail
+                   - Parameters: octaves, lacunarity (2.0), gain (0.5)
+                   - Generate heightmap data: noise * amplitude for Y values
+
+                2. DYNAMIC TERRAIN: Load external DynamicTerrain library
+                   - Include script: cdn.rawgit.com/BabylonJS/Extensions/master/DynamicTerrain
+                   - Create mapData array with [x, y, z] positions
+                   - Configure terrainSub for level of detail
+                   - Use GridMaterial for classic Tron wireframe look
+
+                3. CUSTOM SHADERS: Create warp star/tunnel effects
+                   - Define vertex/fragment shaders in BABYLON.Effect.ShadersStore
+                   - Use ShaderMaterial with custom uniforms (iTime, colors)
+                   - Implement radial patterns with atan() for angle
+                   - Animate with time-based uniforms in beforeRender
+
+                4. RETRO AESTHETICS: Pink sun + cyan grid + black background
+                   - Pink/magenta sun: Color3(1, 0.2, 0.6) with emissive material
+                   - Cyan grid lines: Color3(0, 1, 1) on GridMaterial
+                   - Black clearColor: Color4(0, 0, 0, 1)
+                   - Large sun disc (radius: 15) for dramatic effect
+
+                5. POST-PROCESSING: Bloom + chromatic aberration
+                   - DefaultRenderingPipeline for easy effects
+                   - Bloom: threshold 0.2, weight 1.0, kernel 64
+                   - Chromatic aberration: amount 4.0, radial intensity 1.0
+                   - Add fog (linear mode) for depth
+
+                6. INFINITE SCROLLING: Move terrain continuously
+                   - In beforeRender: terrain.mesh.position.z -= speed
+                   - Lock camera zoom (lowerRadiusLimit = upperRadiusLimit)
+                   - Position camera for dramatic angle
+
+                TECHNICAL TIPS:
+                - Load external libraries with script injection (check s.onload)
+                - Use GridMaterial for instant Tron aesthetic
+                - Combine multiple noise octaves for realistic terrain
+                - Custom shaders need vertex + fragment in ShadersStore
+                - Lock camera radius for cinematic fixed view
+                """
+            ),
+
+            // FRACTAL INVADER
+            CodeExample(
+                id: "fractal-invader",
+                title: "👾 Fractal Invader",
+                description: "Procedurally generated voxel space invaders with glowing effects, reflective water plane, animated geometric shapes, and dynamic skybox. Features mesh merging optimization, emissive materials, and glow layer effects.",
+                code: """
+                const createScene = function () {
+                    const scene = new BABYLON.Scene(engine);
+
+                    // Camera setup
+                    const camera = new BABYLON.FreeCamera("camera", new BABYLON.Vector3(0, 3.6, -21), scene);
+                    camera.setTarget(new BABYLON.Vector3(0, 3.6, 0));
+
+                    // Light setup
+                    const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+
+                    // VoxelVader function - generates procedural space invader
+                    function VoxelVader({
+                        colorPool = [0xff004b, 0x0000ff, 0x00ff3c, 0x6900ff, 0xff0000, 0x00b3ff, 0x1e00ff],
+                        color = [
+                            BABYLON.Color3.FromHexString("#" + colorPool[Math.floor(Math.random() * colorPool.length)].toString(16).padStart(6, '0')),
+                            BABYLON.Color3.FromHexString("#" + colorPool[Math.floor(Math.random() * colorPool.length)].toString(16).padStart(6, '0'))
+                        ],
+                        size = 5,
+                        steps = size / 5,
+                        padding = parseInt(size / 2),
+                        position = [0, 0, 0]
+                    }) {
+                        let groups = [];
+
+                        // Create materials with emissive glow
+                        let materials = [
+                            new BABYLON.StandardMaterial("material1", scene),
+                            new BABYLON.StandardMaterial("material2", scene)
+                        ];
+
+                        materials[0].diffuseColor = color[0];
+                        materials[0].specularColor = new BABYLON.Color3(1, 1, 0);
+                        materials[0].emissiveColor = color[0].scale(0.5);
+                        materials[0].emissiveIntensity = 0.7;
+
+                        materials[1].diffuseColor = color[1];
+                        materials[1].emissiveColor = color[1].scale(0.5);
+                        materials[1].emissiveIntensity = 0.7;
+
+                        const voxelMesh = generateVoxel({ colorPool, color, size, steps, padding, materials, camera, scene, groups });
+
+                        // Animate glow intensity
+                        let time = 0;
+                        scene.registerBeforeRender(() => {
+                            time += 0.05;
+                            gl.intensity = 0.5 + Math.sin(time) * 0.25;
+
+                            if (groups.length) {
+                                for (let i = 0; i < groups.length; i++) {
+                                    if (groups[i].isGlowing) {
+                                        groups[i].material.emissiveIntensity = 0.7 + Math.sin(time) * 0.3;
+                                    }
+                                }
+                            }
+                        });
+
+                        return voxelMesh;
+                    }
+
+                    // Generate voxel mesh with symmetric pattern
+                    const generateVoxel = ({ colorPool, color, size, steps, padding, materials, camera, scene, groups }) => {
+                        const createVaderMesh = (material) => {
+                            let mesh = BABYLON.MeshBuilder.CreateBox("box", {}, scene);
+                            mesh.material = material.clone("clonedMaterial");
+                            return mesh;
+                        }
+
+                        const VaderMesh = (obj = {}) => {
+                            obj.vaderObj = new BABYLON.Mesh("VaderObj", scene);
+                            obj.bg = new BABYLON.Mesh("VaderObj2BG", scene);
+                            let col = [];
+
+                            // Generate symmetric pattern
+                            for (let j = 0; j < size; j += steps) {
+                                let m = 1;
+                                col[j] = [];
+                                for (let i = 0; i < size / 2; i += steps) {
+                                    let c = Math.random() > 0.5;
+                                    col[j][i] = c;
+                                    col[j][i + (size - steps) / m] = c;
+                                    m++;
+                                }
+                            }
+
+                            // Create voxel grid
+                            for (let j = 0; j < size; j += steps) {
+                                for (let i = 0; i < size; i += steps) {
+                                    let vaders = createVaderMesh(materials[0]);
+                                    let vader2 = createVaderMesh(materials[0]);
+                                    let vadersBG = createVaderMesh(materials[1]);
+                                    vadersBG.position = new BABYLON.Vector3(i, j, 4);
+                                    vadersBG.isVisible = col[j][i];
+                                    vadersBG.vaderT = 'bg';
+                                    vaders.position = new BABYLON.Vector3(i, j, 5);
+                                    vaders.isVisible = col[j][i];
+                                    vaders.vaderT = 'front';
+                                    vader2.vaderT = 'front';
+                                    vader2.position = new BABYLON.Vector3(i, j, 6);
+                                    vader2.isVisible = col[j][i];
+                                    obj.bg.addChild(vadersBG);
+                                    obj.vaderObj.addChild(vadersBG);
+                                    obj.vaderObj.addChild(vaders);
+                                    obj.vaderObj.addChild(vader2);
+                                }
+                            }
+                            return obj.vaderObj;
+                        }
+
+                        let voxelInvader = VaderMesh();
+
+                        // Merge geometry for performance
+                        let visibileArrBG = [];
+                        let visibileArr = [];
+                        let meshInvaderVisibile = (obj) => {
+                            for (let i = 0; i < obj.getChildren().length; i++) {
+                                let child = obj.getChildren()[i];
+                                if (child.getChildren().length === 0 && child.isVisible && child.vaderT === 'bg') {
+                                    visibileArrBG.push(child);
+                                } else if (child.isVisible && child.vaderT === 'front') {
+                                    visibileArr.push(child);
+                                } else {
+                                    meshInvaderVisibile(child);
+                                }
+                            }
+                        }
+                        meshInvaderVisibile(voxelInvader);
+
+                        var mergedGeo = BABYLON.Mesh.MergeMeshes(visibileArr, true, true, undefined, false, true);
+                        var mergedGeoBG = BABYLON.Mesh.MergeMeshes(visibileArrBG, true, true, undefined, false, true);
+
+                        if (mergedGeo) {
+                            mergedGeo.material = materials[0].clone("mergedMaterial1");
+                            groups.push(mergedGeo);
+                            groups[groups.length - 1].isGlowing = false;
+
+                            let glowingMeshFront = mergedGeo.clone("glowingMeshFront");
+                            glowingMeshFront.scaling.multiplyInPlace(new BABYLON.Vector3(1.1, 1.1, 1.1));
+                            glowingMeshFront.material = materials[0].clone("glowingMaterial1");
+                            glowingMeshFront.material.emissiveColor = color[0];
+                            glowingMeshFront.material.emissiveIntensity = 1;
+                            glowingMeshFront.isGlowing = true;
+                            groups.push(glowingMeshFront);
+                        }
+
+                        if (mergedGeoBG) {
+                            mergedGeoBG.material = materials[1].clone("mergedMaterial2");
+                            groups.push(mergedGeoBG);
+                            groups[groups.length - 1].isGlowing = false;
+
+                            let glowingMesh = mergedGeoBG.clone("glowingMesh");
+                            glowingMesh.scaling.multiplyInPlace(new BABYLON.Vector3(1.1, 1.1, 1.1));
+                            glowingMesh.material = materials[1].clone("glowingMaterial2");
+                            glowingMesh.material.emissiveColor = color[1];
+                            glowingMesh.material.emissiveIntensity = 1;
+                            glowingMesh.isGlowing = true;
+                            groups.push(glowingMesh);
+                        }
+
+                        for (let i = 0; i < groups.length; i++) {
+                            voxelInvader.addChild(groups[i]);
+                        }
+
+                        return voxelInvader;
+                    }
+
+                    function randomSize(minSize, maxSize) {
+                        return Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;
+                    }
+
+                    function spawnVoxelVader(scene, camera) {
+                        const vxSize = randomSize(2, 6);
+                        const voxelVader = VoxelVader({
+                            size: vxSize,
+                            steps: vxSize / 5,
+                            padding: 1,
+                            position: [0, 0, 0]
+                        });
+
+                        // Spawn in front of camera
+                        const spawnDistance = 50;
+                        const direction = camera.getForwardRay().direction;
+                        const spawnPosition = camera.position.add(direction.scale(spawnDistance));
+                        voxelVader.position = spawnPosition;
+                        voxelVader.position.y = 3;
+
+                        const scale = 0.5;
+                        voxelVader.scaling = new BABYLON.Vector3(scale, scale, scale);
+                        voxelVader.rotation.y = Math.PI / 4;
+                        voxelVader.lookAt(camera.position);
+
+                        // Random transparency
+                        const transparency = Math.random() * 0.5 + 0.5;
+                        voxelVader.getChildMeshes().forEach(mesh => {
+                            if (mesh.material) {
+                                mesh.material.alpha = transparency;
+                            }
+                        });
+
+                        return voxelVader;
+                    }
+
+                    const voxelVaders = [];
+                    const maxVoxelVaders = 1;
+
+                    function moveVoxelVaders(camera) {
+                        const speed = 0.3;
+                        voxelVaders.forEach((vader, index) => {
+                            const direction = camera.position.subtract(vader.position).normalize();
+                            vader.position.addInPlace(direction.scale(speed));
+                            vader.lookAt(camera.position);
+
+                            // Remove if too close
+                            if (BABYLON.Vector3.Distance(vader.position, camera.position) < 2) {
+                                vader.dispose();
+                                voxelVaders.splice(index, 1);
+                            }
+                        });
+                    }
+
+                    for (let i = 0; i < maxVoxelVaders; i++) {
+                        voxelVaders.push(spawnVoxelVader(scene, camera));
+                    }
+
+                    const skyBoxImgs = [
+                        "https://raw.githubusercontent.com/seacloud9/seacloud9.github.io/master/assets/sky/sky",
+                        "https://raw.githubusercontent.com/seacloud9/seacloud9.github.io/master/assets/aquatic/sky"
+                    ];
+
+                    function getRandomSkyBoxImg() {
+                        const randomIndex = Math.floor(Math.random() * skyBoxImgs.length);
+                        return skyBoxImgs[randomIndex];
+                    }
+
+                    // Skybox
+                    const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", {size: 10000.0}, scene);
+                    const skyboxMaterial = new BABYLON.StandardMaterial("skyBox", scene);
+                    skyboxMaterial.backFaceCulling = false;
+                    skyboxMaterial.reflectionTexture = new BABYLON.CubeTexture(getRandomSkyBoxImg(), scene);
+                    skyboxMaterial.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
+                    skyboxMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0);
+                    skyboxMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
+                    skybox.material = skyboxMaterial;
+
+                    // Water plane with reflections
+                    const waterMesh = BABYLON.MeshBuilder.CreateGround("waterMesh", {width: 200, height: 200}, scene);
+                    const waterMaterial = new BABYLON.WaterMaterial("water", scene);
+                    waterMaterial.bumpTexture = new BABYLON.Texture("https://assets.babylonjs.com/textures/waterbump.png", scene);
+                    waterMaterial.windForce = 45;
+                    waterMaterial.waveHeight = 0.4;
+                    waterMaterial.bumpHeight = 2.3;
+                    waterMaterial.windDirection = new BABYLON.Vector2(-1, 0);
+                    waterMaterial.waterColor = new BABYLON.Color3(0.1, 0.1, 0.6);
+                    waterMaterial.colorBlendFactor = 0.0;
+                    waterMaterial.waveLength = 0.05;
+                    waterMaterial.addToRenderList(skybox);
+                    waterMesh.material = waterMaterial;
+
+                    // Glowing materials
+                    const glowMaterial = new BABYLON.StandardMaterial("glowMaterial", scene);
+                    glowMaterial.emissiveColor = new BABYLON.Color3(0, 1, 1);
+                    glowMaterial.disableLighting = true;
+
+                    const redGlowMaterial = new BABYLON.StandardMaterial("redGlowMaterial", scene);
+                    redGlowMaterial.emissiveColor = new BABYLON.Color3(1, 0, 0);
+                    redGlowMaterial.disableLighting = true;
+
+                    // Create hollow triangle mesh
+                    const createHollowTriangle = (size) => {
+                        const trianglePoints = [
+                            new BABYLON.Vector3(-size, -size * Math.sqrt(3) / 2, 0),
+                            new BABYLON.Vector3(size, -size * Math.sqrt(3) / 2, 0),
+                            new BABYLON.Vector3(0, size * Math.sqrt(3) / 2, 0)
+                        ];
+                        const lines = BABYLON.MeshBuilder.CreateLines("hollowTriangle", {points: [...trianglePoints, trianglePoints[0]]}, scene);
+                        return lines;
+                    };
+
+                    // Create hollow square mesh
+                    const createHollowSquare = (size) => {
+                        const squarePoints = [
+                            new BABYLON.Vector3(-size, -size, 0),
+                            new BABYLON.Vector3(size, -size, 0),
+                            new BABYLON.Vector3(size, size, 0),
+                            new BABYLON.Vector3(-size, size, 0)
+                        ];
+                        const lines = BABYLON.MeshBuilder.CreateLines("hollowSquare", {points: [...squarePoints, squarePoints[0]]}, scene);
+                        return lines;
+                    };
+
+                    // Create animated geometric shapes
+                    const triangles = [];
+                    const squares = [];
+                    const shapeCount = 30;
+                    const spacing = 10;
+                    const startZ = -5;
+                    const squareOffset = 0;
+
+                    for (let i = 0; i < shapeCount; i++) {
+                        const triangle = createHollowTriangle(0.5);
+                        triangle.material = glowMaterial;
+                        triangle.position = new BABYLON.Vector3(0, 4, startZ + i * spacing);
+                        triangles.push(triangle);
+                        waterMaterial.addToRenderList(triangle);
+
+                        const square = createHollowSquare(0.5);
+                        square.material = redGlowMaterial;
+                        square.position = new BABYLON.Vector3(squareOffset, 4, startZ + i * spacing);
+                        square.rotation.z = Math.PI / 4;
+                        squares.push(square);
+                        waterMaterial.addToRenderList(square);
+                    }
+
+                    // Glow layer
+                    const gl = new BABYLON.GlowLayer("glow", scene);
+                    gl.intensity = 1.25;
+
+                    // Animation
+                    const speed = 0.1;
+                    scene.registerBeforeRender(() => {
+                        moveVoxelVaders(camera);
+
+                        while (voxelVaders.length < maxVoxelVaders) {
+                            voxelVaders.push(spawnVoxelVader(scene, camera));
+                        }
+
+                        triangles.forEach((triangle, index) => {
+                            triangle.position.z -= speed;
+                            if (triangle.position.z < -15) {
+                                triangle.position.z = startZ;
+                            }
+                            triangle.lookAt(camera.position);
+
+                            const square = squares[index];
+                            square.position.z = triangle.position.z;
+                            if (square.position.z < -15) {
+                                square.position.z = startZ;
+                            }
+                            square.rotation.y = Math.atan2(camera.position.x - square.position.x, camera.position.z - square.position.z);
+                        });
+                    });
+
+                    return scene;
+                };
+
+                export default createScene;
+                """,
+                category: .effects,
+                difficulty: .advanced,
+                keywords: [
+                    "voxel", "procedural", "space-invader", "retro", "arcade",
+                    "glow-layer", "emissive", "water-material", "reflections",
+                    "mesh-merging", "optimization", "geometric-shapes", "animation",
+                    "skybox", "cube-texture", "random-generation", "symmetric-pattern",
+                    "hollow-shapes", "billboard", "spawning"
+                ],
+                aiPromptHints: """
+                When users request retro arcade, space invader, or voxel character scenes:
+
+                1. PROCEDURAL VOXEL GENERATION: Create symmetric patterns
+                   - Use random grid generation with symmetry (mirror left/right)
+                   - Build voxel grid with nested loops (size, steps parameters)
+                   - Create depth layers (front, middle, back voxels at z: 4, 5, 6)
+                   - Random color selection from predefined palette
+
+                2. MESH OPTIMIZATION: Merge geometry for performance
+                   - Collect visible meshes into arrays (separate by material type)
+                   - Use BABYLON.Mesh.MergeMeshes() to combine similar meshes
+                   - Clone merged mesh at 1.1x scale for glow halo effect
+                   - Reduces draw calls from 100+ individual boxes to 2-4 merged meshes
+
+                3. EMISSIVE GLOW EFFECTS: Layer multiple glowing elements
+                   - Set material.emissiveColor and emissiveIntensity
+                   - Create GlowLayer with intensity 1.0-1.5
+                   - Animate emissiveIntensity with Math.sin() for pulsing
+                   - Use disableLighting: true for pure emissive materials
+
+                4. WATER MATERIAL: Reflective animated surface
+                   - Load WaterMaterial extension library
+                   - Configure bump texture, wind force, wave height
+                   - addToRenderList() for each object to reflect (skybox, shapes, invaders)
+                   - Position below camera (y: 0) for floor reflection
+
+                5. DYNAMIC SPAWNING: Continuous object generation
+                   - Spawn objects in front of camera using getForwardRay()
+                   - Move towards camera each frame (subtract distance)
+                   - Remove when too close (dispose + splice from array)
+                   - Respawn to maintain constant count (while loop in beforeRender)
+
+                6. GEOMETRIC SHAPES: Animated hollow wireframes
+                   - Use MeshBuilder.CreateLines() with point arrays
+                   - Make shapes billboard/lookAt camera for facing effect
+                   - Loop position.z with modulo for infinite scrolling
+                   - Combine multiple shape types (triangles, squares, circles)
+
+                7. RANDOM SKYBOX: Dynamic environment selection
+                   - Array of CubeTexture URLs
+                   - Random selection on scene creation
+                   - Use coordinatesMode: SKYBOX_MODE
+                   - Large box size (10000) with backFaceCulling: false
+
+                TECHNICAL TIPS:
+                - Mesh merging is CRITICAL for voxel performance (100+ boxes → 1 mesh)
+                - Clone materials when sharing between meshes (avoid global state)
+                - Use getChildMeshes() to apply properties to entire hierarchy
+                - Store custom properties (vaderT, isGlowing) on mesh objects
+                - Recursive tree traversal for finding visible children
+                - Water reflections require explicit addToRenderList() calls
+
+                PERFORMANCE OPTIMIZATIONS:
+                - Merge all voxels into 2-4 meshes max (not 100+ individual boxes)
+                - Limit total voxel invaders to 1-3 on screen simultaneously
+                - Dispose removed objects properly (vader.dispose())
+                - Use array.splice() to remove from tracking arrays
+                - Set upperLimit for spawning (while voxelVaders.length < maxVoxelVaders)
+
+                VISUAL STYLE:
+                - Neon/vibrant color palette (pink, cyan, red, blue, purple)
+                - Heavy use of emissive materials and glow layers
+                - Reflective water surface for retro futuristic aesthetic
+                - Geometric hollow shapes (triangles, squares) as environment
+                - Symmetric voxel patterns reminiscent of classic arcade sprites
+                """
             )
         ]
     }
