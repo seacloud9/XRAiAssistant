@@ -1893,6 +1893,254 @@ struct BabylonJSLibrary: Library3D {
                 - Geometric hollow shapes (triangles, squares) as environment
                 - Symmetric voxel patterns reminiscent of classic arcade sprites
                 """
+            ),
+
+            // SPACE HARRIER GAME
+            CodeExample(
+                id: "space-harrier",
+                title: "🎮 Space Harrier Game",
+                description: "Complete retro arcade shooter game with WASD/Arrow controls, SPACE to fire, and dynamic enemy spawning. Simplified version - see full implementation at playground link in console.",
+                code: """
+                // Simplified Space Harrier - Full version: https://playground.babylonjs.com/#WJ20GP#16
+                const createScene = function() {
+                    const scene = new BABYLON.Scene(engine);
+                    scene.clearColor = new BABYLON.Color3(0, 0, 0);
+
+                    let score = 0;
+                    let gameOver = false;
+                    const enemies = [];
+                    const projectiles = [];
+
+                    const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+
+                    const player = BABYLON.MeshBuilder.CreateSphere("player", {diameter: 2}, scene);
+                    player.position = new BABYLON.Vector3(0, 5, 0);
+                    const playerMat = new BABYLON.StandardMaterial("playerMat", scene);
+                    playerMat.emissiveColor = new BABYLON.Color3(0, 0.7, 1);
+                    player.material = playerMat;
+
+                    const camera = new BABYLON.FollowCamera("camera", new BABYLON.Vector3(0, 10, -15), scene);
+                    camera.lockedTarget = player;
+                    camera.radius = 15;
+                    camera.heightOffset = 5;
+                    scene.activeCamera = camera;
+
+                    const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 1000, height: 1000}, scene);
+                    const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
+                    groundMat.diffuseColor = new BABYLON.Color3(0.1, 0.2, 0.4);
+                    ground.material = groundMat;
+
+                    const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", {size: 1000}, scene);
+                    const skyboxMat = new BABYLON.StandardMaterial("skyBox", scene);
+                    skyboxMat.backFaceCulling = false;
+                    skyboxMat.reflectionTexture = new BABYLON.CubeTexture("https://assets.babylonjs.com/textures/skybox", scene);
+                    skyboxMat.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
+                    skyboxMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
+                    skyboxMat.specularColor = new BABYLON.Color3(0, 0, 0);
+                    skybox.material = skyboxMat;
+
+                    const keys = {w: false, a: false, s: false, d: false, space: false,
+                                  arrowUp: false, arrowDown: false, arrowLeft: false, arrowRight: false};
+
+                    scene.onKeyboardObservable.add((kbInfo) => {
+                        const key = kbInfo.event.key.toLowerCase();
+                        const isDown = kbInfo.type === BABYLON.KeyboardEventTypes.KEYDOWN;
+
+                        if (key === "arrowup") keys.arrowUp = isDown;
+                        else if (key === "arrowdown") keys.arrowDown = isDown;
+                        else if (key === "arrowleft") keys.arrowLeft = isDown;
+                        else if (key === "arrowright") keys.arrowRight = isDown;
+                        else if (key === " ") keys.space = isDown;
+                        else if (key in keys) keys[key] = isDown;
+                    });
+
+                    const createEnemy = () => {
+                        const enemy = BABYLON.MeshBuilder.CreateBox("enemy", {size: 2}, scene);
+                        const enemyMat = new BABYLON.StandardMaterial("enemyMat", scene);
+                        const colors = ["#ff004b", "#0000ff", "#00ff3c", "#ff0000", "#00b3ff"];
+                        enemyMat.emissiveColor = BABYLON.Color3.FromHexString(colors[Math.floor(Math.random() * colors.length)]);
+                        enemy.material = enemyMat;
+                        enemy.position = new BABYLON.Vector3(
+                            Math.random() * 60 - 30,
+                            Math.random() * 10 + 2,
+                            player.position.z + 200
+                        );
+                        enemy.health = 100;
+                        enemies.push(enemy);
+                        return enemy;
+                    };
+
+                    let lastFireTime = 0;
+                    const fireProjectile = () => {
+                        if (gameOver) return;
+                        const now = performance.now() / 1000;
+                        if (now - lastFireTime < 0.2) return;
+                        lastFireTime = now;
+
+                        const projectile = BABYLON.MeshBuilder.CreateSphere("projectile", {diameter: 0.5}, scene);
+                        const projMat = new BABYLON.StandardMaterial("projMat", scene);
+                        projMat.emissiveColor = new BABYLON.Color3(0, 1, 0.5);
+                        projectile.material = projMat;
+                        projectile.position = player.position.clone();
+                        projectile.position.z += 2;
+                        projectile.speed = 3;
+                        projectile.damage = 50;
+                        projectiles.push(projectile);
+                    };
+
+                    scene.registerBeforeRender(() => {
+                        if (gameOver) return;
+
+                        const speed = 0.3;
+                        if (keys.w || keys.arrowUp) player.position.y += speed;
+                        if (keys.s || keys.arrowDown) player.position.y -= speed;
+                        if (keys.a || keys.arrowLeft) player.position.x -= speed;
+                        if (keys.d || keys.arrowRight) player.position.x += speed;
+
+                        player.position.y = Math.max(2, Math.min(20, player.position.y));
+                        player.position.x = Math.max(-40, Math.min(40, player.position.x));
+
+                        if (keys.space) fireProjectile();
+
+                        projectiles.forEach((proj, i) => {
+                            proj.position.z += proj.speed;
+                            if (proj.position.z > player.position.z + 300) {
+                                proj.dispose();
+                                projectiles.splice(i, 1);
+                            }
+                        });
+
+                        enemies.forEach((enemy, i) => {
+                            enemy.position.z -= 0.5;
+                            enemy.rotation.y += 0.02;
+                            if (enemy.position.z < player.position.z - 50) {
+                                enemy.dispose();
+                                enemies.splice(i, 1);
+                            }
+                        });
+
+                        if (enemies.length < 10 && Math.random() < 0.02) createEnemy();
+
+                        for (let i = projectiles.length - 1; i >= 0; i--) {
+                            const proj = projectiles[i];
+                            for (let j = enemies.length - 1; j >= 0; j--) {
+                                const enemy = enemies[j];
+                                if (BABYLON.Vector3.Distance(proj.position, enemy.position) < 2) {
+                                    enemy.health -= proj.damage;
+                                    proj.dispose();
+                                    projectiles.splice(i, 1);
+                                    if (enemy.health <= 0) {
+                                        enemy.dispose();
+                                        enemies.splice(j, 1);
+                                        score += 100;
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+
+                        for (let i = 0; i < enemies.length; i++) {
+                            if (BABYLON.Vector3.Distance(player.position, enemies[i].position) < 3) {
+                                gameOver = true;
+                                player.isVisible = false;
+                                console.log("GAME OVER! Final Score: " + score);
+                                break;
+                            }
+                        }
+                    });
+
+                    const ui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+                    const scoreText = new BABYLON.GUI.TextBlock();
+                    scoreText.text = "Score: 0";
+                    scoreText.color = "white";
+                    scoreText.fontSize = 24;
+                    scoreText.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+                    scoreText.textVerticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
+                    scoreText.left = "10px";
+                    scoreText.top = "10px";
+                    ui.addControl(scoreText);
+
+                    const controlsText = new BABYLON.GUI.TextBlock();
+                    controlsText.text = "WASD/Arrows: Move | SPACE: Fire";
+                    controlsText.color = "cyan";
+                    controlsText.fontSize = 18;
+                    controlsText.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+                    controlsText.textVerticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+                    controlsText.top = "-10px";
+                    ui.addControl(controlsText);
+
+                    scene.registerBeforeRender(() => {
+                        scoreText.text = "Score: " + score + (gameOver ? " - GAME OVER" : "");
+                    });
+
+                    console.log("🎮 Space Harrier Game Started!");
+                    console.log("Full version: https://playground.babylonjs.com/#WJ20GP#16");
+                    return scene;
+                };
+
+                export default createScene;
+                """,
+                category: .interaction,
+                difficulty: .advanced,
+                keywords: [
+                    "game", "arcade", "space-harrier", "shooter", "retro",
+                    "keyboard-controls", "projectiles", "collision-detection",
+                    "score-system", "enemy-spawning", "camera-follow", "gameplay"
+                ],
+                aiPromptHints: """
+                When users request arcade shooter, Space Harrier, or game development:
+
+                1. GAME LOOP: Use scene.registerBeforeRender() for updates
+                   - Player movement based on keyboard input
+                   - Projectile and enemy position updates
+                   - Collision detection between all entities
+                   - Score tracking and game over conditions
+
+                2. INPUT HANDLING: Multi-key support with state tracking
+                   - Keyboard: WASD + Arrow keys (both work simultaneously)
+                   - Space bar for firing with rate limiting
+                   - Track key states in object: {w: false, a: false, ...}
+                   - Handle both KEYDOWN and KEYUP events
+
+                3. ENTITY MANAGEMENT: Arrays for dynamic objects
+                   - enemies[] array for tracking all enemies
+                   - projectiles[] array for all bullets
+                   - Use reverse iteration when removing (for loop from end)
+                   - Dispose meshes when removing to prevent memory leaks
+
+                4. COLLISION DETECTION: Distance-based hit testing
+                   - BABYLON.Vector3.Distance() for proximity checks
+                   - Projectile vs Enemy: award points, remove both
+                   - Player vs Enemy: trigger game over
+                   - Use threshold distances (< 2 for projectile, < 3 for player)
+
+                5. CAMERA SYSTEM: FollowCamera for smooth tracking
+                   - camera.lockedTarget = player
+                   - Set radius and heightOffset for good view angle
+                   - Camera automatically follows player movement
+
+                6. UI OVERLAY: BABYLON.GUI for HUD elements
+                   - Score display in corner (updated every frame)
+                   - Controls instructions at bottom
+                   - Position with textHorizontalAlignment/textVerticalAlignment
+                   - Use AdvancedDynamicTexture.CreateFullscreenUI()
+
+                TECHNICAL IMPLEMENTATION:
+                - Clamp player position to boundaries (min/max x and y)
+                - Fire rate limiting with lastFireTime timestamp
+                - Projectile lifespan check (dispose if too far)
+                - Enemy spawn probability check each frame
+                - Max enemy count to prevent performance issues
+
+                SIMPLIFIED VS FULL:
+                This is a simplified version for demonstration.
+                Full version at https://playground.babylonjs.com/#WJ20GP#16 includes:
+                - Multi-scene system (start, game, game over screens)
+                - VoxelVader procedural enemies
+                - Touch controls and virtual joystick
+                - Particle effects for explosions
+                - Sound effects and advanced camera modes
+                """
             )
         ]
     }

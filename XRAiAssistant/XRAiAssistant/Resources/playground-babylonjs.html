@@ -37,7 +37,7 @@
             padding: 8px 12px;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 6px;
             border-bottom: 1px solid #3e3e42;
             min-height: 40px;
         }
@@ -354,10 +354,10 @@
         <button class="menu-btn" onclick="saveScene()">💾 Save</button>
         <button class="menu-btn" onclick="downloadScene()">⬇ Download</button>
         <button class="menu-btn" onclick="newScene()">📄 New</button>
-        <button class="menu-btn" onclick="openDocumentation()">📖 Documentation</button>
+        <button class="menu-btn" onclick="openDocumentation()">📖 Docs</button>
         <button class="menu-btn" onclick="toggleConsole()">🖥 Console</button>
         <select class="menu-btn" onchange="loadExample(this.value)">
-            <option value="">Select Example...</option>
+            <option value="">Demo</option>
             <option value="floating-crystal-gems">💎 Floating Crystal Gems</option>
             <option value="physics">⚽ Sphere with Physics</option>
             <option value="path-animation">🛤️ Animated Path Following</option>
@@ -374,7 +374,21 @@
             <option value="voxel-wormhole">🌀 Infinite Voxel Wormhole</option>
             <option value="tronscape-demo">🌆 Retrowave Tronscape</option>
             <option value="fractal-invader">👾 Fractal Invader</option>
+            <option value="space-harrier">🎮 Space Harrier Game</option>
         </select>
+        <select class="menu-btn" id="cameraSelector" onchange="switchCamera(this.value)" style="margin-left: 10px;">
+            <option value="">Camera: Auto</option>
+            <option value="ArcRotateCamera">Arc Rotate (Orbit)</option>
+            <option value="FreeCamera">Free Camera (WASD)</option>
+            <option value="UniversalCamera">Universal (FPS)</option>
+            <option value="FollowCamera">Follow Camera</option>
+            <option value="TouchCamera">Touch Camera</option>
+            <option value="DeviceOrientationCamera">Device Orientation</option>
+            <option value="VirtualJoysticksCamera">Virtual Joysticks</option>
+        </select>
+        <label style="margin-left: 10px; color: white; cursor: pointer;">
+            <input type="checkbox" id="debugCheckbox" onchange="toggleInspector(this.checked)" style="cursor: pointer;">
+        </label>
     </div>
     
     <div class="main-container">
@@ -935,15 +949,18 @@ const scene = createScene();`;
                 setTimeout(() => {
                     console.log('🎉 NEW SCENE LOADED SUCCESSFULLY!');
                     addConsoleMessage('log', '🎉 Scene loaded with ' + (scene.meshes?.length || 0) + ' objects');
-                    
+
                     // Ensure the scene is actively rendering
                     if (scene.activeCamera) {
                         console.log('Active camera found, scene should be rendering');
+
+                        // Detect and update camera selector
+                        detectCurrentCamera();
                     } else {
                         console.warn('No active camera found!');
                     }
                 }, 100);
-                
+
                 // Notify Swift about successful scene creation
                 notifySwift('sceneCreated', { success: true });
                 
@@ -1255,7 +1272,175 @@ const scene = createScene();`;
 
         // Initialize console on page load
         window.addEventListener('DOMContentLoaded', initFloatingConsole);
-        
+
+        // Camera switching functionality
+        function switchCamera(cameraType) {
+            if (!scene) {
+                console.warn('No scene available for camera switching');
+                return;
+            }
+
+            if (!cameraType || cameraType === '') {
+                console.log('Camera set to Auto - using scene default');
+                return;
+            }
+
+            console.log('Switching to camera type:', cameraType);
+
+            // Store current camera position if it exists
+            let currentPosition = scene.activeCamera ? scene.activeCamera.position.clone() : new BABYLON.Vector3(0, 5, -10);
+            let currentTarget = scene.activeCamera && scene.activeCamera.target ? scene.activeCamera.target.clone() : BABYLON.Vector3.Zero();
+
+            // Dispose old camera if it exists
+            if (scene.activeCamera) {
+                const oldCamera = scene.activeCamera;
+                scene.activeCamera = null;
+                oldCamera.dispose();
+            }
+
+            let newCamera;
+
+            try {
+                switch(cameraType) {
+                    case 'ArcRotateCamera':
+                        newCamera = new BABYLON.ArcRotateCamera("arcRotate", Math.PI / 2, Math.PI / 2.5, 10, currentTarget, scene);
+                        newCamera.attachControl(canvas, true);
+                        newCamera.wheelPrecision = 50;
+                        newCamera.lowerRadiusLimit = 2;
+                        newCamera.upperRadiusLimit = 100;
+                        break;
+
+                    case 'FreeCamera':
+                        newCamera = new BABYLON.FreeCamera("free", currentPosition, scene);
+                        newCamera.setTarget(currentTarget);
+                        newCamera.attachControl(canvas, true);
+                        newCamera.keysUp.push(87); // W
+                        newCamera.keysDown.push(83); // S
+                        newCamera.keysLeft.push(65); // A
+                        newCamera.keysRight.push(68); // D
+                        newCamera.speed = 0.5;
+                        break;
+
+                    case 'UniversalCamera':
+                        newCamera = new BABYLON.UniversalCamera("universal", currentPosition, scene);
+                        newCamera.setTarget(currentTarget);
+                        newCamera.attachControl(canvas, true);
+                        newCamera.keysUp.push(87); // W
+                        newCamera.keysDown.push(83); // S
+                        newCamera.keysLeft.push(65); // A
+                        newCamera.keysRight.push(68); // D
+                        newCamera.speed = 0.5;
+                        newCamera.angularSensibility = 2000;
+                        break;
+
+                    case 'FollowCamera':
+                        newCamera = new BABYLON.FollowCamera("follow", currentPosition, scene);
+                        // Try to find a mesh to follow
+                        const meshes = scene.meshes.filter(m => m.name !== 'skyBox' && m.name !== 'ground');
+                        if (meshes.length > 0) {
+                            newCamera.lockedTarget = meshes[0];
+                            newCamera.radius = 10;
+                            newCamera.heightOffset = 5;
+                            newCamera.rotationOffset = 180;
+                            newCamera.cameraAcceleration = 0.05;
+                            newCamera.maxCameraSpeed = 10;
+                        } else {
+                            console.warn('No suitable mesh found for FollowCamera, using default position');
+                            newCamera.position = currentPosition;
+                        }
+                        newCamera.attachControl(canvas, true);
+                        break;
+
+                    case 'TouchCamera':
+                        newCamera = new BABYLON.TouchCamera("touch", currentPosition, scene);
+                        newCamera.setTarget(currentTarget);
+                        newCamera.attachControl(canvas, true);
+                        newCamera.speed = 0.5;
+                        newCamera.touchAngularSensibility = 5000;
+                        break;
+
+                    case 'DeviceOrientationCamera':
+                        newCamera = new BABYLON.DeviceOrientationCamera("deviceOrientation", currentPosition, scene);
+                        newCamera.setTarget(currentTarget);
+                        newCamera.attachControl(canvas, true);
+                        break;
+
+                    case 'VirtualJoysticksCamera':
+                        newCamera = new BABYLON.VirtualJoysticksCamera("virtualJoysticks", currentPosition, scene);
+                        newCamera.setTarget(currentTarget);
+                        newCamera.attachControl(canvas, true);
+                        break;
+
+                    default:
+                        console.warn('Unknown camera type:', cameraType);
+                        return;
+                }
+
+                scene.activeCamera = newCamera;
+                console.log('Camera switched successfully to:', cameraType);
+
+            } catch(error) {
+                console.error('Error switching camera:', error);
+                // Fallback to a basic camera
+                const fallbackCamera = new BABYLON.FreeCamera("fallback", currentPosition, scene);
+                fallbackCamera.setTarget(currentTarget);
+                fallbackCamera.attachControl(canvas, true);
+                scene.activeCamera = fallbackCamera;
+            }
+        }
+
+        // Inspector toggle functionality
+        let inspectorVisible = false;
+        function toggleInspector(checked) {
+            if (!scene) {
+                console.warn('No scene available for inspector');
+                document.getElementById('debugCheckbox').checked = false;
+                return;
+            }
+
+            inspectorVisible = checked;
+
+            if (checked) {
+                // Show inspector
+                console.log('Opening Babylon.js Inspector...');
+                scene.debugLayer.show({
+                    embedMode: false, // Overlay mode
+                    overlay: true,
+                    showExplorer: true,
+                    showInspector: true,
+                    handleResize: true,
+                    enablePopup: false
+                });
+            } else {
+                // Hide inspector
+                console.log('Closing Babylon.js Inspector...');
+                scene.debugLayer.hide();
+            }
+        }
+
+        // Auto-detect camera type when scene changes
+        function detectCurrentCamera() {
+            if (!scene || !scene.activeCamera) {
+                document.getElementById('cameraSelector').value = '';
+                return;
+            }
+
+            const cameraType = scene.activeCamera.getClassName();
+            const selector = document.getElementById('cameraSelector');
+
+            // Try to match the camera type to dropdown options
+            const options = Array.from(selector.options);
+            const matchingOption = options.find(opt => opt.value === cameraType);
+
+            if (matchingOption) {
+                selector.value = cameraType;
+                console.log('Detected camera type:', cameraType);
+            } else {
+                selector.value = ''; // Auto
+                console.log('Camera type not in dropdown:', cameraType);
+            }
+        }
+
         function loadExample(exampleId) {
             if (!exampleId) return;
 
@@ -1275,7 +1460,8 @@ const scene = createScene();`;
                 'spotlight-showcase': getSpotlightShowcaseCode(),
                 'voxel-wormhole': getVoxelWormholeCode(),
                 'tronscape-demo': getTronscapeDemoCode(),
-                'fractal-invader': getFractalInvaderCode()
+                'fractal-invader': getFractalInvaderCode(),
+                'space-harrier': getSpaceHarrierCode()
             };
 
             if (examples[exampleId] && editor) {
@@ -3259,6 +3445,186 @@ const scene = createScene();`;
     });
 
     console.log("Fractal Invader scene created successfully");
+    return scene;
+};
+const scene = createScene();`;
+        }
+
+        function getSpaceHarrierCode() {
+            return `// Simplified Space Harrier - Full version: https://playground.babylonjs.com/#WJ20GP#16
+const createScene = function() {
+    const scene = new BABYLON.Scene(engine);
+    scene.clearColor = new BABYLON.Color3(0, 0, 0);
+
+    let score = 0;
+    let gameOver = false;
+    const enemies = [];
+    const projectiles = [];
+
+    const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+
+    const player = BABYLON.MeshBuilder.CreateSphere("player", {diameter: 2}, scene);
+    player.position = new BABYLON.Vector3(0, 5, 0);
+    const playerMat = new BABYLON.StandardMaterial("playerMat", scene);
+    playerMat.emissiveColor = new BABYLON.Color3(0, 0.7, 1);
+    player.material = playerMat;
+
+    const camera = new BABYLON.FollowCamera("camera", new BABYLON.Vector3(0, 10, -15), scene);
+    camera.lockedTarget = player;
+    camera.radius = 15;
+    camera.heightOffset = 5;
+    scene.activeCamera = camera;
+
+    const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 1000, height: 1000}, scene);
+    const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
+    groundMat.diffuseColor = new BABYLON.Color3(0.1, 0.2, 0.4);
+    ground.material = groundMat;
+
+    const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", {size: 1000}, scene);
+    const skyboxMat = new BABYLON.StandardMaterial("skyBox", scene);
+    skyboxMat.backFaceCulling = false;
+    skyboxMat.reflectionTexture = new BABYLON.CubeTexture("https://assets.babylonjs.com/textures/skybox", scene);
+    skyboxMat.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
+    skyboxMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
+    skyboxMat.specularColor = new BABYLON.Color3(0, 0, 0);
+    skybox.material = skyboxMat;
+
+    const keys = {w: false, a: false, s: false, d: false, space: false,
+                  arrowUp: false, arrowDown: false, arrowLeft: false, arrowRight: false};
+
+    scene.onKeyboardObservable.add((kbInfo) => {
+        const key = kbInfo.event.key.toLowerCase();
+        const isDown = kbInfo.type === BABYLON.KeyboardEventTypes.KEYDOWN;
+
+        if (key === "arrowup") keys.arrowUp = isDown;
+        else if (key === "arrowdown") keys.arrowDown = isDown;
+        else if (key === "arrowleft") keys.arrowLeft = isDown;
+        else if (key === "arrowright") keys.arrowRight = isDown;
+        else if (key === " ") keys.space = isDown;
+        else if (key in keys) keys[key] = isDown;
+    });
+
+    const createEnemy = () => {
+        const enemy = BABYLON.MeshBuilder.CreateBox("enemy", {size: 2}, scene);
+        const enemyMat = new BABYLON.StandardMaterial("enemyMat", scene);
+        const colors = ["#ff004b", "#0000ff", "#00ff3c", "#ff0000", "#00b3ff"];
+        enemyMat.emissiveColor = BABYLON.Color3.FromHexString(colors[Math.floor(Math.random() * colors.length)]);
+        enemy.material = enemyMat;
+        enemy.position = new BABYLON.Vector3(
+            Math.random() * 60 - 30,
+            Math.random() * 10 + 2,
+            player.position.z + 200
+        );
+        enemy.health = 100;
+        enemies.push(enemy);
+        return enemy;
+    };
+
+    let lastFireTime = 0;
+    const fireProjectile = () => {
+        if (gameOver) return;
+        const now = performance.now() / 1000;
+        if (now - lastFireTime < 0.2) return;
+        lastFireTime = now;
+
+        const projectile = BABYLON.MeshBuilder.CreateSphere("projectile", {diameter: 0.5}, scene);
+        const projMat = new BABYLON.StandardMaterial("projMat", scene);
+        projMat.emissiveColor = new BABYLON.Color3(0, 1, 0.5);
+        projectile.material = projMat;
+        projectile.position = player.position.clone();
+        projectile.position.z += 2;
+        projectile.speed = 3;
+        projectile.damage = 50;
+        projectiles.push(projectile);
+    };
+
+    scene.registerBeforeRender(() => {
+        if (gameOver) return;
+
+        const speed = 0.3;
+        if (keys.w || keys.arrowUp) player.position.y += speed;
+        if (keys.s || keys.arrowDown) player.position.y -= speed;
+        if (keys.a || keys.arrowLeft) player.position.x -= speed;
+        if (keys.d || keys.arrowRight) player.position.x += speed;
+
+        player.position.y = Math.max(2, Math.min(20, player.position.y));
+        player.position.x = Math.max(-40, Math.min(40, player.position.x));
+
+        if (keys.space) fireProjectile();
+
+        projectiles.forEach((proj, i) => {
+            proj.position.z += proj.speed;
+            if (proj.position.z > player.position.z + 300) {
+                proj.dispose();
+                projectiles.splice(i, 1);
+            }
+        });
+
+        enemies.forEach((enemy, i) => {
+            enemy.position.z -= 0.5;
+            enemy.rotation.y += 0.02;
+            if (enemy.position.z < player.position.z - 50) {
+                enemy.dispose();
+                enemies.splice(i, 1);
+            }
+        });
+
+        if (enemies.length < 10 && Math.random() < 0.02) createEnemy();
+
+        for (let i = projectiles.length - 1; i >= 0; i--) {
+            const proj = projectiles[i];
+            for (let j = enemies.length - 1; j >= 0; j--) {
+                const enemy = enemies[j];
+                if (BABYLON.Vector3.Distance(proj.position, enemy.position) < 2) {
+                    enemy.health -= proj.damage;
+                    proj.dispose();
+                    projectiles.splice(i, 1);
+                    if (enemy.health <= 0) {
+                        enemy.dispose();
+                        enemies.splice(j, 1);
+                        score += 100;
+                    }
+                    break;
+                }
+            }
+        }
+
+        for (let i = 0; i < enemies.length; i++) {
+            if (BABYLON.Vector3.Distance(player.position, enemies[i].position) < 3) {
+                gameOver = true;
+                player.isVisible = false;
+                console.log("GAME OVER! Final Score: " + score);
+                break;
+            }
+        }
+    });
+
+    const ui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+    const scoreText = new BABYLON.GUI.TextBlock();
+    scoreText.text = "Score: 0";
+    scoreText.color = "white";
+    scoreText.fontSize = 24;
+    scoreText.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+    scoreText.textVerticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
+    scoreText.left = "10px";
+    scoreText.top = "10px";
+    ui.addControl(scoreText);
+
+    const controlsText = new BABYLON.GUI.TextBlock();
+    controlsText.text = "WASD/Arrows: Move | SPACE: Fire";
+    controlsText.color = "cyan";
+    controlsText.fontSize = 18;
+    controlsText.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+    controlsText.textVerticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+    controlsText.top = "-10px";
+    ui.addControl(controlsText);
+
+    scene.registerBeforeRender(() => {
+        scoreText.text = "Score: " + score + (gameOver ? " - GAME OVER" : "");
+    });
+
+    console.log("🎮 Space Harrier Game Started!");
+    console.log("Full version: https://playground.babylonjs.com/#WJ20GP#16");
     return scene;
 };
 const scene = createScene();`;

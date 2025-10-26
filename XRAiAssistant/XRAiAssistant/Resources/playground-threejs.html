@@ -11,7 +11,8 @@
         "imports": {
             "three": "https://cdn.jsdelivr.net/npm/super-three@0.173.0/build/three.module.js",
             "three/addons/": "https://cdn.jsdelivr.net/npm/super-three@0.173.0/examples/jsm/",
-            "postprocessing": "https://cdn.jsdelivr.net/npm/postprocessing@6.37.8/+esm"
+            "postprocessing": "https://cdn.jsdelivr.net/npm/postprocessing@6.37.8/+esm",
+            "three-inspect/vanilla": "https://cdn.jsdelivr.net/npm/three-inspect@0.7.2/dist/inspector.js"
         }
     }
     </script>
@@ -24,6 +25,7 @@
         import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
         import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
         import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+        import { createInspector } from 'three-inspect/vanilla';
 
         // Make THREE and addons globally available
         window.THREE = THREE;
@@ -32,10 +34,12 @@
         window.RenderPass = RenderPass;
         window.UnrealBloomPass = UnrealBloomPass;
         window.OutputPass = OutputPass;
+        window.createInspector = createInspector;
 
         console.log('✅ super-three v0.173.0 loaded from CDN, version:', THREE.REVISION);
         console.log('✅ OrbitControls available:', typeof OrbitControls !== 'undefined');
         console.log('✅ Postprocessing addons available');
+        console.log('✅ three-inspect createInspector available:', typeof createInspector !== 'undefined');
 
         // Dispatch event to signal Three.js is ready
         window.dispatchEvent(new CustomEvent('threejs-loaded'));
@@ -391,7 +395,7 @@
         <button class="menu-btn" onclick="saveScene()">💾 Save</button>
         <button class="menu-btn" onclick="downloadScene()">⬇ Download</button>
         <button class="menu-btn" onclick="newScene()">📄 New</button>
-        <button class="menu-btn" onclick="openDocumentation()">📖 Documentation</button>
+        <button class="menu-btn" onclick="openDocumentation()">📖 Docs</button>
         <button class="menu-btn" onclick="toggleConsole()">🖥 Console</button>
         <select class="menu-btn" onchange="loadExample(this.value)">
             <option value="">Select Example...</option>
@@ -413,6 +417,16 @@
             <option value="ring-portal">🌀 Ring Portal</option>
             <option value="bouncing-spheres">⚽ Bouncing Spheres Physics</option>
         </select>
+        <select class="menu-btn" id="cameraSelector" onchange="switchCamera(this.value)" style="margin-left: 10px;">
+            <option value="">Camera: Auto</option>
+            <option value="PerspectiveCamera">Perspective</option>
+            <option value="OrthographicCamera">Orthographic</option>
+            <option value="OrbitControls">Orbit Controls</option>
+        </select>
+        <label style="margin-left: 10px; color: white; cursor: pointer;">
+            <input type="checkbox" id="debugCheckbox" onchange="toggleDebugger(this.checked)" style="cursor: pointer;">
+            <span style="margin-left: 5px;">three-inspect</span>
+        </label>
     </div>
     
     <div class="main-container">
@@ -1259,10 +1273,15 @@ console.log("✅ Default scene creation complete!");`;
                 if (scene && camera && renderer) {
                     console.log('🎯 Forcing immediate render test...');
                     renderer.render(scene, camera);
+
+                    // Detect and update camera selector
+                    setTimeout(() => {
+                        detectCurrentCamera();
+                    }, 100);
                 }
-                
+
                 hideError();
-                
+
                 notifySwift('sceneCreated', { success: true });
                 
             } catch (error) {
@@ -1611,7 +1630,189 @@ console.log("✅ Default scene creation complete!");`;
 
         // Initialize console on page load
         window.addEventListener('DOMContentLoaded', initFloatingConsole);
-        
+
+        // Camera switching functionality for Three.js
+        function switchCamera(cameraType) {
+            if (!scene || !camera || !renderer) {
+                console.warn('No scene/camera/renderer available for camera switching');
+                return;
+            }
+
+            if (!cameraType || cameraType === '') {
+                console.log('Camera set to Auto - using scene default');
+                return;
+            }
+
+            console.log('Switching to camera type:', cameraType);
+
+            // Store current camera position and rotation
+            const currentPosition = camera.position.clone();
+            const currentRotation = camera.rotation.clone();
+
+            // Get aspect ratio
+            const aspect = window.innerWidth / 2 / window.innerHeight;
+
+            try {
+                switch(cameraType) {
+                    case 'PerspectiveCamera':
+                        // Dispose OrbitControls if they exist
+                        if (window.controls && window.controls.dispose) {
+                            window.controls.dispose();
+                            window.controls = null;
+                        }
+
+                        camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000);
+                        camera.position.copy(currentPosition);
+                        camera.rotation.copy(currentRotation);
+                        window.camera = camera;
+                        console.log('Switched to PerspectiveCamera');
+                        break;
+
+                    case 'OrthographicCamera':
+                        // Dispose OrbitControls if they exist
+                        if (window.controls && window.controls.dispose) {
+                            window.controls.dispose();
+                            window.controls = null;
+                        }
+
+                        const width = 10;
+                        const height = width / aspect;
+                        camera = new THREE.OrthographicCamera(
+                            width / -2, width / 2,
+                            height / 2, height / -2,
+                            0.1, 1000
+                        );
+                        camera.position.copy(currentPosition);
+                        camera.rotation.copy(currentRotation);
+                        window.camera = camera;
+                        console.log('Switched to OrthographicCamera');
+                        break;
+
+                    case 'OrbitControls':
+                        // Create PerspectiveCamera if not already one
+                        if (!(camera instanceof THREE.PerspectiveCamera)) {
+                            camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000);
+                            camera.position.copy(currentPosition);
+                            window.camera = camera;
+                        }
+
+                        // Create OrbitControls
+                        if (window.OrbitControls) {
+                            const controls = new window.OrbitControls(camera, renderer.domElement);
+                            controls.enableDamping = true;
+                            controls.dampingFactor = 0.05;
+                            controls.screenSpacePanning = false;
+                            controls.minDistance = 1;
+                            controls.maxDistance = 100;
+                            controls.maxPolarAngle = Math.PI;
+                            window.controls = controls;
+                            console.log('Switched to OrbitControls');
+                        } else {
+                            console.warn('OrbitControls not available');
+                        }
+                        break;
+
+                    default:
+                        console.warn('Unknown camera type:', cameraType);
+                        return;
+                }
+
+                console.log('Camera switched successfully to:', cameraType);
+
+            } catch(error) {
+                console.error('Error switching camera:', error);
+            }
+        }
+
+        // three-inspect debugger toggle (using official three-inspect library)
+        let inspectorInstance = null;
+
+        function toggleDebugger(checked) {
+            if (!scene || !camera || !renderer) {
+                console.warn('No scene/camera/renderer available for three-inspect');
+                document.getElementById('debugCheckbox').checked = false;
+                return;
+            }
+
+            if (checked) {
+                createThreeInspector();
+            } else {
+                removeThreeInspector();
+            }
+        }
+
+        function createThreeInspector() {
+            console.log('🔍 Opening three-inspect...');
+
+            try {
+                if (!window.createInspector) {
+                    console.error('createInspector not available. three-inspect may not have loaded.');
+                    document.getElementById('debugCheckbox').checked = false;
+                    return;
+                }
+
+                // Get the canvas container (use correct camelCase ID)
+                const canvasContainer = document.getElementById('canvasContainer');
+                if (!canvasContainer) {
+                    console.error('Canvas container not found');
+                    document.getElementById('debugCheckbox').checked = false;
+                    return;
+                }
+
+                // Initialize three-inspect
+                inspectorInstance = window.createInspector(canvasContainer, {
+                    scene: scene,
+                    camera: camera,
+                    renderer: renderer
+                });
+
+                console.log('✅ three-inspect opened successfully');
+                console.log('💡 Press "i" key to toggle inspector, or use the checkbox');
+
+            } catch (error) {
+                console.error('Failed to initialize three-inspect:', error);
+                document.getElementById('debugCheckbox').checked = false;
+            }
+        }
+
+        function removeThreeInspector() {
+            console.log('🔍 Closing three-inspect...');
+
+            try {
+                if (inspectorInstance && typeof inspectorInstance.dispose === 'function') {
+                    inspectorInstance.dispose();
+                    inspectorInstance = null;
+                    console.log('✅ three-inspect closed successfully');
+                }
+            } catch (error) {
+                console.error('Error closing three-inspect:', error);
+            }
+        }
+
+        // Auto-detect camera type when scene changes
+        function detectCurrentCamera() {
+            if (!camera) {
+                document.getElementById('cameraSelector').value = '';
+                return;
+            }
+
+            const selector = document.getElementById('cameraSelector');
+
+            if (window.controls && window.controls instanceof window.OrbitControls) {
+                selector.value = 'OrbitControls';
+                console.log('Detected OrbitControls');
+            } else if (camera instanceof THREE.PerspectiveCamera) {
+                selector.value = 'PerspectiveCamera';
+                console.log('Detected PerspectiveCamera');
+            } else if (camera instanceof THREE.OrthographicCamera) {
+                selector.value = 'OrthographicCamera';
+                console.log('Detected OrthographicCamera');
+            } else {
+                selector.value = '';
+                console.log('Camera type not recognized');
+            }
+        }
+
         function loadExample(exampleId) {
             if (!exampleId) return;
 
