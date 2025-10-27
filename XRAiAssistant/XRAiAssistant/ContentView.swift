@@ -58,10 +58,6 @@ struct ContentView: View {
     @State private var pendingCodeSandboxCode: String?
     @State private var pendingCodeSandboxFramework: String?
     @State private var codeSandboxCreateFunction: ((String) -> Void)?
-    @State private var consoleMessages: [(level: String, message: String, timestamp: Date)] = []
-    @State private var showConsole = false
-    @State private var consoleCopied = false
-
     private var settingsView: some View {
         NavigationView {
             Form {
@@ -1058,139 +1054,9 @@ struct ContentView: View {
                             .cornerRadius(12)
                         }
                     }
-
-            // Console panel
-            consolePanel
         }
     }
 
-    // MARK: - Console Panel
-    private var consolePanel: some View {
-        VStack(spacing: 0) {
-            // Console header with copy button
-            HStack {
-                Image(systemName: "terminal")
-                    .foregroundColor(.gray)
-                    .font(.caption)
-
-                Text("Console")
-                    .font(.headline)
-                    .foregroundColor(.primary)
-
-                Spacer()
-
-                // Clear console button
-                Button(action: {
-                    consoleMessages.removeAll()
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "trash")
-                            .font(.caption)
-                    }
-                    .foregroundColor(.red)
-                }
-                .padding(.trailing, 8)
-
-                // Copy console button
-                Button(action: {
-                    copyConsoleOutput()
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: consoleCopied ? "checkmark" : "doc.on.doc")
-                            .font(.caption)
-                        Text(consoleCopied ? "Copied!" : "Copy")
-                            .font(.caption)
-                    }
-                    .foregroundColor(consoleCopied ? .green : .blue)
-                }
-                .padding(.trailing, 8)
-
-                // Minimize button
-                Button(action: {
-                    withAnimation {
-                        showConsole.toggle()
-                    }
-                }) {
-                    Image(systemName: showConsole ? "chevron.down" : "chevron.up")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color(.systemGray6))
-            .overlay(
-                Rectangle()
-                    .frame(height: 1)
-                    .foregroundColor(Color(.separator)),
-                alignment: .top
-            )
-
-            if showConsole {
-                // Console messages
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 4) {
-                        if consoleMessages.isEmpty {
-                            Text("No console output yet")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                                .padding()
-                        } else {
-                            ForEach(Array(consoleMessages.enumerated()), id: \.offset) { index, log in
-                                HStack(alignment: .top, spacing: 8) {
-                                    // Level indicator
-                                    Circle()
-                                        .fill(consoleColor(for: log.level))
-                                        .frame(width: 6, height: 6)
-                                        .padding(.top, 5)
-
-                                    // Message
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(log.message)
-                                            .font(.system(size: 11, design: .monospaced))
-                                            .foregroundColor(.primary)
-
-                                        Text(formatTimestamp(log.timestamp))
-                                            .font(.system(size: 9))
-                                            .foregroundColor(.gray)
-                                    }
-
-                                    Spacer()
-                                }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 4)
-                            }
-                        }
-                    }
-                    .padding(.vertical, 8)
-                }
-                .frame(height: 150)
-                .background(Color(.systemBackground))
-            }
-        }
-    }
-
-    private func copyConsoleOutput() {
-        let output = consoleMessages.map { log in
-            "[\(log.level.uppercased())] \(formatTimestamp(log.timestamp)): \(log.message)"
-        }.joined(separator: "\n")
-
-        UIPasteboard.general.string = output
-
-        consoleCopied = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            consoleCopied = false
-        }
-    }
-
-    private func consoleColor(for level: String) -> Color {
-        switch level.lowercased() {
-        case "error": return .red
-        case "warn", "warning": return .orange
-        case "info": return .blue
-        default: return .green
-        }
-    }
 
     private func formatTimestamp(_ date: Date) -> String {
         let formatter = DateFormatter()
@@ -1436,8 +1302,7 @@ struct ContentView: View {
             if let level = data["level"] as? String,
                let message = data["message"] as? String {
                 print("🌐 WebView Console [\(level.uppercased())]: \(message)")
-                // Store console message
-                consoleMessages.append((level: level, message: message, timestamp: Date()))
+                // Console messages now handled by floating console window in HTML
             }
         case "libraryStatusUpdate":
             if let libraries = data["libraries"] as? [String: Bool] {

@@ -406,6 +406,7 @@
         <div class="console-title-bar" id="consoleTitleBar">
             <div class="console-title">Console</div>
             <div class="console-controls">
+                <button class="console-btn" id="consoleClearBtn" title="Clear Console">🗑</button>
                 <button class="console-btn" id="consoleMinimizeBtn" title="Minimize">−</button>
                 <button class="console-btn" id="consoleToggleBtn" title="Expand">↕</button>
                 <button class="console-btn" id="consoleCloseBtn" title="Close">×</button>
@@ -1691,6 +1692,7 @@
         function initFloatingConsole() {
             const consoleWindow = document.getElementById('consoleWindow');
             const titleBar = document.getElementById('consoleTitleBar');
+            const clearBtn = document.getElementById('consoleClearBtn');
             const minimizeBtn = document.getElementById('consoleMinimizeBtn');
             const toggleBtn = document.getElementById('consoleToggleBtn');
             const closeBtn = document.getElementById('consoleCloseBtn');
@@ -1698,7 +1700,7 @@
             const consoleOpenBtn = document.getElementById('consoleOpenBtn');
 
             // Safety check - return if elements don't exist yet
-            if (!consoleWindow || !titleBar || !minimizeBtn || !toggleBtn || !closeBtn || !resizeHandle || !consoleOpenBtn) {
+            if (!consoleWindow || !titleBar || !clearBtn || !minimizeBtn || !toggleBtn || !closeBtn || !resizeHandle || !consoleOpenBtn) {
                 console.warn('Console elements not ready yet, skipping initialization');
                 return;
             }
@@ -1709,6 +1711,11 @@
                 consoleState = { ...consoleState, ...JSON.parse(saved) };
                 applyConsoleState();
             }
+
+            // Clear button
+            clearBtn.addEventListener('click', () => {
+                clearConsole();
+            });
 
             // Minimize button
             minimizeBtn.addEventListener('click', () => {
@@ -2276,7 +2283,10 @@
         
         function clearConsole() {
             consoleMessages = [];
-            updateConsoleDisplay();
+            const consoleContent = document.getElementById('consoleContent');
+            if (consoleContent) {
+                consoleContent.innerHTML = '';
+            }
         }
         
         function escapeHtml(text) {
