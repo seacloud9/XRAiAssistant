@@ -406,6 +406,7 @@
         <div class="console-title-bar" id="consoleTitleBar">
             <div class="console-title">Console</div>
             <div class="console-controls">
+                <button class="console-btn" id="consoleCopyBtn" title="Copy All">📋</button>
                 <button class="console-btn" id="consoleClearBtn" title="Clear Console">🗑</button>
                 <button class="console-btn" id="consoleMinimizeBtn" title="Minimize">−</button>
                 <button class="console-btn" id="consoleToggleBtn" title="Expand">↕</button>
@@ -1692,6 +1693,7 @@
         function initFloatingConsole() {
             const consoleWindow = document.getElementById('consoleWindow');
             const titleBar = document.getElementById('consoleTitleBar');
+            const copyBtn = document.getElementById('consoleCopyBtn');
             const clearBtn = document.getElementById('consoleClearBtn');
             const minimizeBtn = document.getElementById('consoleMinimizeBtn');
             const toggleBtn = document.getElementById('consoleToggleBtn');
@@ -1700,7 +1702,7 @@
             const consoleOpenBtn = document.getElementById('consoleOpenBtn');
 
             // Safety check - return if elements don't exist yet
-            if (!consoleWindow || !titleBar || !clearBtn || !minimizeBtn || !toggleBtn || !closeBtn || !resizeHandle || !consoleOpenBtn) {
+            if (!consoleWindow || !titleBar || !copyBtn || !clearBtn || !minimizeBtn || !toggleBtn || !closeBtn || !resizeHandle || !consoleOpenBtn) {
                 console.warn('Console elements not ready yet, skipping initialization');
                 return;
             }
@@ -1711,6 +1713,11 @@
                 consoleState = { ...consoleState, ...JSON.parse(saved) };
                 applyConsoleState();
             }
+
+            // Copy button
+            copyBtn.addEventListener('click', () => {
+                copyConsoleToClipboard();
+            });
 
             // Clear button
             clearBtn.addEventListener('click', () => {
@@ -2288,7 +2295,61 @@
                 consoleContent.innerHTML = '';
             }
         }
-        
+
+        function copyConsoleToClipboard() {
+            if (consoleMessages.length === 0) {
+                console.log('No console messages to copy');
+                return;
+            }
+
+            // Create plain text version of all console messages
+            const text = consoleMessages.map(msg => `[${msg.type.toUpperCase()}] ${msg.message}`).join('\n');
+
+            // Try modern clipboard API first
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    console.log('✅ Console content copied to clipboard');
+                    showCopyFeedback();
+                }).catch(err => {
+                    console.error('Failed to copy to clipboard:', err);
+                    fallbackCopy(text);
+                });
+            } else {
+                fallbackCopy(text);
+            }
+        }
+
+        function fallbackCopy(text) {
+            // Fallback for older browsers
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                console.log('✅ Console content copied to clipboard (fallback)');
+                showCopyFeedback();
+            } catch (err) {
+                console.error('Fallback copy failed:', err);
+            }
+            document.body.removeChild(textarea);
+        }
+
+        function showCopyFeedback() {
+            const copyBtn = document.getElementById('consoleCopyBtn');
+            if (copyBtn) {
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = '✓';
+                copyBtn.style.color = '#4caf50';
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                    copyBtn.style.color = '';
+                }, 1500);
+            }
+        }
+
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
