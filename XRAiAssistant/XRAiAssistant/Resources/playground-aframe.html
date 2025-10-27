@@ -370,6 +370,16 @@
             <option value="stacked-cubes">Stacked Cubes Tower</option>
             <option value="color-changing">Color Changing Environment</option>
         </select>
+        <select class="menu-btn" id="cameraSelector" onchange="switchCamera(this.value)" style="margin-left: 10px;">
+            <option value="">Camera: Default</option>
+            <option value="wasd-controls">WASD Controls</option>
+            <option value="look-controls">Look Controls</option>
+            <option value="orbit-controls">Orbit Controls</option>
+        </select>
+        <label style="margin-left: 10px; color: white; cursor: pointer;">
+            <input type="checkbox" id="inspectorCheckbox" onchange="toggleInspector(this.checked)" style="cursor: pointer;">
+            <span style="margin-left: 5px;">Inspector</span>
+        </label>
     </div>
     
     <div class="main-container">
@@ -1892,6 +1902,145 @@
             updateConsoleOpenButtonVisibility();
             if (!consoleState.hidden && consoleMessages.length === 0) {
                 console.log('Console opened - no messages yet');
+            }
+        }
+
+        // Camera switching function for A-Frame
+        function switchCamera(cameraType) {
+            console.log('Switching to camera type:', cameraType);
+
+            const aframeScene = document.querySelector('a-scene');
+            if (!aframeScene) {
+                console.warn('No A-Frame scene found');
+                return;
+            }
+
+            // Get or create camera entity
+            let camera = aframeScene.querySelector('[camera]');
+            if (!camera) {
+                console.warn('No camera found in scene');
+                return;
+            }
+
+            if (!cameraType || cameraType === '') {
+                console.log('Camera set to default');
+                // Reset to default camera controls
+                camera.setAttribute('wasd-controls', 'enabled: true');
+                camera.setAttribute('look-controls', 'enabled: true');
+                camera.removeAttribute('orbit-controls');
+                return;
+            }
+
+            try {
+                switch(cameraType) {
+                    case 'wasd-controls':
+                        // Enable WASD movement controls
+                        camera.setAttribute('wasd-controls', 'enabled: true');
+                        camera.setAttribute('look-controls', 'enabled: true');
+                        camera.removeAttribute('orbit-controls');
+                        console.log('✅ Switched to WASD Controls');
+                        break;
+
+                    case 'look-controls':
+                        // Look controls only (no movement)
+                        camera.setAttribute('wasd-controls', 'enabled: false');
+                        camera.setAttribute('look-controls', 'enabled: true');
+                        camera.removeAttribute('orbit-controls');
+                        console.log('✅ Switched to Look Controls');
+                        break;
+
+                    case 'orbit-controls':
+                        // Orbit controls (requires aframe-extras)
+                        camera.setAttribute('orbit-controls', 'target: 0 1 0; minDistance: 1; maxDistance: 20; initialPosition: 0 2 5');
+                        camera.setAttribute('wasd-controls', 'enabled: false');
+                        camera.setAttribute('look-controls', 'enabled: false');
+                        console.log('✅ Switched to Orbit Controls');
+                        break;
+
+                    default:
+                        console.warn('Unknown camera type:', cameraType);
+                        return;
+                }
+
+                console.log('Camera switched successfully to:', cameraType);
+
+            } catch(error) {
+                console.error('Error switching camera:', error);
+            }
+        }
+
+        // A-Frame Inspector toggle (using official A-Frame Inspector)
+        function toggleInspector(checked) {
+            console.log('Toggle inspector:', checked);
+
+            const aframeScene = document.querySelector('a-scene');
+            if (!aframeScene) {
+                console.warn('No A-Frame scene found for inspector');
+                document.getElementById('inspectorCheckbox').checked = false;
+                return;
+            }
+
+            if (checked) {
+                openInspector();
+            } else {
+                closeInspector();
+            }
+        }
+
+        function openInspector() {
+            console.log('🔍 Opening A-Frame Inspector...');
+
+            try {
+                const aframeScene = document.querySelector('a-scene');
+                if (!aframeScene) {
+                    console.error('A-Frame scene not found');
+                    return;
+                }
+
+                // Check if AFRAME is available
+                if (typeof AFRAME === 'undefined' || !AFRAME.INSPECTOR) {
+                    console.error('A-Frame Inspector not loaded. Loading now...');
+
+                    // Load inspector if not already loaded
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/gh/aframevr/aframe-inspector@master/dist/aframe-inspector.min.js';
+                    script.onload = () => {
+                        console.log('✅ A-Frame Inspector loaded');
+                        setTimeout(() => {
+                            if (AFRAME.INSPECTOR) {
+                                AFRAME.INSPECTOR.open();
+                                console.log('✅ A-Frame Inspector opened');
+                            }
+                        }, 500);
+                    };
+                    script.onerror = () => {
+                        console.error('Failed to load A-Frame Inspector');
+                        document.getElementById('inspectorCheckbox').checked = false;
+                    };
+                    document.head.appendChild(script);
+                } else {
+                    // Inspector already loaded, just open it
+                    AFRAME.INSPECTOR.open();
+                    console.log('✅ A-Frame Inspector opened');
+                    console.log('💡 Press <Ctrl> + <Alt> + I to toggle inspector');
+                }
+
+            } catch (error) {
+                console.error('Failed to open A-Frame Inspector:', error);
+                document.getElementById('inspectorCheckbox').checked = false;
+            }
+        }
+
+        function closeInspector() {
+            console.log('🔍 Closing A-Frame Inspector...');
+
+            try {
+                if (typeof AFRAME !== 'undefined' && AFRAME.INSPECTOR) {
+                    AFRAME.INSPECTOR.close();
+                    console.log('✅ A-Frame Inspector closed');
+                }
+            } catch (error) {
+                console.error('Error closing A-Frame Inspector:', error);
             }
         }
 
