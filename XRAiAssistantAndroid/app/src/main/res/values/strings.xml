@@ -1,62 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">XRAiAssistant</string>
-    <string name="app_description">AI-powered Extended Reality development platform</string>
-    
+
     <!-- Navigation -->
     <string name="nav_chat">Code</string>
     <string name="nav_scene">Run Scene</string>
     <string name="nav_settings">Settings</string>
-    
-    <!-- Chat -->
-    <string name="chat_input_hint">Ask me to create a 3D scene...</string>
-    <string name="chat_thinking">AI is thinking...</string>
-    <string name="ai_code_ready">AI code ready! Tap 'Run Scene' to see it.</string>
-    
-    <!-- Settings -->
+    <string name="nav_examples">Examples</string>
+    <string name="nav_history">History</string>
+
+    <!-- Chat Screen -->
+    <string name="chat_input_placeholder">Ask me to create a 3D scene…</string>
+    <string name="chat_send">Send</string>
+    <string name="chat_loading">AI is thinking…</string>
+    <string name="chat_error">Error: %s</string>
+    <string name="chat_welcome_title">AI Assistant</string>
+
+    <!-- Scene Screen -->
+    <string name="scene_loading">Loading 3D scene…</string>
+    <string name="scene_error">Error rendering scene: %s</string>
+    <string name="scene_inject_code">Injecting AI Code…</string>
+    <string name="scene_deploying">Deploying to CodeSandbox…</string>
+
+    <!-- Settings Screen -->
     <string name="settings_title">Settings</string>
-    <string name="settings_api_keys">AI Provider API Keys</string>
-    <string name="settings_model">Model &amp; Library Settings</string>
-    <string name="settings_system_prompt">System Prompt</string>
     <string name="settings_save">Save</string>
     <string name="settings_cancel">Cancel</string>
     <string name="settings_saved">Settings saved successfully!</string>
-    
-    <!-- AI Providers -->
-    <string name="provider_together_ai">Together.ai</string>
-    <string name="provider_openai">OpenAI</string>
-    <string name="provider_anthropic">Anthropic</string>
-    <string name="api_key_hint">Enter your API key</string>
-    <string name="api_key_required">API key required</string>
-    <string name="api_key_configured">Configured</string>
-    
-    <!-- 3D Libraries -->
-    <string name="library_babylonjs">Babylon.js</string>
-    <string name="library_threejs">Three.js</string>
-    <string name="library_aframe">A-Frame</string>
-    <string name="library_react_three_fiber">React Three Fiber</string>
-    <string name="library_reactylon">Reactylon</string>
-    
-    <!-- AI Parameters -->
-    <string name="parameter_temperature">Temperature</string>
-    <string name="parameter_top_p">Top-p (Nucleus Sampling)</string>
-    <string name="parameter_description">Current Mode</string>
-    <string name="temperature_focused">Focused</string>
-    <string name="temperature_creative">Creative</string>
+
+    <!-- API Keys -->
+    <string name="settings_api_keys">API Keys</string>
+    <string name="settings_together_ai">Together.ai API Key</string>
+    <string name="settings_together_ai_hint">Enter your Together.ai API key</string>
+    <string name="settings_together_ai_desc">Get your API key from together.ai</string>
+    <string name="settings_openai">OpenAI API Key</string>
+    <string name="settings_openai_hint">Enter your OpenAI API key</string>
+    <string name="settings_openai_desc">Get your API key from platform.openai.com</string>
+    <string name="settings_anthropic">Anthropic API Key</string>
+    <string name="settings_anthropic_hint">Enter your Anthropic API key</string>
+    <string name="settings_anthropic_desc">Get your API key from console.anthropic.com</string>
+    <string name="settings_codesandbox">CodeSandbox API Key (Optional)</string>
+    <string name="settings_codesandbox_hint">Enter your CodeSandbox API key</string>
+    <string name="settings_codesandbox_desc">Enables advanced CodeSandbox features</string>
+
+    <!-- Model Settings -->
+    <string name="settings_model">Model Settings</string>
+    <string name="settings_select_model">AI Model</string>
+    <string name="settings_select_library">3D Library</string>
+    <string name="settings_temperature">Temperature</string>
+    <string name="settings_temperature_desc">%1$.1f - %2$s</string>
+    <string name="settings_top_p">Top-p (Nucleus Sampling)</string>
+    <string name="settings_top_p_desc">%1$.1f - %2$s</string>
+
+    <!-- Temperature Descriptions -->
+    <string name="temp_focused">Focused</string>
+    <string name="temp_creative">Creative</string>
+    <string name="temp_precise">Precise &amp; Focused</string>
+    <string name="temp_balanced">Balanced Creativity</string>
+    <string name="temp_experimental">Experimental Mode</string>
+
+    <!-- Top-p Descriptions -->
     <string name="top_p_precise">Precise</string>
     <string name="top_p_diverse">Diverse</string>
-    
-    <!-- WebView -->
-    <string name="webview_loading">Loading 3D playground...</string>
-    <string name="webview_error">Error loading playground</string>
-    <string name="code_injection">Injecting AI Code...</string>
-    
-    <!-- Build System -->
-    <string name="build_success">Build completed successfully</string>
-    <string name="build_failed">Build failed</string>
-    <string name="build_in_progress">Building...</string>
-    
-    <!-- Errors -->
-    <string name="error_network">Network error. Please check your connection.</string>
-    <string name="error_api_key">Invalid API key. Please check your settings.</string>
-    <string name="error_unknown">An unexpected error occurred.</string>
+
+    <!-- Parameter Summary -->
+    <string name="settings_parameter_summary">Current Mode</string>
+    <string name="param_precise_focused">Precise &amp; Focused - Perfect for debugging</string>
+    <string name="param_balanced_creativity">Balanced Creativity - Ideal for most scenes</string>
+    <string name="param_experimental_mode">Experimental Mode - Maximum innovation</string>
+    <string name="param_custom">Custom Configuration</string>
+
+    <!-- System Prompt -->
+    <string name="settings_system_prompt">System Prompt</string>
+    <string name="settings_system_prompt_hint">Custom Instructions</string>
+    <string name="settings_system_prompt_desc">Customize how the AI assistant behaves</string>
+
+    <!-- Examples Screen -->
+    <string name="examples_title">Code Examples</string>
+    <string name="examples_search">Search examples…</string>
+    <string name="examples_category_all">All</string>
+    <string name="examples_run">Run This Scene</string>
+
+    <!-- Example Categories -->
+    <string name="category_basics">Basics</string>
+    <string name="category_effects">Effects</string>
+    <string name="category_animation">Animation</string>
+    <string name="category_physics">Physics</string>
+    <string name="category_interaction">Interaction</string>
+    <string name="category_advanced">Advanced</string>
+
+    <!-- Example Difficulties -->
+    <string name="difficulty_beginner">Beginner</string>
+    <string name="difficulty_intermediate">Intermediate</string>
+    <string name="difficulty_advanced">Advanced</string>
+
+    <!-- Error Messages -->
+    <string name="error_api_key_required">⚠️ API Key Required: Please configure your Together.ai API key in Settings</string>
+    <string name="error_invalid_api_key">⚠️ Invalid API Key: Please check your API key in Settings</string>
+    <string name="error_auth_failed">⚠️ Authentication Failed: Please verify your API key in Settings</string>
+    <string name="error_network">Network error: %s</string>
+    <string name="error_unknown">Failed to get response: %s</string>
+
+    <!-- Info Messages -->
+    <string name="info_configured">Configured</string>
+    <string name="info_not_configured">API key required</string>
+    <string name="info_optional">Optional</string>
+
+    <!-- Code Actions -->
+    <string name="code_ready">AI code ready! Tap \'Run Scene\' to see it.</string>
+    <string name="code_generated_by">Generated by %s</string>
+    <string name="code_characters">%d chars</string>
+
+    <!-- Sandbox -->
+    <string name="sandbox_creating">Creating CodeSandbox…</string>
+    <string name="sandbox_created">CodeSandbox created successfully!</string>
+    <string name="sandbox_error">Failed to create CodeSandbox: %s</string>
+    <string name="sandbox_loading">Loading sandbox…</string>
+
+    <!-- Accessibility -->
+    <string name="content_desc_send_message">Send message</string>
+    <string name="content_desc_settings">Settings</string>
+    <string name="content_desc_back">Back</string>
+    <string name="content_desc_model_icon">AI Model</string>
+    <string name="content_desc_library_icon">3D Library</string>
 </resources>

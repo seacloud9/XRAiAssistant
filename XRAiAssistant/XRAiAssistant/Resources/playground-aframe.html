@@ -10,6 +10,9 @@
     
     <!-- A-Frame Extras for additional components -->
     <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v7.6.0/dist/aframe-extras.min.js"></script>
+
+    <!-- A-Frame Effects for post-processing (bloom, etc.) -->
+    <script src="https://unpkg.com/aframe-effects@5.0.0/dist/aframe-effects.min.js"></script>
     
     <!-- Monaco Editor -->
     <script src="https://unpkg.com/monaco-editor@0.45.0/min/vs/loader.js"></script>
@@ -369,6 +372,7 @@
             <option value="glowing-tunnel">Glowing Tunnel</option>
             <option value="stacked-cubes">Stacked Cubes Tower</option>
             <option value="color-changing">Color Changing Environment</option>
+            <option value="post-processing">Post-Processing Bloom</option>
         </select>
         <select class="menu-btn" id="cameraSelector" onchange="switchCamera(this.value)" style="margin-left: 10px;">
             <option value="">Camera: Default</option>
@@ -1581,6 +1585,137 @@
 </a-scene>`;
         }
 
+        function getPostProcessingCode() {
+            return `<!-- NEON BLOOM POST-PROCESSING DEMO -->
+<script src="https://unpkg.com/aframe-effects@5.0.0/dist/aframe-effects.min.js"><\/script>
+
+<a-scene effects="bloom" bloom="radius: 1.2; strength: 1.8; threshold: 0.1"
+         background="color: #000000"
+         vr-mode-ui="enabled: false">
+
+        <!-- Very dim ambient light to make bloom pop -->
+        <a-light type="ambient" color="#0a0a0a" intensity="0.2"></a-light>
+
+        <!-- MASSIVE pulsing central sphere - SUPER BRIGHT -->
+        <a-sphere position="0 2 -5" radius="1.5"
+            material="color: #FF0099; emissive: #FF0099; emissiveIntensity: 5; metalness: 1; roughness: 0"
+            animation="property: rotation; to: 0 360 0; loop: true; dur: 3000"
+            animation__scale="property: scale; to: 1.8 1.8 1.8; dir: alternate; loop: true; dur: 1500; easing: easeInOutQuad"
+            animation__color="property: material.emissive; from: #FF0099; to: #00FFFF; dir: alternate; loop: true; dur: 3000"></a-sphere>
+
+        <!-- FAST spinning ring of ultra-bright cubes -->
+        <a-entity position="0 2 -5" animation="property: rotation; to: 0 360 0; loop: true; dur: 3000">
+            <a-box position="4 0 0" width="1" height="1" depth="1"
+                material="color: #00FFFF; emissive: #00FFFF; emissiveIntensity: 6; metalness: 1; roughness: 0"
+                animation="property: rotation; to: 360 360 360; loop: true; dur: 2000"></a-box>
+
+            <a-box position="-4 0 0" width="1" height="1" depth="1"
+                material="color: #FFFF00; emissive: #FFFF00; emissiveIntensity: 6; metalness: 1; roughness: 0"
+                animation="property: rotation; to: 360 360 360; loop: true; dur: 2000"></a-box>
+
+            <a-box position="0 0 4" width="1" height="1" depth="1"
+                material="color: #FF00FF; emissive: #FF00FF; emissiveIntensity: 6; metalness: 1; roughness: 0"
+                animation="property: rotation; to: 360 360 360; loop: true; dur: 2000"></a-box>
+
+            <a-box position="0 0 -4" width="1" height="1" depth="1"
+                material="color: #00FF00; emissive: #00FF00; emissiveIntensity: 6; metalness: 1; roughness: 0"
+                animation="property: rotation; to: 360 360 360; loop: true; dur: 2000"></a-box>
+        </a-entity>
+
+        <!-- Secondary ring spinning opposite direction -->
+        <a-entity position="0 2 -5" animation="property: rotation; to: 0 -360 0; loop: true; dur: 4000">
+            <a-box position="3 0 0" width="0.8" height="0.8" depth="0.8"
+                material="color: #FF3300; emissive: #FF3300; emissiveIntensity: 5; metalness: 1; roughness: 0"
+                animation="property: rotation; to: -360 -360 -360; loop: true; dur: 2500"></a-box>
+
+            <a-box position="-3 0 0" width="0.8" height="0.8" depth="0.8"
+                material="color: #00FFAA; emissive: #00FFAA; emissiveIntensity: 5; metalness: 1; roughness: 0"
+                animation="property: rotation; to: -360 -360 -360; loop: true; dur: 2500"></a-box>
+
+            <a-box position="0 0 3" width="0.8" height="0.8" depth="0.8"
+                material="color: #AA00FF; emissive: #AA00FF; emissiveIntensity: 5; metalness: 1; roughness: 0"
+                animation="property: rotation; to: -360 -360 -360; loop: true; dur: 2500"></a-box>
+
+            <a-box position="0 0 -3" width="0.8" height="0.8" depth="0.8"
+                material="color: #FFAA00; emissive: #FFAA00; emissiveIntensity: 5; metalness: 1; roughness: 0"
+                animation="property: rotation; to: -360 -360 -360; loop: true; dur: 2500"></a-box>
+        </a-entity>
+
+        <!-- MASSIVE color-shifting torus rings -->
+        <a-torus position="0 5 -5" radius="2.5" radius-tubular="0.3"
+            material="color: #00FF00; emissive: #00FF00; emissiveIntensity: 6; metalness: 1; roughness: 0"
+            animation="property: rotation; to: 360 360 0; loop: true; dur: 4000"
+            animation__color="property: material.emissive; from: #00FF00; to: #FF00FF; dir: alternate; loop: true; dur: 2000"></a-torus>
+
+        <a-torus position="0 -1 -5" radius="3" radius-tubular="0.25" rotation="90 0 0"
+            material="color: #FF0000; emissive: #FF0000; emissiveIntensity: 6; metalness: 1; roughness: 0"
+            animation="property: rotation; to: 90 360 360; loop: true; dur: 5000"
+            animation__color="property: material.emissive; from: #FF0000; to: #00FFFF; dir: alternate; loop: true; dur: 2500"></a-torus>
+
+        <a-torus position="0 2 -5" radius="2" radius-tubular="0.2" rotation="0 0 90"
+            material="color: #0099FF; emissive: #0099FF; emissiveIntensity: 6; metalness: 1; roughness: 0"
+            animation="property: rotation; to: 360 0 90; loop: true; dur: 6000"
+            animation__color="property: material.emissive; from: #0099FF; to: #FFFF00; dir: alternate; loop: true; dur: 3000"></a-torus>
+
+        <!-- Swarm of FAST moving ultra-bright spheres -->
+        <a-sphere position="-3 4 -6" radius="0.5"
+            material="color: #FFFFFF; emissive: #FFFFFF; emissiveIntensity: 8"
+            animation="property: position; to: -3 1 -6; dir: alternate; loop: true; dur: 800; easing: linear"
+            animation__x="property: position; from: -3 4 -6; to: 3 4 -6; dir: alternate; loop: true; dur: 2000; easing: easeInOutQuad"></a-sphere>
+
+        <a-sphere position="3 1 -7" radius="0.6"
+            material="color: #FF00FF; emissive: #FF00FF; emissiveIntensity: 7"
+            animation="property: position; to: 3 4 -7; dir: alternate; loop: true; dur: 1000; easing: linear"
+            animation__x="property: position; from: 3 1 -7; to: -3 1 -7; dir: alternate; loop: true; dur: 2500; easing: easeInOutQuad"></a-sphere>
+
+        <a-sphere position="-2 3 -8" radius="0.4"
+            material="color: #00FFFF; emissive: #00FFFF; emissiveIntensity: 8"
+            animation="property: position; to: 2 3 -8; dir: alternate; loop: true; dur: 1200; easing: easeInOutQuad"></a-sphere>
+
+        <a-sphere position="2 3 -6" radius="0.45"
+            material="color: #FFFF00; emissive: #FFFF00; emissiveIntensity: 7"
+            animation="property: position; to: -2 3 -6; dir: alternate; loop: true; dur: 1400; easing: easeInOutQuad"></a-sphere>
+
+        <a-sphere position="0 5 -7" radius="0.5"
+            material="color: #FF6600; emissive: #FF6600; emissiveIntensity: 8"
+            animation="property: position; to: 0 0.5 -7; dir: alternate; loop: true; dur: 1600; easing: easeInOutQuad"></a-sphere>
+
+        <!-- Spinning NEON cylinders with color shift -->
+        <a-cylinder position="-4 2 -6" radius="0.4" height="3"
+            material="color: #FF0099; emissive: #FF0099; emissiveIntensity: 6; metalness: 1; roughness: 0"
+            animation="property: rotation; to: 0 360 360; loop: true; dur: 2000"
+            animation__color="property: material.emissive; from: #FF0099; to: #00FFFF; dir: alternate; loop: true; dur: 1500"></a-cylinder>
+
+        <a-cylinder position="4 2 -6" radius="0.4" height="3"
+            material="color: #00FF99; emissive: #00FF99; emissiveIntensity: 6; metalness: 1; roughness: 0"
+            animation="property: rotation; to: 360 0 360; loop: true; dur: 2000"
+            animation__color="property: material.emissive; from: #00FF99; to: #FF00FF; dir: alternate; loop: true; dur: 1500"></a-cylinder>
+
+        <!-- Orbiting BRIGHT octahedrons -->
+        <a-entity position="0 2 -5" animation="property: rotation; to: 0 360 360; loop: true; dur: 5000">
+            <a-octahedron position="5 0 0" radius="0.8"
+                material="color: #FF0099; emissive: #FF0099; emissiveIntensity: 6; metalness: 1; roughness: 0"
+                animation="property: rotation; to: 360 360 0; loop: true; dur: 2000"></a-octahedron>
+
+            <a-octahedron position="-5 0 0" radius="0.8"
+                material="color: #00FFFF; emissive: #00FFFF; emissiveIntensity: 6; metalness: 1; roughness: 0"
+                animation="property: rotation; to: 360 360 0; loop: true; dur: 2000"></a-octahedron>
+        </a-entity>
+
+        <!-- Dark mirror floor -->
+        <a-plane position="0 -1.5 -5" rotation="-90 0 0" width="40" height="40"
+            material="color: #000000; emissive: #050510; emissiveIntensity: 0.3; metalness: 1; roughness: 0"></a-plane>
+
+    <!-- Camera with automatic rotation -->
+    <a-entity position="0 2.5 3"
+              animation="property: rotation; to: 0 360 0; loop: true; dur: 60000; easing: linear">
+        <a-camera look-controls wasd-controls>
+            <a-cursor color="#FFF"></a-cursor>
+        </a-camera>
+    </a-entity>
+</a-scene>`;
+        }
+
         function createDefaultScene() {
             try {
                 // Execute user code
@@ -2077,7 +2212,8 @@
                 'particle-ring': getParticleRingCode(),
                 'glowing-tunnel': getGlowingTunnelCode(),
                 'stacked-cubes': getStackedCubesCode(),
-                'color-changing': getColorChangingCode()
+                'color-changing': getColorChangingCode(),
+                'post-processing': getPostProcessingCode()
             };
 
             if (examples[exampleId] && editor) {
