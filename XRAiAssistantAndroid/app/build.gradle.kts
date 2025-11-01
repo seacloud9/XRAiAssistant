@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.xrai.assistant"
+    namespace = "com.xraiassistant"
     compileSdk = 34
 
     defaultConfig {
@@ -58,7 +58,7 @@ android {
     }
 
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.4"
+        kotlinCompilerExtensionVersion = "1.5.8"
     }
 
     packaging {
@@ -71,6 +71,9 @@ android {
 dependencies {
     // AndroidX Core
     implementation(libs.core.ktx)
+    implementation(libs.appcompat)
+    implementation(libs.material)
+    implementation(libs.security.crypto)
 
     // Compose
     implementation(platform(libs.compose.bom))
@@ -119,7 +122,7 @@ dependencies {
     implementation(libs.coil.compose)
 
     // Markdown
-    implementation(libs.markdown)
+    implementation(libs.commonmark)
 
     // Testing
     testImplementation(libs.junit)

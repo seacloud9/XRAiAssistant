@@ -1,43 +1,16 @@
 {
   "permissions": {
     "allow": [
-      "Bash(grep:*)",
-      "Bash(xcodebuild:*)",
-      "Bash(swift:*)",
-      "Bash(ls:*)",
-      "Bash(git add:*)",
-      "Bash(sed:*)",
-      "Bash(cp:*)",
-      "Bash(python3:*)",
-      "Bash(rm:*)",
-      "Bash(find:*)",
-      "Bash(git commit:*)",
-      "Bash(true)",
-      "Bash(sudo rm:*)",
-      "Bash(rg:*)",
-      "Bash(mv:*)",
-      "mcp__ide__getDiagnostics",
-      "Bash(xcrun simctl delete:*)",
-      "Bash(git rm:*)",
-      "Bash(curl:*)",
-      "Bash(open:*)",
-      "Bash(npm run dev:*)",
-      "Bash(pnpm install:*)",
-      "Bash(pnpm run dev:*)",
-      "Bash(timeout 10 pnpm dev)",
-      "Bash(pnpm build:*)",
-      "Bash(swiftc:*)",
-      "Bash(./scripts/xcode_recovery.sh:*)",
-      "Bash(killall:*)",
-      "Bash(git restore:*)",
-      "Read(//private/tmp/**)",
-      "Bash(tee:*)",
-      "Bash(timeout 120 xcodebuild:*)",
-      "Bash(xcrun simctl list:*)",
-      "Bash(../scripts/xcode_recovery.sh:*)",
-      "Bash(awk:*)",
-      "Bash(cat:*)"
+      "Read(//usr/**)",
+      "Bash(./gradlew clean:*)",
+      "Bash(./gradlew assembleDebug:*)",
+      "Bash(timeout 60 ./gradlew:*)",
+      "Bash(timeout 120 ./gradlew clean:*)",
+      "Bash(./gradlew build:*)",
+      "Bash(./gradlew compileDebugKotlin:*)",
+      "Bash(timeout 120 ./gradlew compileDebugKotlin:*)"
     ],
-    "deny": []
+    "deny": [],
+    "ask": []
   }
 }

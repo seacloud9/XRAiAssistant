@@ -1,6 +1,7 @@
 package com.xraiassistant
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,18 +23,37 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+        Log.d("XRAiAssistant", "MainActivity onCreate started")
         
-        setContent {
-            XRAiAssistantTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    val chatViewModel: ChatViewModel = hiltViewModel()
-                    MainScreen(chatViewModel = chatViewModel)
+        try {
+            super.onCreate(savedInstanceState)
+            Log.d("XRAiAssistant", "super.onCreate completed")
+            
+            setContent {
+                Log.d("XRAiAssistant", "setContent started")
+                
+                XRAiAssistantTheme {
+                    Log.d("XRAiAssistant", "XRAiAssistantTheme started")
+                    
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        Log.d("XRAiAssistant", "Surface started")
+                        
+                        val chatViewModel: ChatViewModel = hiltViewModel()
+                        Log.d("XRAiAssistant", "ChatViewModel created successfully")
+                        
+                        MainScreen(chatViewModel = chatViewModel)
+                        Log.d("XRAiAssistant", "MainScreen composed successfully")
+                    }
                 }
             }
+            
+            Log.d("XRAiAssistant", "MainActivity onCreate completed successfully")
+        } catch (e: Exception) {
+            Log.e("XRAiAssistant", "Error in MainActivity onCreate", e)
+            throw e
         }
     }
 }

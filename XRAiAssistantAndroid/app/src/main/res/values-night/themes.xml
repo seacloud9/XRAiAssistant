@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Dark theme for XRAiAssistant -->
+    <style name="Theme.XRAiAssistant" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <!-- Primary brand color -->
+        <item name="colorPrimary">#80D5D4</item>
+        <item name="colorPrimaryVariant">#5FA5A4</item>
+        <item name="colorOnPrimary">#003737</item>
+        
+        <!-- Secondary brand color -->
+        <item name="colorSecondary">#B1CCCB</item>
+        <item name="colorSecondaryVariant">#8BA5A4</item>
+        <item name="colorOnSecondary">#1C3535</item>
+        
+        <!-- Status bar color -->
+        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
+        
+        <!-- Background colors -->
+        <item name="android:colorBackground">#0F1414</item>
+        <item name="colorSurface">#0F1414</item>
+        <item name="colorOnSurface">#DFE3E2</item>
+        
+        <!-- Error colors -->
+        <item name="colorError">#FFB4AB</item>
+        <item name="colorOnError">#690005</item>
+    </style>
+</resources>

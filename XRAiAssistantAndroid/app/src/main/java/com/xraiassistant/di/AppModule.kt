@@ -29,13 +29,10 @@ object AppModule {
     ): SettingsDataStore {
         return SettingsDataStore(context)
     }
-    
-    @Provides
-    @Singleton
-    fun provideAIProviderService(): AIProviderService {
-        return AIProviderService()
-    }
-    
+
+    // AIProviderService and RealAIProviderService are automatically provided by Hilt
+    // via @Inject constructor and @Singleton annotation - no manual provider needed
+
     @Provides
     @Singleton
     fun provideLibrary3DRepository(): Library3DRepository {

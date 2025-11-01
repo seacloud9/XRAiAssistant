@@ -3,6 +3,9 @@ package com.xraiassistant.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -64,15 +67,47 @@ fun ChatMessageCard(
                     )
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-                Text(
-                    text = message.content,
-                    color = if (message.isUser) {
-                        MaterialTheme.colorScheme.onPrimary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                Column {
+                    // Header with icon and sender info
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (message.isUser) Icons.Default.Person else Icons.Default.SmartToy,
+                            contentDescription = if (message.isUser) "User" else "AI",
+                            tint = if (message.isUser) {
+                                MaterialTheme.colorScheme.onPrimary
+                            } else {
+                                Color(0xFF2196F3)
+                            },
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = if (message.isUser) "You" else (message.model ?: "AI Assistant"),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (message.isUser) {
+                                MaterialTheme.colorScheme.onPrimary
+                            } else {
+                                Color(0xFF2196F3)
+                            },
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(6.dp))
+                    
+                    // Message content
+                    Text(
+                        text = message.content,
+                        color = if (message.isUser) {
+                            MaterialTheme.colorScheme.onPrimary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
             }
             
             Spacer(modifier = Modifier.height(4.dp))

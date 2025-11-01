@@ -4,6 +4,7 @@ import com.xraiassistant.domain.models.AFrameLibrary
 import com.xraiassistant.domain.models.BabylonJSLibrary
 import com.xraiassistant.domain.models.Library3D
 import com.xraiassistant.domain.models.ReactThreeFiberLibrary
+import com.xraiassistant.domain.models.ReactylonLibrary
 import com.xraiassistant.domain.models.ThreeJSLibrary
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -21,6 +22,7 @@ class Library3DRepository @Inject constructor() {
         BabylonJSLibrary(),
         ThreeJSLibrary(),
         ReactThreeFiberLibrary(),
+        ReactylonLibrary(),
         AFrameLibrary()
     )
     

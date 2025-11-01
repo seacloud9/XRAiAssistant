@@ -1,23 +1,29 @@
 package com.xraiassistant.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.xraiassistant.R
+import com.xraiassistant.domain.models.Library3D
 import com.xraiassistant.ui.viewmodels.ChatViewModel
 
 /**
@@ -36,7 +42,7 @@ fun ChatScreen(
     val isLoading by chatViewModel.isLoading.collectAsStateWithLifecycle()
     val lastGeneratedCode by chatViewModel.lastGeneratedCode.collectAsStateWithLifecycle()
     val currentLibrary by chatViewModel.currentLibrary.collectAsStateWithLifecycle()
-    val selectedModel by chatViewModel.selectedModel.collectAsStateWithLifecycle()
+    val selectedModel = chatViewModel.selectedModel
     
     var chatInput by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
@@ -56,7 +62,8 @@ fun ChatScreen(
         ChatHeader(
             chatViewModel = chatViewModel,
             selectedModel = selectedModel,
-            currentLibrary = currentLibrary
+            currentLibrary = currentLibrary,
+            isLoading = isLoading
         )
         
         // Messages list
@@ -108,11 +115,13 @@ fun ChatScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChatHeader(
     chatViewModel: ChatViewModel,
     selectedModel: String,
-    currentLibrary: Any? // TODO: Replace with proper Library3D type
+    currentLibrary: Library3D?,
+    isLoading: Boolean
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
@@ -121,13 +130,15 @@ private fun ChatHeader(
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
+            // Top row with title and loading indicator
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.Send, // TODO: Replace with brain icon
+                    imageVector = Icons.Default.Psychology, // Brain icon
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = Color(0xFF2196F3) // Blue color
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -135,25 +146,67 @@ private fun ChatHeader(
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
+                
+                Spacer(modifier = Modifier.weight(1f))
+                
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp
+                    )
+                }
             }
             
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             
+            // Model and Library selector row
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                // Model selector
+                Icon(
+                    imageVector = Icons.Default.Computer,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = "Model: ${chatViewModel.getModelDisplayName(selectedModel)}",
+                    text = "Model:",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                
+                ModelSelector(
+                    chatViewModel = chatViewModel,
+                    selectedModel = selectedModel
                 )
                 
+                Spacer(modifier = Modifier.width(16.dp))
+                
+                // Library selector
+                Icon(
+                    imageVector = Icons.Default.ViewInAr,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = "Library: ${currentLibrary?.toString() ?: "Babylon.js"}",
+                    text = "Library:",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Spacer(modifier = Modifier.width(4.dp))
+                
+                LibrarySelector(
+                    chatViewModel = chatViewModel,
+                    currentLibrary = currentLibrary
+                )
+                
+                Spacer(modifier = Modifier.weight(1f))
             }
         }
     }
@@ -199,9 +252,9 @@ private fun AICodeReadyBanner(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = Icons.Default.Send, // TODO: Replace with checkmark icon
+                imageVector = Icons.Default.CheckCircle,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                tint = Color(0xFF4CAF50) // Green color
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
@@ -277,6 +330,284 @@ private fun ChatInputField(
                         MaterialTheme.colorScheme.onSurfaceVariant
                     } else {
                         MaterialTheme.colorScheme.onPrimary
+                    }
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ModelSelector(
+    chatViewModel: ChatViewModel,
+    selectedModel: String
+) {
+    var expanded by remember { mutableStateOf(false) }
+    
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded }
+    ) {
+        // Model selector button
+        Card(
+            modifier = Modifier.menuAnchor(),
+            onClick = { expanded = true },
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFF2196F3).copy(alpha = 0.1f)
+            ),
+            shape = RoundedCornerShape(6.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = chatViewModel.getModelDisplayName(selectedModel),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF2196F3),
+                    fontSize = 12.sp
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(
+                    imageVector = Icons.Default.ExpandMore,
+                    contentDescription = null,
+                    tint = Color(0xFF2196F3),
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+        }
+        
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            // Show models organized by provider
+            chatViewModel.modelsByProvider.forEach { (provider, models) ->
+                // Provider header
+                Text(
+                    text = provider,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+                
+                models.forEach { model ->
+                    DropdownMenuItem(
+                        text = {
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = model.displayName,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        if (model.pricing.isNotEmpty()) {
+                                            Card(
+                                                colors = CardDefaults.cardColors(
+                                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                                ),
+                                                shape = RoundedCornerShape(4.dp)
+                                            ) {
+                                                Text(
+                                                    text = model.pricing,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                                )
+                                            }
+                                        }
+                                        
+                                        if (selectedModel == model.id) {
+                                            Icon(
+                                                Icons.Default.Check,
+                                                contentDescription = "Selected",
+                                                tint = Color(0xFF2196F3),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                        
+                                        if (!chatViewModel.isProviderConfigured(provider)) {
+                                            Icon(
+                                                Icons.Default.Warning,
+                                                contentDescription = "Not configured",
+                                                tint = Color(0xFFFF9800),
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                                Text(
+                                    text = "${model.description} - ${model.pricing}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        },
+                        onClick = {
+                            chatViewModel.selectedModel = model.id
+                            expanded = false
+                        }
+                    )
+                }
+            }
+            
+            // Legacy models if available
+            if (chatViewModel.availableModels.isNotEmpty()) {
+                Text(
+                    text = "Legacy",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+                
+                chatViewModel.availableModels.forEach { model ->
+                    DropdownMenuItem(
+                        text = {
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = chatViewModel.getModelDisplayName(model),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    if (selectedModel == model) {
+                                        Icon(
+                                            Icons.Default.Check,
+                                            contentDescription = "Selected",
+                                            tint = Color(0xFF2196F3),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = chatViewModel.getModelDescription(model),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        },
+                        onClick = {
+                            chatViewModel.selectedModel = model
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LibrarySelector(
+    chatViewModel: ChatViewModel,
+    currentLibrary: Library3D?
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val library = currentLibrary ?: chatViewModel.getCurrentLibrary()
+    val availableLibraries = chatViewModel.getAvailableLibraries()
+    
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded }
+    ) {
+        // Library selector button
+        Card(
+            modifier = Modifier.menuAnchor(),
+            onClick = { expanded = true },
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFF4CAF50).copy(alpha = 0.1f)
+            ),
+            shape = RoundedCornerShape(6.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = library.displayName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF4CAF50),
+                    fontSize = 12.sp
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(
+                    imageVector = Icons.Default.ExpandMore,
+                    contentDescription = null,
+                    tint = Color(0xFF4CAF50),
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+        }
+        
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            availableLibraries.forEach { availableLibrary ->
+                DropdownMenuItem(
+                    text = {
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = availableLibrary.displayName,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Card(
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                        ),
+                                        shape = RoundedCornerShape(4.dp)
+                                    ) {
+                                        Text(
+                                            text = availableLibrary.version,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                        )
+                                    }
+                                    
+                                    if (library.id == availableLibrary.id) {
+                                        Icon(
+                                            Icons.Default.Check,
+                                            contentDescription = "Selected",
+                                            tint = Color(0xFF4CAF50),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                            }
+                            Text(
+                                text = availableLibrary.description,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    onClick = {
+                        chatViewModel.selectLibrary(availableLibrary.id)
+                        expanded = false
                     }
                 )
             }

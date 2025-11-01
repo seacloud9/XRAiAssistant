@@ -13,14 +13,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.xraiassistant.R
 import com.xraiassistant.ui.components.ChatScreen
 import com.xraiassistant.ui.components.SceneScreen
-import com.xraiassistant.ui.components.SettingsScreen
-import com.xraiassistant.ui.viewmodels.AppView
+import com.xraiassistant.presentation.screens.SettingsScreen
 import com.xraiassistant.ui.viewmodels.ChatViewModel
+
+/**
+ * App views for navigation
+ */
+enum class AppView {
+    CHAT,
+    SCENE,
+    SETTINGS,
+    EXAMPLES,
+    HISTORY
+}
 
 /**
  * MainScreen - Primary UI container
@@ -35,9 +46,43 @@ fun MainScreen(
 ) {
     val uiState by chatViewModel.uiState.collectAsStateWithLifecycle()
     val lastGeneratedCode by chatViewModel.lastGeneratedCode.collectAsStateWithLifecycle()
-    
+
     // Settings bottom sheet
     val settingsBottomSheetState = rememberModalBottomSheetState()
+
+    // Setup code injection callbacks (matching iOS ContentView)
+    LaunchedEffect(Unit) {
+        println("🔗 Setting up ChatViewModel callbacks...")
+
+        // Callback for code insertion
+        chatViewModel.onInsertCode = { code ->
+            println("=== CALLBACK: AI generated code received ===")
+            println("Code length: ${code.length} characters")
+            println("Code preview: ${code.take(200)}...")
+            println("✅ Code will be injected when user switches to Scene tab")
+        }
+
+        // Callback for run scene command
+        chatViewModel.onRunScene = {
+            println("=== CALLBACK: Run scene command received ===")
+            // User must manually tap Scene tab to execute
+        }
+
+        // Callback for scene description
+        chatViewModel.onDescribeScene = { description ->
+            println("Scene description: $description")
+        }
+
+        // Enhanced callback for build system
+        chatViewModel.onInsertCodeWithBuild = { code, library ->
+            println("=== ENHANCED CALLBACK: AI code with build support ===")
+            println("Library: ${library.displayName}")
+            println("Code length: ${code.length} characters")
+            println("✅ Code will be processed when user switches to Scene tab")
+        }
+
+        println("✅ Callbacks wired successfully")
+    }
     
     Scaffold(
         bottomBar = {
@@ -53,43 +98,74 @@ fun MainScreen(
             )
         }
     ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            when (uiState.currentView) {
-                AppView.CHAT -> {
-                    ChatScreen(
-                        chatViewModel = chatViewModel,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-                AppView.SCENE -> {
-                    SceneScreen(
-                        chatViewModel = chatViewModel,
-                        modifier = Modifier.fillMaxSize()
+        when (uiState.currentView) {
+            AppView.CHAT -> {
+                ChatScreen(
+                    chatViewModel = chatViewModel,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                )
+            }
+            AppView.SCENE -> {
+                SceneScreen(
+                    chatViewModel = chatViewModel,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                )
+            }
+            AppView.EXAMPLES -> {
+                // Placeholder for Examples screen
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Examples Screen\n(Coming Soon)",
+                        style = MaterialTheme.typography.headlineMedium,
+                        textAlign = TextAlign.Center
                     )
                 }
             }
-            
-            // Code injection loading overlay
-            if (uiState.isInjectingCode) {
-                CodeInjectionOverlay()
+            AppView.HISTORY -> {
+                // Placeholder for History screen
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "History Screen\n(Coming Soon)",
+                        style = MaterialTheme.typography.headlineMedium,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+            AppView.SETTINGS -> {
+                // Settings is handled as a modal, not a screen
+                ChatScreen(
+                    chatViewModel = chatViewModel,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                )
             }
         }
     }
     
-    // Settings bottom sheet
+    // Settings modal
     if (uiState.showSettings) {
         ModalBottomSheet(
             onDismissRequest = { chatViewModel.hideSettings() },
             sheetState = settingsBottomSheetState,
-            modifier = Modifier.fillMaxHeight(0.9f)
+            modifier = Modifier.fillMaxHeight(0.95f)
         ) {
             SettingsScreen(
-                chatViewModel = chatViewModel,
-                onDismiss = { chatViewModel.hideSettings() }
+                onNavigateBack = { chatViewModel.hideSettings() }
             )
         }
     }

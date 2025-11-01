@@ -26,7 +26,7 @@ class AIProviderRepository @Inject constructor(
     }
     
     /**
-     * Generate AI response using specified model and parameters
+     * Generate AI response using specified model and parameters (non-streaming)
      */
     suspend fun generateResponse(
         prompt: String,
@@ -37,12 +37,43 @@ class AIProviderRepository @Inject constructor(
     ): String {
         val provider = getProviderForModel(model)
         val apiKey = getAPIKeyForProvider(provider)
-        
+
         if (apiKey == DEFAULT_API_KEY) {
             throw IllegalStateException("API key not configured for $provider")
         }
-        
+
         return aiProviderService.generateResponse(
+            provider = provider,
+            apiKey = apiKey,
+            model = model,
+            prompt = prompt,
+            systemPrompt = systemPrompt,
+            temperature = temperature,
+            topP = topP
+        )
+    }
+
+    /**
+     * Generate AI response with streaming (NEW - iOS parity)
+     *
+     * Returns a Flow that emits response chunks in real-time.
+     * Provides better UX for long responses.
+     */
+    suspend fun generateResponseStream(
+        prompt: String,
+        model: String,
+        temperature: Double,
+        topP: Double,
+        systemPrompt: String
+    ): kotlinx.coroutines.flow.Flow<String> {
+        val provider = getProviderForModel(model)
+        val apiKey = getAPIKeyForProvider(provider)
+
+        if (apiKey == DEFAULT_API_KEY) {
+            throw IllegalStateException("API key not configured for $provider")
+        }
+
+        return aiProviderService.generateResponseStream(
             provider = provider,
             apiKey = apiKey,
             model = model,
