@@ -67,6 +67,7 @@
             display: flex;
             position: relative;
             overflow: hidden;
+            min-height: 400px; /* Ensure minimum height for canvas rendering */
         }
         
         .editor-container {
@@ -90,6 +91,10 @@
             align-items: center;
             justify-content: center;
             transition: width 0.3s ease-in-out;
+            min-height: 400px; /* CRITICAL: Ensure canvas always has height */
+            /* DEBUG: Add visible border to verify container is rendering */
+            border: 3px solid #ff0000;
+            box-sizing: border-box;
         }
 
         .canvas-container.editor-open {
@@ -114,8 +119,8 @@
             border-radius: 0 4px 4px 0;
             padding: 12px 8px;
             cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
+            font-size: 18px;
+            font-weight: 700;
             z-index: 20;
             transition: all 0.3s ease-in-out;
             box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.3);
@@ -124,6 +129,9 @@
             user-select: none;
             -webkit-user-select: none;
             -webkit-tap-highlight-color: transparent;
+            /* DEBUG: Make button more visible */
+            min-width: 40px;
+            min-height: 100px;
         }
 
         .editor-toggle-btn:hover {
@@ -494,15 +502,59 @@
             originalConsole.info(...args);
             addConsoleMessage('log', args.map(arg => String(arg)).join(' '));
         };
-        
+
+        // DEBUG: Verify DOM elements are present
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('🔍 [DOM CHECK] Verifying page structure...');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+        const mainContainer = document.querySelector('.main-container');
+        const editorContainer = document.getElementById('editorContainer');
+        const canvasContainer = document.getElementById('canvasContainer');
+        const canvas = document.getElementById('renderCanvas');
+        const toggleBtn = document.getElementById('editorToggleBtn');
+
+        console.log('Main container:', !!mainContainer);
+        console.log('Editor container:', !!editorContainer);
+        console.log('Canvas container:', !!canvasContainer);
+        console.log('Canvas element:', !!canvas);
+        console.log('Toggle button:', !!toggleBtn);
+
+        if (canvasContainer) {
+            const styles = window.getComputedStyle(canvasContainer);
+            console.log('Canvas container computed width:', styles.width);
+            console.log('Canvas container computed height:', styles.height);
+            console.log('Canvas container display:', styles.display);
+            console.log('Canvas container position:', styles.position);
+        }
+
+        if (canvas) {
+            console.log('Canvas width:', canvas.width, 'height:', canvas.height);
+            console.log('Canvas clientWidth:', canvas.clientWidth, 'clientHeight:', canvas.clientHeight);
+        }
+
+        if (toggleBtn) {
+            console.log('Toggle button text:', toggleBtn.textContent);
+            console.log('Toggle button visible:', toggleBtn.offsetWidth > 0 && toggleBtn.offsetHeight > 0);
+        }
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+        // CRITICAL FIX: Initialize Babylon.js immediately on page load
+        // This ensures the scene and buttons are visible even if Monaco fails to load
+        console.log('🚀 [ANDROID FIX] Scheduling immediate Babylon initialization...');
+        setTimeout(() => {
+            console.log('🚀 Calling initializeBabylon() immediately...');
+            initializeBabylon();
+        }, 100); // Small delay to ensure all functions are defined
+
         // Initialize Monaco Editor with enhanced error handling and fallback
-        console.log('Starting Monaco Editor initialization...');
-        
-        // Set longer timeout for CDN loading
+        console.log('Starting Monaco Editor initialization in parallel...');
+
+        // Reduced timeout for faster fallback on Android (3s instead of 10s)
         let monacoTimeout = setTimeout(() => {
             console.error('❌ Monaco Editor CDN loading timeout - creating fallback editor');
             createFallbackEditor();
-        }, 10000); // 10 second timeout
+        }, 3000); // 3 second timeout for faster Android response
         
         require.config({ 
             paths: { vs: 'https://unpkg.com/monaco-editor@0.45.0/min/vs' },
@@ -573,9 +625,8 @@
                             // Mark as ready
                             window.editorReady = true;
                             console.log('🎯 MONACO EDITOR MARKED AS READY FOR INJECTION');
-                            
-                            // Initialize Babylon after Monaco is confirmed ready
-                            initializeBabylon();
+
+                            // Note: Babylon already initialized immediately on page load
                             
                         } catch (testError) {
                             console.error('❌ Monaco functional test failed:', testError);
@@ -642,15 +693,35 @@
                 // Mark as ready
                 window.editorReady = true;
                 console.log('✅ Fallback editor ready for injection');
-                
-                // Initialize Babylon
-                initializeBabylon();
+
+                // Note: Babylon already initialized immediately on page load
             }
         }
         
-        // Initialize Babylon.js
+        // Initialize Babylon.js with retry counter to prevent infinite loops
+        let babylonInitRetries = 0;
+        const MAX_BABYLON_RETRIES = 20; // Max 2 seconds of retries (20 * 100ms)
+
         function initializeBabylon() {
-            console.log('Initializing Babylon.js...');
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('🎬 [BABYLON INIT] Starting initialization...');
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+            // Guard against double initialization
+            if (engine) {
+                console.log('⚠️ Babylon already initialized, skipping');
+                return;
+            }
+
+            // Check retry limit to prevent infinite loops
+            if (babylonInitRetries >= MAX_BABYLON_RETRIES) {
+                console.error('❌ MAX RETRIES REACHED! Babylon initialization failed.');
+                console.error('   Canvas never got proper dimensions. This is a CSS layout issue.');
+                return;
+            }
+
+            babylonInitRetries++;
+            console.log(`   Retry attempt: ${babylonInitRetries}/${MAX_BABYLON_RETRIES}`);
 
             // Check if BABYLON is loaded
             if (typeof BABYLON === 'undefined') {
@@ -660,29 +731,97 @@
             }
 
             console.log('✅ BABYLON library loaded successfully');
+
+            // Debug canvas element
             const canvas = document.getElementById('renderCanvas');
-            engine = new BABYLON.Engine(canvas, true, {
-                preserveDrawingBuffer: true,
-                stencil: true,
-                disableWebGL2Support: false
-            });
+            if (!canvas) {
+                console.error('❌ Canvas element not found!');
+                setTimeout(initializeBabylon, 100);
+                return;
+            }
+
+            console.log('✅ Canvas element found');
+            console.log('   Canvas width:', canvas.width, 'height:', canvas.height);
+            console.log('   Client width:', canvas.clientWidth, 'height:', canvas.clientHeight);
+            console.log('   Offset width:', canvas.offsetWidth, 'height:', canvas.offsetHeight);
+
+            // Check parent containers for height issues
+            const canvasContainer = canvas.parentElement;
+            const mainContainer = canvasContainer?.parentElement;
+            console.log('   Canvas container height:', canvasContainer?.clientHeight || 0);
+            console.log('   Main container height:', mainContainer?.clientHeight || 0);
+            console.log('   Body height:', document.body.clientHeight);
+
+            // Ensure canvas has dimensions
+            if (canvas.clientHeight === 0) {
+                console.warn('⚠️ Canvas has zero HEIGHT, attempting to fix...');
+
+                // Force explicit heights on parent containers
+                if (canvasContainer) {
+                    canvasContainer.style.minHeight = '400px';
+                    canvasContainer.style.height = '100%';
+                    console.log('   Set canvas container min-height: 400px');
+                }
+
+                if (mainContainer) {
+                    mainContainer.style.minHeight = '400px';
+                    mainContainer.style.flex = '1';
+                    console.log('   Set main container min-height: 400px, flex: 1');
+                }
+
+                canvas.style.width = '100%';
+                canvas.style.height = '100%';
+                canvas.style.minHeight = '400px';
+                console.log('   Set canvas min-height: 400px');
+
+                // Retry after layout recalculation
+                setTimeout(initializeBabylon, 100);
+                return;
+            }
+
+            console.log('🎨 Creating Babylon engine...');
+            try {
+                engine = new BABYLON.Engine(canvas, true, {
+                    preserveDrawingBuffer: true,
+                    stencil: true,
+                    disableWebGL2Support: false
+                });
+                console.log('✅ Babylon engine created successfully');
+            } catch (engineError) {
+                console.error('❌ Failed to create Babylon engine:', engineError);
+                return;
+            }
             
-            console.log('Babylon.js engine created');
-            
-            // Hide loading
-            document.getElementById('loading').style.display = 'none';
-            
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('🎬 [BABYLON] Engine created, starting scene setup');
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+            // Hide loading indicator
+            const loadingDiv = document.getElementById('loading');
+            if (loadingDiv) {
+                loadingDiv.style.display = 'none';
+                console.log('✅ Loading indicator hidden');
+            }
+
             // Create default scene
+            console.log('🏗️  Creating default scene...');
             createDefaultScene();
-            
+            console.log('✅ Default scene created');
+            console.log('   Scene object:', !!scene);
+            console.log('   Active camera:', !!scene?.activeCamera);
+            console.log('   Meshes count:', scene?.meshes?.length || 0);
+
             // Render loop
+            console.log('🔄 Starting render loop...');
             engine.runRenderLoop(() => {
                 if (scene && scene.activeCamera) {
                     scene.render();
                 }
             });
-            
-            console.log('Babylon.js render loop started');
+
+            console.log('✅ Render loop started and running');
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('🎉 BABYLON INITIALIZATION COMPLETE!');
             
             // Handle resize
             window.addEventListener('resize', () => {
@@ -3729,6 +3868,101 @@ const scene = createScene();`;
         window.checkEditorReadiness = checkEditorReadiness;
         
         console.log('🧪 Test functions available: testInjection(), checkEditorReadiness()');
+
+// ANDROID LAYOUT FIX - Force button visibility and layout
+window.addEventListener('DOMContentLoaded', function() {
+    console.log('🔧 [ANDROID FIX] Forcing layout corrections...');
+    
+    setTimeout(function() {
+        const editorContainer = document.getElementById('editorContainer');
+        const canvasContainer = document.getElementById('canvasContainer');
+        const toggleBtn = document.getElementById('editorToggleBtn');
+        const mainContainer = document.querySelector('.main-container');
+        const header = document.querySelector('.header');
+        const footer = document.querySelector('.footer');
+        
+        if (toggleBtn) {
+            // Force button visibility with inline styles
+            toggleBtn.style.cssText = `
+                position: absolute !important;
+                left: 0 !important;
+                top: 50% !important;
+                transform: translateY(-50%) !important;
+                background: #007acc !important;
+                color: white !important;
+                border: none !important;
+                border-radius: 0 4px 4px 0 !important;
+                padding: 12px 8px !important;
+                font-size: 14px !important;
+                font-weight: 600 !important;
+                z-index: 1000 !important;
+                box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5) !important;
+                writing-mode: vertical-rl !important;
+                text-orientation: mixed !important;
+                cursor: pointer !important;
+                display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+            `;
+            console.log('✅ [ANDROID FIX] Button styles forced');
+            console.log('   Computed position:', window.getComputedStyle(toggleBtn).position);
+            console.log('   Computed z-index:', window.getComputedStyle(toggleBtn).zIndex);
+            console.log('   Computed display:', window.getComputedStyle(toggleBtn).display);
+        }
+        
+        if (mainContainer) {
+            // Ensure main container fills space properly
+            mainContainer.style.cssText = `
+                flex: 1 !important;
+                display: flex !important;
+                position: relative !important;
+                overflow: hidden !important;
+                min-height: 0 !important;
+            `;
+            console.log('✅ [ANDROID FIX] Main container fixed');
+        }
+        
+        if (header) {
+            // Ensure header has proper spacing
+            header.style.marginBottom = '0';
+            console.log('✅ [ANDROID FIX] Header spacing fixed');
+        }
+        
+        if (footer) {
+            // Ensure footer is at bottom
+            footer.style.cssText = `
+                background: #007acc !important;
+                padding: 4px 12px !important;
+                font-size: 11px !important;
+                text-align: center !important;
+                color: white !important;
+                position: relative !important;
+            `;
+            console.log('✅ [ANDROID FIX] Footer positioned');
+        }
+        
+        if (canvasContainer) {
+            // Ensure canvas container doesn't clip button
+            canvasContainer.style.cssText = `
+                width: 100% !important;
+                background: #252526 !important;
+                position: relative !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                overflow: visible !important;
+            `;
+            console.log('✅ [ANDROID FIX] Canvas container fixed (overflow: visible)');
+        }
+        
+        if (editorContainer) {
+            editorContainer.style.width = '0%';
+            console.log('✅ [ANDROID FIX] Editor hidden');
+        }
+        
+        console.log('🎯 [ANDROID FIX] All layout corrections applied');
+    }, 500);
+});
     </script>
 </body>
 </html>
