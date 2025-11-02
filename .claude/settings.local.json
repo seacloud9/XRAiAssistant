@@ -8,7 +8,8 @@
       "Bash(timeout 120 ./gradlew clean:*)",
       "Bash(./gradlew build:*)",
       "Bash(./gradlew compileDebugKotlin:*)",
-      "Bash(timeout 120 ./gradlew compileDebugKotlin:*)"
+      "Bash(timeout 120 ./gradlew compileDebugKotlin:*)",
+      "Bash(timeout 120 ./gradlew:*)"
     ],
     "deny": [],
     "ask": []

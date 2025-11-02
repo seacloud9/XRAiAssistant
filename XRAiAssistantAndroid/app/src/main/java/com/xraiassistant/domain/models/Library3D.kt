@@ -2221,7 +2221,7 @@ class ReactThreeFiberLibrary : Library3D {
 code here
 ```[/INSERT_CODE]
         3. A brief explanation of key React Three Fiber concepts used
-        4. Automatically add [BUILD_AND_RUN] at the end to build and run the code
+        4. Automatically add [RUN_SCENE] at the end to trigger code execution
 
         IMPORTANT Code Guidelines:
         - Always provide COMPLETE working code for a React Three Fiber app
@@ -2304,7 +2304,7 @@ code here
         - To insert code, wrap it in: [INSERT_CODE]```typescript
 code here
 ```[/INSERT_CODE]
-        - To build and run, use: [BUILD_AND_RUN]
+        - To trigger code execution, use: [RUN_SCENE]
 
         Mindset: Be a creative partner who understands React patterns and Three.js. Create scenes that showcase the power of declarative 3D programming while being educational and inspiring.
         ALWAYS generate TSX code for ANY 3D-related request. Make React Three Fiber accessible and fun!

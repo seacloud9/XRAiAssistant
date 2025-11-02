@@ -286,61 +286,102 @@ class ChatViewModel @Inject constructor(
      */
     private fun processAIResponse(response: String, library: Library3D?) {
         println("🔍 Processing AI response for code extraction...")
+        println("📏 Response length: ${response.length} characters")
+        println("🔍 Response preview (first 200 chars): ${response.take(200)}")
 
-        // Look for code blocks in response (matching iOS patterns)
+        // CRITICAL FIX: Strip DeepSeek R1 reasoning tags before code extraction
+        // DeepSeek R1 uses <think>...</think> tags for chain-of-thought reasoning
+        val cleanedResponse = response.replace("<think>[\\s\\S]*?</think>".toRegex(), "").trim()
+
+        if (cleanedResponse != response) {
+            println("✅ Stripped <think> reasoning tags from AI response")
+            println("📏 Cleaned response length: ${cleanedResponse.length} characters")
+        }
+
+        // Multiple code extraction patterns (in order of preference)
+
         // Pattern 1: [INSERT_CODE]```...```[/INSERT_CODE]
-        val primaryPattern = "\\[INSERT_CODE\\]```(?:javascript|typescript|html)?\\n([\\s\\S]*?)\\n```\\[/INSERT_CODE\\]".toRegex()
-        var codeMatch = primaryPattern.find(response)
+        val primaryPattern = "\\[INSERT_CODE\\]```(?:javascript|typescript|html)?\\s*([\\s\\S]*?)```\\[/INSERT_CODE\\]".toRegex()
+        var codeMatch = primaryPattern.find(cleanedResponse)
 
         if (codeMatch != null) {
             val extractedCode = codeMatch.groupValues[1].trim()
             println("✅ Code extracted via PRIMARY pattern (${extractedCode.length} chars)")
-            _lastGeneratedCode.value = extractedCode
+            injectCode(extractedCode, library)
+            return
+        }
 
-            // Trigger code insertion callback
-            if (library?.requiresBuild == true) {
-                println("🏗️ Library requires build, calling onInsertCodeWithBuild")
-                onInsertCodeWithBuild?.invoke(extractedCode, library)
+        // Pattern 2: ```javascript or ```typescript or ```html blocks
+        val languagePattern = "```(?:javascript|typescript|html|js|ts)\\s*([\\s\\S]*?)```".toRegex()
+        codeMatch = languagePattern.find(cleanedResponse)
+
+        if (codeMatch != null) {
+            val extractedCode = codeMatch.groupValues[1].trim()
+            println("✅ Code extracted via LANGUAGE pattern (${extractedCode.length} chars)")
+
+            if (extractedCode.length > 50) {
+                injectCode(extractedCode, library)
+                return
             } else {
-                println("📝 Direct injection, calling onInsertCode")
-                onInsertCode?.invoke(extractedCode)
-            }
-        } else {
-            // Pattern 2: Any code block with ```javascript or ```typescript
-            val fallbackPattern = "```(?:javascript|typescript|html)\\n([\\s\\S]*?)```".toRegex()
-            codeMatch = fallbackPattern.find(response)
-
-            if (codeMatch != null) {
-                val extractedCode = codeMatch.groupValues[1].trim()
-                println("✅ Code extracted via FALLBACK pattern (${extractedCode.length} chars)")
-
-                // Only inject if code is substantial (matching iOS logic)
-                if (extractedCode.length > 50) {
-                    _lastGeneratedCode.value = extractedCode
-
-                    if (library?.requiresBuild == true) {
-                        onInsertCodeWithBuild?.invoke(extractedCode, library)
-                    } else {
-                        onInsertCode?.invoke(extractedCode)
-                    }
-                } else {
-                    println("⚠️ Code too short (${extractedCode.length} chars), skipping injection")
-                }
-            } else {
-                println("⚠️ No code blocks found in AI response")
+                println("⚠️ Code too short (${extractedCode.length} chars), trying next pattern")
             }
         }
 
-        // Check for run scene command
-        if (response.contains("[RUN_SCENE]")) {
+        // Pattern 3: Any ``` code block (fallback)
+        val anyCodePattern = "```\\s*([\\s\\S]*?)```".toRegex()
+        codeMatch = anyCodePattern.find(cleanedResponse)
+
+        if (codeMatch != null) {
+            val extractedCode = codeMatch.groupValues[1].trim()
+            println("✅ Code extracted via GENERIC pattern (${extractedCode.length} chars)")
+
+            if (extractedCode.length > 50) {
+                injectCode(extractedCode, library)
+                return
+            } else {
+                println("⚠️ Code too short (${extractedCode.length} chars), skipping injection")
+            }
+        }
+
+        // If we get here, no code was found
+        println("⚠️ No code blocks found in AI response using any pattern")
+        println("🔍 Searched for patterns:")
+        println("   1. [INSERT_CODE]```...```[/INSERT_CODE]")
+        println("   2. ```javascript|typescript|html...```")
+        println("   3. ```...```")
+        println("🔍 Cleaned response preview (first 500 chars):")
+        println(cleanedResponse.take(500))
+
+        // Check for commands even if no code found
+        if (cleanedResponse.contains("[RUN_SCENE]")) {
             println("✅ Found [RUN_SCENE] command")
             onRunScene?.invoke()
         }
 
-        // Check for scene description
-        if (response.contains("[DESCRIBE_SCENE]")) {
+        if (cleanedResponse.contains("[DESCRIBE_SCENE]")) {
             println("✅ Found [DESCRIBE_SCENE] command")
-            onDescribeScene?.invoke(response)
+            onDescribeScene?.invoke(cleanedResponse)
+        }
+    }
+
+    /**
+     * Helper function to inject extracted code
+     */
+    private fun injectCode(code: String, library: Library3D?) {
+        _lastGeneratedCode.value = code
+
+        if (library?.requiresBuild == true) {
+            println("🏗️ Library requires build, calling onInsertCodeWithBuild")
+            onInsertCodeWithBuild?.invoke(code, library)
+        } else {
+            println("📝 Direct injection, calling onInsertCode")
+            onInsertCode?.invoke(code)
+        }
+
+        // Check for run scene command
+        if (_lastGeneratedCode.value.contains("[RUN_SCENE]")) {
+            println("✅ Found [RUN_SCENE] command")
+            onRunScene?.invoke()
         }
     }
 

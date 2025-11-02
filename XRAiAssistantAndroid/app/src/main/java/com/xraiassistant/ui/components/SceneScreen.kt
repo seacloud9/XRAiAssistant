@@ -50,25 +50,105 @@ fun SceneScreen(
     val lastGeneratedCode by chatViewModel.lastGeneratedCode.collectAsStateWithLifecycle()
     val currentLibrary by chatViewModel.currentLibrary.collectAsStateWithLifecycle()
     val isCodeInjecting = uiState.isInjectingCode
-    
+
     var webView by remember { mutableStateOf<WebView?>(null) }
     var currentLayout by remember { mutableStateOf(SceneLayout.SPLIT_HORIZONTAL) }
     var showLayoutMenu by remember { mutableStateOf(false) }
     var webViewLoaded by remember { mutableStateOf(false) }
+    var monacoReady by remember { mutableStateOf(false) }
     var webViewError by remember { mutableStateOf<String?>(null) }
-    
+    var lastInjectedCode by remember { mutableStateOf("") }
+
     val hasGeneratedCode = lastGeneratedCode.isNotEmpty()
-    
+    val coroutineScope = rememberCoroutineScope()
+
+    // AUTO-INJECT CODE WHEN SCREEN BECOMES VISIBLE WITH NEW CODE
+    // This matches iOS behavior where switching to Scene tab auto-injects
+    LaunchedEffect(lastGeneratedCode, webViewLoaded, monacoReady) {
+        if (lastGeneratedCode.isNotEmpty() &&
+            lastGeneratedCode != lastInjectedCode &&
+            webViewLoaded &&
+            webView != null) {
+
+            println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            println("🎯 [SceneScreen] AUTO-INJECTION TRIGGERED")
+            println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            println("📏 Code length: ${lastGeneratedCode.length} characters")
+            println("🔍 Code preview (first 300 chars):")
+            println(lastGeneratedCode.take(300))
+            println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            println("🕐 WebView loaded: $webViewLoaded")
+            println("🕐 Monaco ready: $monacoReady")
+            println("🚀 Starting auto-injection with retry logic...")
+
+            lastInjectedCode = lastGeneratedCode
+
+            // Start injection with retry - longer initial delay for Monaco to fully initialize
+            coroutineScope.launch {
+                // Give Monaco more time: 5s for initial load, 1s if already confirmed ready
+                val initialDelay = if (monacoReady) 1000L else 5000L
+                println("⏰ Waiting ${initialDelay}ms before injection attempt...")
+                delay(initialDelay)
+                injectCodeWithRetry(webView!!, lastGeneratedCode, maxRetries = 5)
+            }
+        } else {
+            if (lastGeneratedCode.isEmpty()) {
+                println("⏸️ [SceneScreen] No code to inject (lastGeneratedCode is empty)")
+            } else if (lastGeneratedCode == lastInjectedCode) {
+                println("⏸️ [SceneScreen] Code already injected, skipping")
+            } else if (!webViewLoaded) {
+                println("⏸️ [SceneScreen] WebView not loaded yet, waiting...")
+            } else if (webView == null) {
+                println("⏸️ [SceneScreen] WebView is null, cannot inject")
+            }
+
+            // Still try to check Monaco readiness even if not injecting yet
+            if (webView != null && webViewLoaded && !monacoReady) {
+                coroutineScope.launch {
+                    delay(2000)
+                    checkMonacoReadiness(webView!!) { ready ->
+                        if (ready) {
+                            println("✅ Monaco confirmed ready via background check")
+                            monacoReady = true
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     Box(modifier = modifier.fillMaxSize()) {
         PlaygroundWebView(
-            onWebViewCreated = { webView = it },
-            onWebViewLoaded = { 
+            onWebViewCreated = {
+                webView = it
+                println("✅ WebView created and stored")
+            },
+            onWebViewLoaded = {
                 webViewLoaded = true
                 webViewError = null
+                println("✅ WebView loaded successfully")
+
+                // Check Monaco readiness after page load
+                coroutineScope.launch {
+                    // Increased delay for Monaco CDN loading (from 2s to 4s)
+                    delay(4000)
+                    webView?.let { view ->
+                        checkMonacoReadiness(view) { ready ->
+                            monacoReady = ready
+                            println("🔍 Monaco readiness check after page load: $ready")
+                            if (!ready) {
+                                println("⏰ Monaco not ready after 4s, will retry on injection attempt")
+                            } else {
+                                println("✅ Monaco confirmed ready and available for injection")
+                            }
+                        }
+                    }
+                }
             },
             onWebViewError = { error ->
                 webViewError = error
                 webViewLoaded = false
+                println("❌ WebView error: $error")
             },
             lastGeneratedCode = lastGeneratedCode,
             modifier = Modifier.fillMaxSize()
@@ -310,34 +390,51 @@ private fun PlaygroundWebView(
 
                 onWebViewCreated(this)
 
-                // Load the enhanced playground HTML matching iOS exactly
-                val playgroundHtml = generateBabylonJSPlaygroundHtml()
-                loadDataWithBaseURL(
-                    "https://playground.babylonjs.com/",
-                    playgroundHtml,
-                    "text/html",
-                    "UTF-8",
-                    null
-                )
-            }
-        },
-        modifier = modifier.fillMaxSize(),
-        update = { webView ->
-            // Inject code with retry logic when lastGeneratedCode changes (iOS parity)
-            if (lastGeneratedCode.isNotEmpty() && lastGeneratedCode != lastInjectedCode) {
-                println("🎯 New code detected, starting injection with retry logic...")
-                println("📏 Code length: ${lastGeneratedCode.length} characters")
+                // Load the iOS playground HTML from assets - exact same file as iOS uses
+                try {
+                    val playgroundHtml = context.assets.open("playground-babylonjs.html").bufferedReader().use { it.readText() }
+                    println("📄 Loaded HTML from assets: ${playgroundHtml.length} characters")
+                    println("🔍 HTML preview (first 200 chars): ${playgroundHtml.take(200)}")
 
-                // Mark as injected immediately to prevent duplicate attempts
-                lastInjectedCode = lastGeneratedCode
+                    // CRITICAL: Use null base URL to allow all CDN resources to load
+                    loadDataWithBaseURL(
+                        null,  // Allow Monaco (unpkg.com) and Babylon (cdn.babylonjs.com) without CORS
+                        playgroundHtml,
+                        "text/html",
+                        "UTF-8",
+                        null
+                    )
 
-                // Start injection with retry in coroutine (equivalent to iOS injectCodeWithRetry)
-                coroutineScope.launch {
-                    injectCodeWithRetry(webView, lastGeneratedCode, maxRetries = 3)
+                    println("✅ WebView loaded playground HTML from assets successfully")
+                } catch (e: Exception) {
+                    println("❌ Failed to load playground HTML from assets: ${e.message}")
+                    onWebViewError("Failed to load playground: ${e.message}")
                 }
             }
-        }
+        },
+        modifier = modifier.fillMaxSize()
+        // NOTE: Code injection now handled by LaunchedEffect above
+        // This ensures injection happens when user switches to Scene tab
     )
+}
+
+/**
+ * Check if Monaco editor is ready
+ */
+private fun checkMonacoReadiness(webView: WebView, callback: (Boolean) -> Unit) {
+    val checkJS = """
+        (function() {
+            const ready = window.editor &&
+                         typeof window.editor.setValue === 'function' &&
+                         window.editorReady === true;
+            return ready ? "READY" : "NOT_READY";
+        })();
+    """.trimIndent()
+
+    webView.evaluateJavascript(checkJS) { result ->
+        val isReady = result?.replace("\"", "") == "READY"
+        callback(isReady)
+    }
 }
 
 /**
@@ -349,6 +446,7 @@ private fun handleWebViewMessage(action: String, data: Map<String, Any>) {
             println("✅ Monaco editor initialization complete")
             println("   Editor ready: ${data["editorReady"]}")
             println("   Engine ready: ${data["engineReady"]}")
+            // Note: We now track Monaco readiness separately via checkMonacoReadiness
         }
         "codeChanged" -> {
             println("📝 Code changed in editor")
@@ -472,739 +570,9 @@ private fun ErrorOverlay(
     }
 }
 
-private fun generateBabylonJSPlaygroundHtml(): String {
-    
-    return """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Babylon.js Playground</title>
-    <script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
-    <script src="https://cdn.babylonjs.com/babylon.js"></script>
-    <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
-    <script src="https://cdn.babylonjs.com/postProcessesLibrary/babylonjs.postProcess.min.js"></script>
-    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
-    <script src="https://cdn.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
-    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
-    <script src="https://cdn.babylonjs.com/inspector/babylon.inspector.bundle.js"></script>
-    
-    <!-- Monaco Editor -->
-    <script src="https://unpkg.com/monaco-editor@0.45.0/min/vs/loader.js"></script>
-    
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            background: #1e1e1e;
-            color: #fff;
-        }
-        
-        .header {
-            background: #2d2d30;
-            padding: 8px 12px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            border-bottom: 1px solid #3e3e42;
-            min-height: 40px;
-        }
-        
-        .menu-btn {
-            background: #0e639c;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 12px;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-            font-weight: 500;
-            transition: background-color 0.2s;
-            outline: none;
-            box-shadow: none;
-            text-decoration: none;
-        }
-        
-        .menu-btn:hover {
-            background: #1177bb;
-        }
-        
-        .menu-btn:focus {
-            outline: none;
-            box-shadow: 0 0 0 2px rgba(14, 99, 156, 0.3);
-        }
-        
-        .menu-btn:active {
-            background: #0c5a8a;
-        }
-        
-        .main-container {
-            flex: 1;
-            display: flex;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .editor-container {
-            width: 50%;
-            background: #1e1e1e;
-            border-right: 1px solid #3e3e42;
-            position: relative;
-            overflow: hidden;
-            transition: width 0.3s ease-in-out;
-            display: flex;
-            flex-direction: column;
-        }
+// NOTE: HTML is now loaded from assets/playground-babylonjs.html (same file as iOS)
+// This ensures 100% compatibility with the iOS version
 
-        .editor-container.open {
-            width: 100%;
-            border-right: none;
-        }
-
-        .editor-container.closed {
-            width: 0%;
-            min-width: 0;
-            border-right: none;
-        }
-
-        .canvas-container {
-            width: 50%;
-            background: #252526;
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: width 0.3s ease-in-out;
-        }
-
-        .canvas-container.editor-open {
-            width: 0%;
-            min-width: 0;
-        }
-
-        .canvas-container.editor-closed {
-            width: 100%;
-        }
-        
-        #renderCanvas {
-            width: 100%;
-            height: 100%;
-            display: block;
-        }
-        
-        .loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #fff;
-            font-size: 18px;
-            text-align: center;
-            z-index: 100;
-        }
-        
-        .run-button {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: #28a745;
-            color: white;
-            border: none;
-            padding: 10px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 500;
-            z-index: 1000;
-            transition: background-color 0.2s;
-        }
-        
-        .run-button:hover {
-            background: #218838;
-        }
-        
-        .error-display {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: #d32f2f;
-            color: white;
-            padding: 12px;
-            font-family: 'Consolas', 'Monaco', monospace;
-            font-size: 11px;
-            max-height: 200px;
-            overflow-y: auto;
-            z-index: 1000;
-            transform: translateY(100%);
-            transition: transform 0.3s ease;
-        }
-        
-        .error-display.visible {
-            transform: translateY(0);
-        }
-        
-        .injection-toast {
-            position: fixed;
-            top: 80px;
-            right: 20px;
-            background: #4CAF50;
-            color: white;
-            padding: 12px 20px;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 500;
-            z-index: 2000;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            transform: translateX(100%);
-            transition: transform 0.3s ease-in-out;
-        }
-        
-        .injection-toast.visible {
-            transform: translateX(0);
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <button class="menu-btn" id="toggleEditorBtn" onclick="toggleEditor()">SPLIT</button>
-        <button class="menu-btn" onclick="runCode()">▶ RUN</button>
-        <button class="menu-btn" onclick="formatCode()">FORMAT</button>
-        <button class="menu-btn" onclick="clearCode()">CLEAR</button>
-    </div>
-
-    <div class="main-container">
-        <div class="editor-container" id="editorContainer">
-            <div id="monaco-editor" style="width: 100%; height: 100%; min-height: 400px; overflow: hidden;"></div>
-        </div>
-        <div class="canvas-container" id="canvasContainer">
-            <canvas id="renderCanvas"></canvas>
-            <div class="loading" id="loading">Loading Babylon.js...</div>
-        </div>
-    </div>
-    
-    <div class="error-display" id="errorDisplay"></div>
-    <div class="injection-toast" id="injectionToast">✅ AI Code Injected</div>
-
-    <script>
-        let editor;
-        let engine;
-        let scene;
-        
-        // Variables for editor state
-        window.editorReady = false;
-        
-        // Initialize Monaco Editor with iOS-matching configuration
-        console.log('Starting Monaco Editor initialization...');
-        
-        require.config({ 
-            paths: { vs: 'https://unpkg.com/monaco-editor@0.45.0/min/vs' },
-            waitSeconds: 30
-        });
-        
-        require(['vs/editor/editor.main'], function () {
-            console.log('✅ Monaco modules loaded successfully, creating editor...');
-            
-            try {
-                const editorContainer = document.getElementById('monaco-editor');
-                if (!editorContainer) {
-                    throw new Error('Monaco editor container not found');
-                }
-                
-                editor = monaco.editor.create(editorContainer, {
-                    value: getDefaultCode(),
-                    language: 'typescript',
-                    theme: 'vs-dark',
-                    automaticLayout: true,
-                    minimap: { enabled: true },
-                    fontSize: 14,
-                    wordWrap: 'on',
-                    scrollBeyondLastLine: false,
-                    renderLineHighlight: 'all',
-                    selectionHighlight: false,
-                    lineNumbers: 'on',
-                    glyphMargin: true,
-                    folding: true,
-                    foldingStrategy: 'indentation',
-                    showFoldingControls: 'always',
-                    unfoldOnClickAfterEndOfLine: false,
-                    tabSize: 4
-                });
-                
-                console.log('✅ Monaco editor created successfully');
-                
-                // Make editor globally accessible
-                window.editor = editor;
-                window.monacoEditor = editor;
-                window.codeEditor = editor;
-                
-                // Mark as ready
-                window.editorReady = true;
-                console.log('🎯 MONACO EDITOR MARKED AS READY FOR INJECTION');
-                
-                // Initialize Babylon
-                initializeBabylon();
-                
-            } catch (editorError) {
-                console.error('❌ Failed to create Monaco editor:', editorError);
-                createFallbackEditor();
-            }
-        }, function(error) {
-            console.error('❌ Failed to load Monaco from CDN:', error);
-            createFallbackEditor();
-        });
-        
-        function createFallbackEditor() {
-            console.log('🔧 Creating fallback textarea editor...');
-            
-            const editorContainer = document.getElementById('monaco-editor');
-            if (!editorContainer) {
-                console.error('❌ Editor container not found');
-                return;
-            }
-            
-            editorContainer.innerHTML = '<textarea id="fallback-editor" style="width: 100%; height: 100%; background: #1e1e1e; color: #d4d4d4; font-family: \\'Monaco\\', \\'Consolas\\', \\'Courier New\\', monospace; font-size: 14px; border: none; outline: none; padding: 10px; line-height: 1.4; letter-spacing: 0.2px; resize: none; tab-size: 4;"></textarea>';
-            
-            const textarea = document.getElementById('fallback-editor');
-            if (textarea) {
-                textarea.value = getDefaultCode();
-                
-                window.editor = {
-                    setValue: (code) => { textarea.value = code; },
-                    getValue: () => textarea.value,
-                    getModel: () => ({ setValue: (code) => textarea.value = code }),
-                    layout: () => {},
-                    focus: () => textarea.focus(),
-                    onDidChangeModelContent: (callback) => {
-                        textarea.addEventListener('input', callback);
-                        return { dispose: () => {} };
-                    }
-                };
-                
-                window.monacoEditor = window.editor;
-                window.codeEditor = window.editor;
-                window.editorReady = true;
-                console.log('✅ Fallback editor ready for injection');
-                
-                initializeBabylon();
-            }
-        }
-        
-        function initializeBabylon() {
-            console.log('🎮 Initializing Babylon.js...');
-            
-            try {
-                const canvas = document.getElementById('renderCanvas');
-                if (!canvas) {
-                    throw new Error('Canvas element not found');
-                }
-                
-                engine = new BABYLON.Engine(canvas, true, {
-                    preserveDrawingBuffer: true,
-                    stencil: true,
-                    antialias: true,
-                    alpha: false,
-                    powerPreference: "high-performance"
-                });
-                
-                console.log('✅ Babylon.js engine created');
-                
-                document.getElementById('loading').style.display = 'none';
-                
-                createDefaultScene();
-                
-                engine.runRenderLoop(() => {
-                    if (scene && scene.activeCamera) {
-                        scene.render();
-                    }
-                });
-                
-                window.addEventListener('resize', () => {
-                    if (engine) {
-                        engine.resize();
-                    }
-                });
-                
-            } catch (error) {
-                console.error('❌ Failed to initialize Babylon.js:', error);
-                showError('Failed to initialize Babylon.js: ' + error.message);
-            }
-        }
-        
-        function getDefaultCode() {
-            return \`// Welcome to the Babylon.js Playground!
-// Create your 3D scene here. The scene, engine, and canvas are automatically provided.
-
-function createScene() {
-    // Create a basic scene
-    const scene = new BABYLON.Scene(engine);
-    
-    // Create a camera
-    const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.5, 10, BABYLON.Vector3.Zero(), scene);
-    camera.attachToCanvas(canvas, true);
-    
-    // Create lighting
-    const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
-    light.intensity = 0.7;
-    
-    // Create a ground
-    const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 10, height: 10}, scene);
-    
-    // Create a sphere
-    const sphere = BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 2}, scene);
-    sphere.position.y = 1;
-    
-    // Create a box
-    const box = BABYLON.MeshBuilder.CreateBox("box", {size: 2}, scene);
-    box.position.x = 3;
-    box.position.y = 1;
-    
-    return scene;
-}
-
-// Create and return the scene
-const scene = createScene();\`;
-        }
-        
-        function createDefaultScene() {
-            try {
-                if (scene) {
-                    scene.dispose();
-                }
-                
-                const userCode = editor ? editor.getValue() : getDefaultCode();
-                executeUserCode(userCode);
-                
-                hideError();
-                
-            } catch (error) {
-                console.error('❌ Scene creation failed:', error);
-                showError('Scene creation failed: ' + error.message);
-            }
-        }
-        
-        function executeUserCode(code) {
-            try {
-                console.log('🔄 Executing user code...');
-                
-                const userFunction = new Function('engine', 'canvas', 'BABYLON', code);
-                const result = userFunction(engine, document.getElementById('renderCanvas'), BABYLON);
-                
-                if (result && result.dispose && typeof result.render === 'function') {
-                    scene = result;
-                    console.log('✅ User scene created successfully');
-                } else {
-                    console.warn('⚠️ User code did not return a scene, using global scene');
-                    if (window.scene) {
-                        scene = window.scene;
-                    }
-                }
-                
-                hideError();
-                
-            } catch (error) {
-                console.error('❌ Code execution failed:', error);
-                showError('Code execution failed: ' + error.message);
-                createFallbackScene();
-            }
-        }
-        
-        function createFallbackScene() {
-            try {
-                console.log('🔧 Creating fallback scene...');
-                
-                scene = new BABYLON.Scene(engine);
-                
-                const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.5, 10, BABYLON.Vector3.Zero(), scene);
-                camera.attachToCanvas(document.getElementById('renderCanvas'), true);
-                
-                const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
-                light.intensity = 0.7;
-                
-                const sphere = BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 2}, scene);
-                sphere.position.y = 1;
-                
-                console.log('✅ Fallback scene created');
-                
-            } catch (fallbackError) {
-                console.error('❌ Fallback scene creation failed:', fallbackError);
-            }
-        }
-        
-        function showError(message) {
-            const errorDisplay = document.getElementById('errorDisplay');
-            if (errorDisplay) {
-                errorDisplay.textContent = message;
-                errorDisplay.classList.add('visible');
-                
-                setTimeout(hideError, 10000);
-            }
-        }
-        
-        function hideError() {
-            const errorDisplay = document.getElementById('errorDisplay');
-            if (errorDisplay) {
-                errorDisplay.classList.remove('visible');
-            }
-        }
-        
-        function showInjectionToast() {
-            console.log('📢 Showing injection toast notification');
-            const toast = document.getElementById('injectionToast');
-            if (toast) {
-                toast.classList.add('visible');
-                console.log('✅ Toast notification displayed');
-                setTimeout(() => {
-                    toast.classList.remove('visible');
-                    console.log('📢 Toast notification hidden');
-                }, 3000);
-            } else {
-                console.error('❌ Toast element not found in DOM');
-            }
-        }
-        
-        function runCode() {
-            console.log('🚀 Run code button pressed');
-            createDefaultScene();
-            // Show visual feedback that code is running
-            showInjectionToast();
-        }
-        
-        function formatCode() {
-            if (editor) {
-                editor.getAction('editor.action.formatDocument').run();
-            }
-        }
-        
-        function clearCode() {
-            if (editor) {
-                editor.setValue(getDefaultCode());
-            }
-        }
-        
-        function toggleEditor() {
-            const editorContainer = document.getElementById('editorContainer');
-            const canvasContainer = document.getElementById('canvasContainer');
-            const toggleBtn = document.getElementById('toggleEditorBtn');
-            
-            if (editorContainer && canvasContainer && toggleBtn) {
-                const isClosed = editorContainer.classList.contains('closed');
-                
-                if (isClosed) {
-                    // Open editor to split view
-                    editorContainer.classList.remove('closed');
-                    canvasContainer.classList.remove('editor-closed');
-                    toggleBtn.textContent = 'FULL';
-                } else if (editorContainer.classList.contains('open')) {
-                    // From full editor to closed
-                    editorContainer.classList.remove('open');
-                    editorContainer.classList.add('closed');
-                    canvasContainer.classList.remove('editor-open');
-                    canvasContainer.classList.add('editor-closed');
-                    toggleBtn.textContent = 'SPLIT';
-                } else {
-                    // From split to full editor
-                    editorContainer.classList.add('open');
-                    canvasContainer.classList.add('editor-open');
-                    toggleBtn.textContent = 'CLOSE';
-                }
-                
-                // Layout editor when changed
-                if (editor) {
-                    setTimeout(() => editor.layout(), 100);
-                }
-            }
-        }
-        
-        // Enhanced code insertion function for AI assistance with multi-level fallback
-        function insertCodeAtCursor(codeString) {
-            console.log('🎯 insertCodeAtCursor called with code length:', codeString.length);
-            console.log('🔍 Current editor readiness:', {
-                editor: !!editor,
-                editorReady: !!window.editorReady,
-                monacoLoaded: typeof monaco !== 'undefined'
-            });
-            
-            if (editor && window.editorReady) {
-                try {
-                    console.log('✅ Editor ready, inserting at cursor');
-                    const position = editor.getPosition();
-                    editor.executeEdits('ai-insertion', [{
-                        range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
-                        text: codeString
-                    }]);
-                    editor.setPosition(position);
-                    editor.focus();
-                    console.log('✅ Code inserted at cursor position');
-                    return true;
-                } catch (error) {
-                    console.error('❌ Cursor insertion failed:', error);
-                    return setFullEditorContent(codeString);
-                }
-            } else {
-                console.warn('⚠️ Editor not ready, falling back to full content replacement');
-                return setFullEditorContent(codeString);
-            }
-        }
-        
-        // Enhanced function to completely replace editor content with multi-level retry
-        function setFullEditorContent(codeString) {
-            console.log('🎯 setFullEditorContent called with code length:', codeString.length);
-            console.log('🔍 Editor state check:', {
-                editorExists: !!editor,
-                editorReady: !!window.editorReady,
-                domReady: document.readyState,
-                monacoGlobal: typeof monaco !== 'undefined'
-            });
-            
-            // Multi-level injection strategy
-            const strategies = [
-                // Strategy 1: Standard Monaco API
-                () => {
-                    if (editor && window.editorReady && typeof editor.setValue === 'function') {
-                        console.log('📝 Strategy 1: Using standard Monaco setValue');
-                        editor.setValue(codeString);
-                        editor.focus();
-                        editor.setPosition({lineNumber: 1, column: 1});
-                        editor.layout();
-                        
-                        const verification = editor.getValue();
-                        if (verification === codeString) {
-                            console.log('✅ Strategy 1 successful - content verified');
-                            showInjectionToast();
-                            return true;
-                        } else {
-                            console.warn('⚠️ Strategy 1: Content verification failed');
-                            return false;
-                        }
-                    }
-                    return false;
-                },
-                
-                // Strategy 2: Direct model manipulation
-                () => {
-                    if (editor && editor.getModel && typeof editor.getModel === 'function') {
-                        console.log('📝 Strategy 2: Using Monaco model setValue');
-                        const model = editor.getModel();
-                        if (model && typeof model.setValue === 'function') {
-                            model.setValue(codeString);
-                            editor.focus();
-                            console.log('✅ Strategy 2 successful - model setValue');
-                            showInjectionToast();
-                            return true;
-                        }
-                    }
-                    return false;
-                },
-                
-                // Strategy 3: Emergency fallback with retry
-                () => {
-                    return new Promise((resolve) => {
-                        console.log('📝 Strategy 3: Emergency retry with delay');
-                        setTimeout(() => {
-                            if (editor && typeof editor.setValue === 'function') {
-                                try {
-                                    editor.setValue(codeString);
-                                    console.log('✅ Strategy 3 successful - delayed retry');
-                                    showInjectionToast();
-                                    resolve(true);
-                                } catch (e) {
-                                    console.error('❌ Strategy 3 failed:', e);
-                                    resolve(false);
-                                }
-                            } else {
-                                console.error('❌ Strategy 3: Editor still not available');
-                                resolve(false);
-                            }
-                        }, 2000);
-                    });
-                }
-            ];
-            
-            // Try strategies in order
-            for (let i = 0; i < strategies.length; i++) {
-                try {
-                    const result = strategies[i]();
-                    if (result === true) {
-                        console.log('✅ Code injection successful via strategy ' + (i + 1));
-                        return true;
-                    } else if (result instanceof Promise) {
-                        result.then(success => {
-                            if (success) {
-                                console.log('✅ Code injection successful via async strategy ' + (i + 1));
-                            } else {
-                                console.error('❌ All strategies failed, including async strategy ' + (i + 1));
-                            }
-                        });
-                        return true;
-                    }
-                } catch (error) {
-                    console.error('❌ Strategy ' + (i + 1) + ' threw error:', error);
-                }
-            }
-            
-            console.error('❌ All injection strategies failed');
-            return false;
-        }
-        
-        // Make functions globally available
-        window.setFullEditorContent = setFullEditorContent;
-        window.insertCodeAtCursor = insertCodeAtCursor;
-        
-        // Global error handler
-        window.addEventListener('error', function(e) {
-            console.error('Global error:', e.error);
-            showError('Runtime error: ' + e.message + ' (Line: ' + e.lineno + ')');
-        });
-
-        // Cross-platform message handler (iOS + Android support)
-        function sendMessageToNative(action, data) {
-            const message = {
-                action: action,
-                data: data || {}
-            };
-
-            // iOS (WKWebView)
-            if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.playgroundHandler) {
-                window.webkit.messageHandlers.playgroundHandler.postMessage(message);
-            }
-
-            // Android (WebView with JavascriptInterface)
-            if (window.AndroidBridge && typeof window.AndroidBridge.postMessage === 'function') {
-                window.AndroidBridge.postMessage(JSON.stringify(message));
-            }
-        }
-
-        // Send initialization complete message
-        setTimeout(() => {
-            sendMessageToNative('initializationComplete', {
-                editorReady: window.editorReady,
-                engineReady: !!engine && !!scene
-            });
-        }, 1000);
-
-        // Auto-run code after a short delay
-        setTimeout(() => {
-            if (engine && scene) {
-                console.log('🚀 Auto-running initial scene...');
-                runCode();
-            }
-        }, 2000);
-    </script>
-</body>
-</html>
-    """.trimIndent()
-}
 
 /**
  * JavaScript Interface for bidirectional communication between WebView and Native Android
@@ -1243,7 +611,13 @@ private suspend fun injectCodeWithRetry(
     code: String,
     maxRetries: Int
 ): Unit = withContext(Dispatchers.Main) {
-    println("🔄 Starting injection attempt with $maxRetries retries remaining...")
+    println("")
+    println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    println("🔄 INJECTION RETRY ATTEMPT")
+    println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    println("⏱️  Retries remaining: $maxRetries")
+    println("📏 Code length: ${code.length} characters")
+    println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
     // Check Monaco readiness (iOS equivalent)
     val checkReadinessJS: String = """
@@ -1281,24 +655,44 @@ private suspend fun injectCodeWithRetry(
     webView.evaluateJavascript(checkReadinessJS) { result: String? ->
         val isReady: Boolean = result?.replace("\"", "") == "READY"
 
+        println("")
+        println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        println("🔍 READINESS CHECK RESULT")
+        println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        println("Result: ${result?.replace("\"", "")}")
+        println("Ready: $isReady")
+        println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
         if (isReady) {
-            println("✅ Monaco editor is ready, proceeding with injection")
+            println("✅ Monaco editor is READY, proceeding with injection")
             insertCodeInWebView(webView, code)
         } else {
-            println("⏳ Monaco not ready yet, retries left: $maxRetries")
-            println("🔍 Current readiness result: $result")
+            println("⏳ Monaco NOT ready yet")
+            println("🔍 Raw result: $result")
+            println("⏱️  Retries left: $maxRetries")
 
             if (maxRetries > 0) {
-                // Retry after delay - longer delay for first few retries to allow full initialization
-                val delayMs: Long = if (maxRetries > 2) 2000L else 1000L
+                // Retry after delay - progressive delays to allow Monaco full initialization time
+                val delayMs: Long = when (maxRetries) {
+                    5 -> 3000L  // First retry: 3 seconds (Monaco may still be loading from CDN)
+                    4 -> 2000L  // Second retry: 2 seconds
+                    3 -> 2000L  // Third retry: 2 seconds
+                    2 -> 1500L  // Fourth retry: 1.5 seconds
+                    else -> 1000L  // Final retries: 1 second
+                }
+                println("🔄 Will retry in ${delayMs}ms...")
 
                 CoroutineScope(Dispatchers.Main).launch {
                     delay(delayMs)
                     injectCodeWithRetry(webView, code, maxRetries - 1)
                 }
             } else {
-                println("❌ Max retries reached, injection failed")
-                println("🔍 Final check - trying emergency injection...")
+                println("")
+                println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                println("❌ MAX RETRIES REACHED")
+                println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                println("🚨 Attempting EMERGENCY injection...")
+                println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
                 // Emergency injection attempt - try even if not completely ready
                 insertCodeInWebView(webView, code)
@@ -1312,6 +706,15 @@ private suspend fun injectCodeWithRetry(
  * Equivalent to iOS insertCodeInWebView in ContentView.swift
  */
 private fun insertCodeInWebView(webView: WebView, code: String) {
+    println("")
+    println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    println("📝 INSERTING CODE INTO WEBVIEW")
+    println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    println("📏 Original code length: ${code.length} characters")
+    println("🔍 Code preview (first 200 chars):")
+    println(code.take(200))
+    println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
     // Escape the code properly for JavaScript (matching iOS implementation)
     val escapedCode = code
         .replace("\\", "\\\\")
@@ -1319,6 +722,8 @@ private fun insertCodeInWebView(webView: WebView, code: String) {
         .replace("\n", "\\n")
         .replace("\r", "\\r")
         .replace("\t", "\\t")
+
+    println("📏 Escaped code length: ${escapedCode.length} characters")
 
     val jsCode = """
         console.log("=== CALLING ENHANCED setFullEditorContent ===");
@@ -1394,18 +799,37 @@ private fun insertCodeInWebView(webView: WebView, code: String) {
         })();
     """.trimIndent()
 
-    println("Executing ENHANCED JavaScript code injection...")
+    println("🚀 Executing ENHANCED JavaScript code injection...")
     webView.evaluateJavascript(jsCode) { result ->
-        println("✅ JavaScript executed successfully")
-        println("📋 Injection result: $result")
+        println("")
+        println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        println("✅ JAVASCRIPT EXECUTION COMPLETE")
+        println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        println("📋 Result: ${result?.replace("\"", "")}")
 
         when (result?.replace("\"", "")) {
-            "SUCCESS_METHOD_1" -> println("🎉 Code injection successful via setFullEditorContent")
-            "SUCCESS_METHOD_2" -> println("🎉 Code injection successful via direct Monaco API")
-            "EMERGENCY_FALLBACK" -> println("⚠️ Used emergency fallback injection method")
-            "ALL_METHODS_FAILED" -> println("❌ All injection methods failed")
-            else -> println("✅ Injection completed with result: $result")
+            "SUCCESS_METHOD_1" -> {
+                println("🎉 SUCCESS: setFullEditorContent method")
+                println("✅ Code injected and auto-run triggered")
+            }
+            "SUCCESS_METHOD_2" -> {
+                println("🎉 SUCCESS: Direct Monaco API")
+                println("✅ Code injected and auto-run triggered")
+            }
+            "EMERGENCY_FALLBACK" -> {
+                println("⚠️ WARNING: Emergency fallback used")
+                println("⏳ Code injection may take up to 2 seconds")
+            }
+            "ALL_METHODS_FAILED" -> {
+                println("❌ FAILURE: All injection methods failed")
+                println("🔍 Check WebView console for errors")
+            }
+            else -> {
+                println("✅ Injection completed")
+                println("🔍 Raw result: $result")
+            }
         }
+        println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     }
 }
 
