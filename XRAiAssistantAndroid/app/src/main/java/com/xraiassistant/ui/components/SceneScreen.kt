@@ -321,6 +321,12 @@ private fun PlaygroundWebView(
     AndroidView(
         factory = { context ->
             WebView(context).apply {
+                // CRITICAL: Set explicit layout parameters so HTML can inherit height
+                layoutParams = android.view.ViewGroup.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                )
+
                 webViewClient = object : WebViewClient() {
                     override fun onPageFinished(view: WebView?, url: String?) {
                         super.onPageFinished(view, url)

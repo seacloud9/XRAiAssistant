@@ -22,14 +22,22 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
+        html {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-            height: 100vh;
+            height: 100%;
+            width: 100%;
             display: flex;
             flex-direction: column;
             background: #1e1e1e;
             color: #fff;
+            overflow: hidden;
         }
         
         .header {
@@ -67,11 +75,12 @@
             display: flex;
             position: relative;
             overflow: hidden;
-            min-height: 400px; /* Ensure minimum height for canvas rendering */
+            height: 100%; /* Fill available space */
         }
         
         .editor-container {
             width: 0%;
+            height: 100%; /* Fill parent container fully */
             background: #1e1e1e;
             border-right: 1px solid #3e3e42;
             position: relative;
@@ -85,15 +94,13 @@
 
         .canvas-container {
             width: 100%;
+            height: 100%; /* Fill parent container fully */
             background: #252526;
             position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: width 0.3s ease-in-out;
-            min-height: 400px; /* CRITICAL: Ensure canvas always has height */
-            /* DEBUG: Add visible border to verify container is rendering */
-            border: 3px solid #ff0000;
             box-sizing: border-box;
         }
 
@@ -448,6 +455,8 @@
             const canvasContainer = document.getElementById('canvasContainer');
             const toggleBtn = document.getElementById('editorToggleBtn');
 
+            console.log('🔄 [TOGGLE] Editor toggle clicked. Opening:', isEditorOpen);
+
             if (isEditorOpen) {
                 // Show code editor (100%), hide scene (0%)
                 editorContainer.classList.add('open');
@@ -455,10 +464,35 @@
                 toggleBtn.classList.add('editor-open');
                 toggleBtn.textContent = 'SCENE';
 
+                // Force widths with inline styles to override any !important rules
+                editorContainer.style.width = '100%';
+                canvasContainer.style.width = '0%';
+
+                // Move button to right edge when editor is open
+                toggleBtn.style.left = 'auto';
+                toggleBtn.style.right = '0';
+                toggleBtn.style.borderRadius = '4px 0 0 4px';
+
+                // Scroll editor to top
+                const editorElement = document.getElementById('monaco-editor') || document.getElementById('fallback-editor');
+                if (editorElement) {
+                    editorElement.scrollTop = 0;
+                    console.log('✅ [TOGGLE] Editor scrolled to top');
+                }
+
+                console.log('✅ [TOGGLE] Editor opened (100%), canvas hidden (0%)');
+
+                // Wait for browser to apply styles before measuring widths
+                setTimeout(() => {
+                    console.log('   Editor width:', editorContainer.offsetWidth);
+                    console.log('   Canvas width:', canvasContainer.offsetWidth);
+                }, 50);
+
                 // Trigger Monaco layout after transition completes
                 setTimeout(() => {
                     if (editor && typeof editor.layout === 'function') {
                         editor.layout();
+                        console.log('✅ [TOGGLE] Monaco editor layout updated');
                     }
                 }, 300);
             } else {
@@ -467,11 +501,31 @@
                 canvasContainer.classList.remove('editor-open');
                 toggleBtn.classList.remove('editor-open');
                 toggleBtn.textContent = 'CODE';
+
+                // Force widths with inline styles to override any !important rules
+                editorContainer.style.width = '0%';
+                canvasContainer.style.width = '100%';
+
+                // Move button to left edge when editor is closed
+                toggleBtn.style.left = '0';
+                toggleBtn.style.right = 'auto';
+                toggleBtn.style.borderRadius = '0 4px 4px 0';
+
+                console.log('✅ [TOGGLE] Canvas opened (100%), editor hidden (0%)');
+
+                // Wait for browser to apply styles before measuring widths
+                setTimeout(() => {
+                    console.log('   Canvas width:', canvasContainer.offsetWidth);
+                    console.log('   Editor width:', editorContainer.offsetWidth);
+                }, 50);
             }
 
             // Resize canvas and engine
             if (engine) {
-                setTimeout(() => engine.resize(), 350);
+                setTimeout(() => {
+                    engine.resize();
+                    console.log('✅ [TOGGLE] Babylon engine resized');
+                }, 350);
             }
         }
         
@@ -537,6 +591,50 @@
             console.log('Toggle button text:', toggleBtn.textContent);
             console.log('Toggle button visible:', toggleBtn.offsetWidth > 0 && toggleBtn.offsetHeight > 0);
         }
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+        // Global error handler to ensure layout doesn't collapse
+        window.addEventListener('error', function(event) {
+            console.error('🚨 Global error caught:', event.error || event.message);
+
+            // Ensure canvas dimensions are maintained even on errors
+            setTimeout(() => {
+                const canvas = document.getElementById('renderCanvas');
+                const canvasContainer = canvas?.parentElement;
+                const mainContainer = canvasContainer?.parentElement;
+                const toggleBtn = document.getElementById('editorToggleBtn');
+
+                if (canvasContainer && canvasContainer.clientHeight === 0) {
+                    console.log('🔧 [ERROR RECOVERY] Fixing collapsed canvas container');
+                    canvasContainer.style.minHeight = '400px';
+                    canvasContainer.style.height = '100%';
+                }
+
+                if (mainContainer && mainContainer.clientHeight === 0) {
+                    console.log('🔧 [ERROR RECOVERY] Fixing collapsed main container');
+                    mainContainer.style.minHeight = '400px';
+                    mainContainer.style.flex = '1';
+                }
+
+                if (canvas) {
+                    canvas.style.minHeight = '400px';
+                }
+
+                // Ensure toggle button is visible
+                if (toggleBtn) {
+                    toggleBtn.style.display = 'block';
+                    toggleBtn.style.visibility = 'visible';
+                    toggleBtn.style.zIndex = '1000';
+                    console.log('🔧 [ERROR RECOVERY] Toggle button forced visible');
+                }
+
+                // Force engine resize if it exists
+                if (engine) {
+                    engine.resize();
+                }
+            }, 100);
+        });
+
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
         // CRITICAL FIX: Initialize Babylon.js immediately on page load
@@ -822,7 +920,23 @@
             console.log('✅ Render loop started and running');
             console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
             console.log('🎉 BABYLON INITIALIZATION COMPLETE!');
-            
+
+            // Force immediate engine resize to ensure canvas renders
+            setTimeout(() => {
+                if (engine) {
+                    engine.resize();
+                    console.log('✅ Forced engine resize after initialization');
+                }
+            }, 100);
+
+            // Force another resize after a short delay for Android WebView
+            setTimeout(() => {
+                if (engine) {
+                    engine.resize();
+                    console.log('✅ Secondary engine resize for Android WebView');
+                }
+            }, 500);
+
             // Handle resize
             window.addEventListener('resize', () => {
                 engine.resize();
@@ -1111,11 +1225,46 @@ const scene = createScene();`;
                 console.error('Error stack:', error.stack);
                 showError(errorMsg);
                 notifySwift('sceneError', { error: error.message });
-                
+
+                // Ensure canvas dimensions are maintained
+                console.log('🔧 Ensuring canvas dimensions after error...');
+                const canvas = document.getElementById('renderCanvas');
+                const canvasContainer = canvas?.parentElement;
+                const mainContainer = canvasContainer?.parentElement;
+
+                if (canvasContainer) {
+                    canvasContainer.style.minHeight = '400px';
+                    canvasContainer.style.height = '100%';
+                    console.log('✅ Canvas container height maintained');
+                }
+
+                if (mainContainer) {
+                    mainContainer.style.minHeight = '400px';
+                    mainContainer.style.flex = '1';
+                    console.log('✅ Main container height maintained');
+                }
+
+                if (canvas) {
+                    canvas.style.minHeight = '400px';
+                    console.log('✅ Canvas min-height maintained');
+                }
+
                 // Fall back to default scene on error
                 console.log('Falling back to default scene...');
                 try {
                     scene = createDefaultBabylonScene();
+                    console.log('✅ Fallback scene created and assigned');
+                    console.log('   Scene active camera:', !!scene.activeCamera);
+                    console.log('   Scene meshes:', scene.meshes?.length || 0);
+
+                    // Force engine resize to ensure rendering continues
+                    if (engine) {
+                        engine.resize();
+                        console.log('✅ Engine resized after fallback');
+                    }
+
+                    // Hide error display
+                    hideError();
                 } catch (fallbackError) {
                     console.error('Even fallback failed:', fallbackError);
                 }
@@ -1188,11 +1337,13 @@ const scene = createScene();`;
         let consoleState = {
             x: null,
             y: null,
-            width: 400,
-            height: 300,
+            width: 350,
+            height: 250,
             minimized: false,
-            hidden: false
+            hidden: false  // Console visible by default
         };
+
+        console.log('🪟 [CONSOLE] Initial state - hidden:', false);
 
         function initFloatingConsole() {
             const consoleWindow = document.getElementById('consoleWindow');
@@ -1214,8 +1365,16 @@ const scene = createScene();`;
             // Load saved state from localStorage
             const saved = localStorage.getItem('babylonjs_console_state');
             if (saved) {
-                consoleState = { ...consoleState, ...JSON.parse(saved) };
+                const savedState = JSON.parse(saved);
+                console.log('🪟 [CONSOLE] Loaded saved state:', savedState);
+
+                // ANDROID FIX: Always show console on Android, ignore hidden state from localStorage
+                consoleState = { ...consoleState, ...savedState, hidden: false };
+                console.log('🪟 [CONSOLE] Applied state (forced visible):', consoleState);
+
                 applyConsoleState();
+            } else {
+                console.log('🪟 [CONSOLE] No saved state, using defaults (visible)');
             }
 
             // Copy button
@@ -3883,15 +4042,14 @@ window.addEventListener('DOMContentLoaded', function() {
         
         if (toggleBtn) {
             // Force button visibility with inline styles
+            // Note: Do NOT set left/right here - let toggleEditor() control button position
             toggleBtn.style.cssText = `
                 position: absolute !important;
-                left: 0 !important;
                 top: 50% !important;
                 transform: translateY(-50%) !important;
                 background: #007acc !important;
                 color: white !important;
                 border: none !important;
-                border-radius: 0 4px 4px 0 !important;
                 padding: 12px 8px !important;
                 font-size: 14px !important;
                 font-weight: 600 !important;
@@ -3904,8 +4062,14 @@ window.addEventListener('DOMContentLoaded', function() {
                 visibility: visible !important;
                 opacity: 1 !important;
             `;
+
+            // Set initial position (left edge, since editor starts closed)
+            toggleBtn.style.left = '0';
+            toggleBtn.style.right = 'auto';
+            toggleBtn.style.borderRadius = '0 4px 4px 0';
+
             console.log('✅ [ANDROID FIX] Button styles forced');
-            console.log('   Computed position:', window.getComputedStyle(toggleBtn).position);
+            console.log('   Initial position: left edge (editor closed)');
             console.log('   Computed z-index:', window.getComputedStyle(toggleBtn).zIndex);
             console.log('   Computed display:', window.getComputedStyle(toggleBtn).display);
         }
@@ -3914,12 +4078,12 @@ window.addEventListener('DOMContentLoaded', function() {
             // Ensure main container fills space properly
             mainContainer.style.cssText = `
                 flex: 1 !important;
+                height: 100% !important;
                 display: flex !important;
                 position: relative !important;
                 overflow: hidden !important;
-                min-height: 0 !important;
             `;
-            console.log('✅ [ANDROID FIX] Main container fixed');
+            console.log('✅ [ANDROID FIX] Main container fixed (flex: 1, height: 100%)');
         }
         
         if (header) {
@@ -3943,8 +4107,9 @@ window.addEventListener('DOMContentLoaded', function() {
         
         if (canvasContainer) {
             // Ensure canvas container doesn't clip button
+            // NOTE: Do NOT set width here - let CSS classes control it for toggle functionality
             canvasContainer.style.cssText = `
-                width: 100% !important;
+                height: 100% !important;
                 background: #252526 !important;
                 position: relative !important;
                 display: flex !important;
@@ -3952,15 +4117,24 @@ window.addEventListener('DOMContentLoaded', function() {
                 justify-content: center !important;
                 overflow: visible !important;
             `;
-            console.log('✅ [ANDROID FIX] Canvas container fixed (overflow: visible)');
+            console.log('✅ [ANDROID FIX] Canvas container fixed (height: 100%, overflow: visible)');
         }
-        
+
+        // Set initial widths and heights (editor hidden, canvas visible)
         if (editorContainer) {
             editorContainer.style.width = '0%';
-            console.log('✅ [ANDROID FIX] Editor hidden');
+            editorContainer.style.height = '100%';
+            console.log('✅ [ANDROID FIX] Editor container initialized (width: 0%, height: 100%)');
         }
-        
+
+        if (canvasContainer) {
+            canvasContainer.style.width = '100%';
+            canvasContainer.style.height = '100%';
+            console.log('✅ [ANDROID FIX] Canvas container initialized (width: 100%, height: 100%)');
+        }
+
         console.log('🎯 [ANDROID FIX] All layout corrections applied');
+        console.log('   Initial state: Canvas visible (100%), Editor hidden (0%)');
     }, 500);
 });
     </script>
