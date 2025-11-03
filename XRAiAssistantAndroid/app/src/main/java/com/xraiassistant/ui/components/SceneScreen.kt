@@ -119,6 +119,7 @@ fun SceneScreen(
 
     Box(modifier = modifier.fillMaxSize()) {
         PlaygroundWebView(
+            currentLibrary = currentLibrary,
             onWebViewCreated = {
                 webView = it
                 println("✅ WebView created and stored")
@@ -306,6 +307,7 @@ private fun SceneToolbar(
 
 @Composable
 private fun PlaygroundWebView(
+    currentLibrary: com.xraiassistant.domain.models.Library3D?,
     onWebViewCreated: (WebView) -> Unit,
     onWebViewLoaded: () -> Unit,
     onWebViewError: (String) -> Unit,
@@ -317,6 +319,9 @@ private fun PlaygroundWebView(
 
     // Track if we've already injected this code to prevent duplicate injections
     var lastInjectedCode by remember { mutableStateOf("") }
+
+    // Track last loaded library to detect library changes
+    var lastLoadedLibrary by remember { mutableStateOf<String?>(null) }
 
     AndroidView(
         factory = { context ->
@@ -396,25 +401,58 @@ private fun PlaygroundWebView(
 
                 onWebViewCreated(this)
 
-                // Load the iOS playground HTML from assets - exact same file as iOS uses
+                // Load the correct playground HTML based on selected library
                 try {
-                    val playgroundHtml = context.assets.open("playground-babylonjs.html").bufferedReader().use { it.readText() }
+                    // Get playground template from library, default to BabylonJS
+                    val playgroundTemplate = currentLibrary?.playgroundTemplate ?: "playground-babylonjs.html"
+
+                    println("📚 Loading playground template: $playgroundTemplate for library: ${currentLibrary?.displayName}")
+
+                    val playgroundHtml = context.assets.open(playgroundTemplate).bufferedReader().use { it.readText() }
                     println("📄 Loaded HTML from assets: ${playgroundHtml.length} characters")
                     println("🔍 HTML preview (first 200 chars): ${playgroundHtml.take(200)}")
 
                     // CRITICAL: Use null base URL to allow all CDN resources to load
                     loadDataWithBaseURL(
-                        null,  // Allow Monaco (unpkg.com) and Babylon (cdn.babylonjs.com) without CORS
+                        null,  // Allow Monaco (unpkg.com) and CDN resources without CORS
                         playgroundHtml,
                         "text/html",
                         "UTF-8",
                         null
                     )
 
+                    lastLoadedLibrary = currentLibrary?.id
                     println("✅ WebView loaded playground HTML from assets successfully")
                 } catch (e: Exception) {
                     println("❌ Failed to load playground HTML from assets: ${e.message}")
                     onWebViewError("Failed to load playground: ${e.message}")
+                }
+            }
+        },
+        update = { webView ->
+            // Reload WebView when library changes
+            if (currentLibrary?.id != lastLoadedLibrary && currentLibrary != null) {
+                println("🔄 Library changed from $lastLoadedLibrary to ${currentLibrary.id}, reloading WebView...")
+
+                try {
+                    val playgroundTemplate = currentLibrary.playgroundTemplate
+                    println("📚 Loading new playground template: $playgroundTemplate")
+
+                    val playgroundHtml = context.assets.open(playgroundTemplate).bufferedReader().use { it.readText() }
+
+                    webView.loadDataWithBaseURL(
+                        null,
+                        playgroundHtml,
+                        "text/html",
+                        "UTF-8",
+                        null
+                    )
+
+                    lastLoadedLibrary = currentLibrary.id
+                    println("✅ WebView reloaded with new library template")
+                } catch (e: Exception) {
+                    println("❌ Failed to reload WebView with new library: ${e.message}")
+                    onWebViewError("Failed to load ${currentLibrary.displayName}: ${e.message}")
                 }
             }
         },

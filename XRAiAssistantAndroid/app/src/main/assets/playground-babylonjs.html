@@ -198,6 +198,8 @@
             min-height: 200px;
             max-width: 90vw;
             max-height: 80vh;
+            /* Enable touch dragging on mobile */
+            touch-action: none;
         }
 
         .console-window.minimized {
@@ -227,6 +229,8 @@
             justify-content: space-between;
             align-items: center;
             border-radius: 6px 6px 0 0;
+            /* Enable touch dragging on mobile */
+            touch-action: none;
         }
 
         .console-title {
@@ -304,6 +308,8 @@
             cursor: nwse-resize;
             background: linear-gradient(135deg, transparent 50%, #007acc 50%);
             opacity: 0.5;
+            /* Enable touch resizing on mobile */
+            touch-action: none;
         }
 
         .console-window.minimized .console-resize-handle {
