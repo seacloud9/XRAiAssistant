@@ -300,10 +300,11 @@ private fun ChatInputField(
                 value = value,
                 onValueChange = onValueChange,
                 modifier = Modifier.weight(1f),
-                placeholder = { 
-                    Text(stringResource(R.string.chat_input_hint)) 
+                placeholder = {
+                    Text(stringResource(R.string.chat_input_hint))
                 },
                 enabled = enabled,
+                singleLine = true,  // CRITICAL: Prevents newline, enables Enter to send
                 keyboardOptions = KeyboardOptions(
                     imeAction = ImeAction.Send
                 ),
