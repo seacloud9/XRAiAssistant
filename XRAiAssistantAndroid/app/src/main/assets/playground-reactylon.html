@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reactylon XR Playground</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+        }
+        
+        #main-container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #editor-container {
+            flex: 0 0 50%;
+            width: 50%;
+            height: 100%;
+            background: #1e1e1e;
+            border-right: 1px solid #333;
+            overflow: hidden;
+        }
+        
+        #toolbar {
+            background: #2d2d2d;
+            border-bottom: 1px solid #333;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 40px;
+        }
+        
+        #toolbar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        #toolbar-title {
+            color: #fff;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        #framework-badge {
+            background: #8e44ad;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        #xr-badge {
+            background: #e74c3c;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+        
+        #toolbar-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        #build-button {
+            background: #28a745;
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        #build-button:hover {
+            background: #218838;
+        }
+        
+        #build-button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        #build-button.building {
+            background: #007bff;
+        }
+        
+        #build-button.error {
+            background: #dc3545;
+        }
+        
+        #build-status {
+            color: #ccc;
+            font-size: 11px;
+            max-width: 200px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        #build-status.success {
+            color: #28a745;
+        }
+        
+        #build-status.error {
+            color: #dc3545;
+        }
+        
+        #build-status.building {
+            color: #007bff;
+        }
+        
+        #xr-button {
+            background: #e74c3c;
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        #xr-button:hover {
+            background: #c0392b;
+        }
+        
+        #xr-button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        #run-button {
+            background: #17a2b8;
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        #run-button:hover {
+            background: #138496;
+        }
+        
+        #editor {
+            width: 100%;
+            height: calc(100% - 40px);
+        }
+        
+        #canvas-container {
+            flex: 0 0 50%;
+            width: 50%;
+            height: 100%;
+            background: #000;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #root {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            outline: none;
+            touch-action: none;
+        }
+        
+        #xr-overlay {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            display: none;
+            z-index: 1000;
+        }
+        
+        #xr-overlay.show {
+            display: block;
+        }
+        
+        #console {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.9);
+            color: #fff;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 11px;
+            max-height: 30%;
+            overflow-y: auto;
+            border-top: 1px solid #333;
+            z-index: 1000;
+            display: none;
+        }
+        
+        #console.show {
+            display: block;
+        }
+        
+        #console-header {
+            background: #1a1a1a;
+            padding: 4px 8px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        #console-title {
+            font-weight: 500;
+            font-size: 10px;
+            color: #ccc;
+        }
+        
+        #console-clear {
+            background: none;
+            border: none;
+            color: #ccc;
+            font-size: 10px;
+            cursor: pointer;
+            padding: 2px 4px;
+        }
+        
+        #console-content {
+            padding: 8px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        
+        .console-log { color: #fff; }
+        .console-warn { color: #ffc107; }
+        .console-error { color: #dc3545; }
+        .console-info { color: #17a2b8; }
+        .console-xr { color: #e74c3c; }
+        
+        #loading-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            z-index: 2000;
+        }
+        
+        .spinner {
+            border: 2px solid #333;
+            border-top: 2px solid #8e44ad;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .xr-info {
+            background: rgba(231, 76, 60, 0.9);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            margin-left: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div id="main-container">
+        <div id="editor-container">
+            <div id="toolbar">
+                <div id="toolbar-left">
+                    <div id="toolbar-title">Reactylon XR Playground</div>
+                    <div id="framework-badge">TSX</div>
+                    <div id="xr-badge">XR</div>
+                </div>
+                <div id="toolbar-right">
+                    <div id="build-status">Ready to build XR</div>
+                    <button id="build-button">Build</button>
+                    <button id="xr-button">Enter XR</button>
+                    <button id="run-button">Run</button>
+                </div>
+            </div>
+            <div id="editor"></div>
+        </div>
+        
+        <div id="canvas-container">
+            <div id="loading-overlay">
+                <div class="spinner"></div>
+                Initializing Reactylon XR Engine...
+            </div>
+            
+            <div id="xr-overlay">
+                XR Session Active
+                <div class="xr-info">Use controllers or hands to interact</div>
+            </div>
+            
+            <div id="root"></div>
+            <canvas id="canvas"></canvas>
+            
+            <div id="console">
+                <div id="console-header">
+                    <div id="console-title">Console & XR Debug</div>
+                    <button id="console-clear">Clear</button>
+                </div>
+                <div id="console-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monaco Editor -->
+    <script src="https://unpkg.com/monaco-editor@0.44.0/min/vs/loader.js"></script>
+    
+    <script>
+        let editor = null;
+        let buildService = null;
+        let consoleElement = null;
+        let currentBundle = null;
+        let xrSession = null;
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeEditor();
+            initializeBuildService();
+            initializeConsole();
+            initializeXR();
+            setupEventListeners();
+            hideLoadingOverlay();
+        });
+        
+        function initializeEditor() {
+            require.config({ paths: { vs: 'https://unpkg.com/monaco-editor@0.44.0/min/vs' } });
+            
+            require(['vs/editor/editor.main'], function () {
+                monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+                    target: monaco.languages.typescript.ScriptTarget.ES2020,
+                    allowNonTsExtensions: true,
+                    moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+                    module: monaco.languages.typescript.ModuleKind.CommonJS,
+                    noEmit: true,
+                    esModuleInterop: true,
+                    jsx: monaco.languages.typescript.JsxEmit.ReactJSX,
+                    reactNamespace: 'React',
+                    allowJs: true,
+                    typeRoots: ['node_modules/@types']
+                });
+                
+                editor = monaco.editor.create(document.getElementById('editor'), {
+                    value: getDefaultCode(),
+                    language: 'typescript',
+                    theme: 'vs-dark',
+                    automaticLayout: true,
+                    fontSize: 14,
+                    minimap: { enabled: false },
+                    scrollBeyondLastLine: false,
+                    wordWrap: 'on',
+                    formatOnPaste: true,
+                    formatOnType: true
+                });
+                
+                // Add keyboard shortcuts
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB, () => {
+                    buildScene();
+                });
+                
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+                    runScene();
+                });
+                
+                console.log('✅ Monaco editor initialized for Reactylon');
+            });
+        }
+        
+        function initializeBuildService() {
+            console.log('⏳ Waiting for Reactylon build service initialization...');
+        }
+        
+        function initializeConsole() {
+            consoleElement = document.getElementById('console-content');
+            
+            // Capture console methods
+            const originalLog = console.log;
+            const originalWarn = console.warn;
+            const originalError = console.error;
+            const originalInfo = console.info;
+            
+            console.log = (...args) => {
+                addConsoleMessage('log', args.join(' '));
+                originalLog.apply(console, args);
+            };
+            
+            console.warn = (...args) => {
+                addConsoleMessage('warn', args.join(' '));
+                originalWarn.apply(console, args);
+            };
+            
+            console.error = (...args) => {
+                addConsoleMessage('error', args.join(' '));
+                originalError.apply(console, args);
+                showConsole();
+            };
+            
+            console.info = (...args) => {
+                addConsoleMessage('info', args.join(' '));
+                originalInfo.apply(console, args);
+            };
+            
+            // XR-specific console method
+            window.xrLog = (...args) => {
+                addConsoleMessage('xr', `[XR] ${args.join(' ')}`);
+                originalLog.apply(console, args);
+            };
+            
+            // Global error handler
+            window.addEventListener('error', (event) => {
+                console.error(`Runtime Error: ${event.message} at ${event.filename}:${event.lineno}`);
+            });
+            
+            window.addEventListener('unhandledrejection', (event) => {
+                console.error(`Unhandled Promise Rejection: ${event.reason}`);
+            });
+        }
+        
+        function initializeXR() {
+            // Check WebXR support
+            if (navigator.xr) {
+                navigator.xr.isSessionSupported('immersive-vr').then((supported) => {
+                    if (supported) {
+                        document.getElementById('xr-button').disabled = false;
+                        xrLog('WebXR VR supported');
+                    } else {
+                        xrLog('WebXR VR not supported');
+                    }
+                });
+                
+                navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
+                    if (supported) {
+                        xrLog('WebXR AR supported');
+                    } else {
+                        xrLog('WebXR AR not supported');
+                    }
+                });
+            } else {
+                xrLog('WebXR not available');
+                document.getElementById('xr-button').disabled = true;
+            }
+        }
+        
+        function setupEventListeners() {
+            document.getElementById('build-button').addEventListener('click', buildScene);
+            document.getElementById('run-button').addEventListener('click', runScene);
+            document.getElementById('xr-button').addEventListener('click', enterXR);
+            document.getElementById('console-clear').addEventListener('click', clearConsole);
+        }
+        
+        function addConsoleMessage(type, message) {
+            if (!consoleElement) return;
+            
+            const messageElement = document.createElement('div');
+            messageElement.className = `console-${type}`;
+            messageElement.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            consoleElement.appendChild(messageElement);
+            consoleElement.scrollTop = consoleElement.scrollHeight;
+        }
+        
+        function showConsole() {
+            document.getElementById('console').classList.add('show');
+        }
+        
+        function hideConsole() {
+            document.getElementById('console').classList.remove('show');
+        }
+        
+        function clearConsole() {
+            if (consoleElement) {
+                consoleElement.innerHTML = '';
+            }
+            hideConsole();
+        }
+        
+        function updateBuildStatus(status, message, type = '') {
+            const statusElement = document.getElementById('build-status');
+            const buildButton = document.getElementById('build-button');
+            
+            statusElement.textContent = message;
+            statusElement.className = type ? `${type}` : '';
+            
+            buildButton.className = type || '';
+            buildButton.disabled = type === 'building';
+            
+            if (type === 'building') {
+                buildButton.textContent = 'Building...';
+            } else {
+                buildButton.textContent = 'Build';
+            }
+        }
+        
+        async function buildScene() {
+            if (!editor) {
+                console.error('Editor not initialized');
+                return;
+            }
+            
+            const code = editor.getValue();
+            if (!code.trim()) {
+                console.warn('No code to build');
+                return;
+            }
+            
+            updateBuildStatus('building', 'Building XR scene...', 'building');
+            clearConsole();
+            xrLog('Starting Reactylon build process...');
+            
+            try {
+                // Call Swift build service
+                const result = await callSwiftBuildService(code);
+                
+                if (result.success) {
+                    currentBundle = result.bundleCode;
+                    updateBuildStatus('success', `Built XR scene: ${result.statusText}`, 'success');
+                    xrLog('✅ Reactylon build completed successfully');
+                    
+                    // Auto-run for Reactylon
+                    setTimeout(() => runBuiltScene(), 100);
+                } else {
+                    currentBundle = null;
+                    updateBuildStatus('error', result.errors[0] || 'XR build failed', 'error');
+                    console.error('❌ Reactylon build failed:', result.errors.join(', '));
+                    showConsole();
+                }
+                
+            } catch (error) {
+                currentBundle = null;
+                updateBuildStatus('error', 'XR build error', 'error');
+                console.error('❌ Reactylon build error:', error);
+                showConsole();
+            }
+        }
+        
+        function runScene() {
+            if (currentBundle) {
+                runBuiltScene();
+            } else {
+                console.warn('No built XR bundle available. Build first.');
+            }
+        }
+        
+        function runBuiltScene() {
+            if (!currentBundle) {
+                console.error('No XR bundle to run');
+                return;
+            }
+            
+            try {
+                // Clear the root element
+                const root = document.getElementById('root');
+                root.innerHTML = '';
+                
+                xrLog('Executing Reactylon XR scene...');
+                
+                // Create a new script element and execute the bundle
+                const script = document.createElement('script');
+                script.textContent = currentBundle;
+                document.head.appendChild(script);
+                
+                xrLog('✅ Reactylon XR scene executed successfully');
+                
+                // Clean up script element
+                setTimeout(() => {
+                    document.head.removeChild(script);
+                }, 100);
+                
+            } catch (error) {
+                console.error('❌ Reactylon runtime error:', error);
+                showConsole();
+            }
+        }
+        
+        async function enterXR() {
+            if (!navigator.xr) {
+                xrLog('❌ WebXR not available');
+                return;
+            }
+            
+            try {
+                xrLog('🥽 Requesting XR session...');
+                xrSession = await navigator.xr.requestSession('immersive-vr');
+                
+                document.getElementById('xr-overlay').classList.add('show');
+                xrLog('✅ XR session started');
+                
+                xrSession.addEventListener('end', () => {
+                    document.getElementById('xr-overlay').classList.remove('show');
+                    xrLog('🛑 XR session ended');
+                    xrSession = null;
+                });
+                
+            } catch (error) {
+                xrLog(`❌ Failed to start XR session: ${error.message}`);
+            }
+        }
+        
+        async function callSwiftBuildService(code) {
+            // This will be implemented by Swift side
+            return new Promise((resolve) => {
+                // Mock response for now
+                setTimeout(() => {
+                    resolve({
+                        success: false,
+                        bundleCode: null,
+                        errors: ['Reactylon build service not yet connected'],
+                        statusText: 'Build service unavailable'
+                    });
+                }, 1000);
+            });
+        }
+        
+        function getDefaultCode() {
+            return `// Welcome to Reactylon!
+// Create immersive XR experiences with React and Babylon.js
+
+import React, { useRef, useState } from 'react'
+import { createRoot } from 'react-dom/client'
+import {
+  Engine, Scene, ArcRotateCamera, HemisphericLight,
+  Box, Sphere, Ground, StandardMaterial,
+  XRExperience
+} from 'reactylon'
+
+function InteractiveXRScene() {
+  const [cubeColor, setCubeColor] = useState("#ff6b6b")
+  const [cubePosition, setCubePosition] = useState([0, 1, 0])
+  
+  const handleCubeClick = () => {
+    const colors = ["#ff6b6b", "#4ecdc4", "#45b7d1", "#96ceb4", "#ffeaa7"]
+    const randomColor = colors[Math.floor(Math.random() * colors.length)]
+    setCubeColor(randomColor)
+    
+    // Add a little bounce animation
+    const randomY = 1 + Math.random() * 2
+    setCubePosition([0, randomY, 0])
+    
+    setTimeout(() => setCubePosition([0, 1, 0]), 500)
+  }
+  
+  return (
+    <Engine antialias adaptToDeviceRatio canvasId="canvas">
+      <Scene clearColor="#2c2c54">
+        <ArcRotateCamera 
+          target={[0, 0, 0]} 
+          alpha={Math.PI / 4} 
+          beta={Math.PI / 3} 
+          radius={8} 
+        />
+        <HemisphericLight direction={[0, 1, 0]} intensity={0.9} />
+        
+        {/* Interactive cube */}
+        <Box 
+          name="interactiveCube"
+          size={1.5}
+          position={cubePosition}
+          onClick={handleCubeClick}
+        >
+          <StandardMaterial 
+            diffuseColor={cubeColor}
+            specularColor="#ffffff"
+            specularPower={64}
+          />
+        </Box>
+        
+        {/* Floating spheres */}
+        <Sphere 
+          name="sphere1"
+          diameter={0.8}
+          position={[-3, 2, 0]}
+        >
+          <StandardMaterial diffuseColor="#4ecdc4" />
+        </Sphere>
+        
+        <Sphere 
+          name="sphere2"
+          diameter={0.6}
+          position={[3, 1.5, -1]}
+        >
+          <StandardMaterial diffuseColor="#45b7d1" />
+        </Sphere>
+        
+        {/* Ground plane */}
+        <Ground 
+          name="ground"
+          width={10}
+          height={10}
+          subdivisions={20}
+        >
+          <StandardMaterial 
+            diffuseColor="#34495e"
+            specularColor="#2c3e50"
+          />
+        </Ground>
+        
+        {/* WebXR Experience */}
+        <XRExperience 
+          baseExperience={true}
+          floorMeshes={["ground"]}
+        />
+      </Scene>
+    </Engine>
+  )
+}
+
+function App() {
+  return <InteractiveXRScene />
+}
+
+const root = createRoot(document.getElementById('root')!)
+root.render(<App />)`;
+        }
+        
+        function hideLoadingOverlay() {
+            setTimeout(() => {
+                const overlay = document.getElementById('loading-overlay');
+                if (overlay) {
+                    overlay.style.display = 'none';
+                }
+            }, 2000);
+        }
+        
+        // Expose functions for Swift integration
+        window.insertCodeAtCursor = function(code) {
+            if (editor) {
+                const position = editor.getPosition();
+                editor.executeEdits('', [{
+                    range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+                    text: code
+                }]);
+                editor.focus();
+            }
+        };
+        
+        window.getEditorContent = function() {
+            return editor ? editor.getValue() : '';
+        };
+        
+        window.setEditorContent = function(code) {
+            if (editor) {
+                editor.setValue(code);
+            }
+        };
+        
+        window.formatCode = function() {
+            if (editor) {
+                editor.getAction('editor.action.formatDocument').run();
+            }
+        };
+        
+        // Export for debugging
+        window.reactylonAPI = {
+            editor,
+            buildScene,
+            runScene,
+            enterXR,
+            clearConsole,
+            showConsole,
+            hideConsole,
+            xrSession
+        };
+    </script>
+</body>
+</html>

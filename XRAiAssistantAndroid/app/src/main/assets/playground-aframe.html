@@ -1,0 +1,2802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A-Frame VR Playground</title>
+    
+    <!-- A-Frame Core -->
+    <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+    
+    <!-- A-Frame Extras for additional components -->
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v7.6.0/dist/aframe-extras.min.js"></script>
+
+    <!-- A-Frame Effects for post-processing (bloom, etc.) -->
+    <script src="https://unpkg.com/aframe-effects@5.0.0/dist/aframe-effects.min.js"></script>
+    
+    <!-- Monaco Editor -->
+    <script src="https://unpkg.com/monaco-editor@0.45.0/min/vs/loader.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: #1e1e1e;
+            color: #fff;
+            position: relative;  /* Create stacking context for header */
+        }
+        
+        .header {
+            background: #2d2d30;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid #3e3e42;
+            min-height: 40px;
+            position: relative;
+            z-index: 10001;  /* CRITICAL: Above all content */
+            pointer-events: auto;  /* CRITICAL: Ensure header receives clicks */
+        }
+        
+        .menu-btn {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background-color 0.2s;
+            pointer-events: auto;  /* CRITICAL: Ensure buttons receive clicks */
+            touch-action: manipulation;  /* CRITICAL: Prevent zoom on double-tap */
+        }
+        
+        .menu-btn:hover {
+            background: #1177bb;
+        }
+        
+        .menu-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        
+        .main-container {
+            flex: 1;
+            display: flex;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;  /* Lower than header (10001) */
+        }
+        
+        .editor-container {
+            width: 0%;
+            background: #1e1e1e;
+            border-right: 1px solid #3e3e42;
+            position: relative;
+            overflow: hidden;
+            transition: width 0.3s ease-in-out;
+        }
+
+        .editor-container.open {
+            width: 100%;
+        }
+
+        .scene-container {
+            width: 100%;
+            background: #252526;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: width 0.3s ease-in-out;
+        }
+
+        .scene-container.editor-open {
+            width: 0%;
+        }
+        
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            outline: none;
+            display: block;
+        }
+
+        /* A-Frame container - ensure it fills the entire space */
+        #aframe-container {
+            width: 100% !important;
+            height: 100% !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            z-index: 1 !important;  /* Lower than button */
+            overflow: hidden;
+            pointer-events: none !important;  /* CRITICAL: Let clicks pass through to buttons */
+            touch-action: auto !important;  /* Enable touch interactions */
+        }
+
+        /* A-Frame scene element - must fill container completely */
+        #aframe-container a-scene {
+            width: 100% !important;
+            height: 100% !important;
+            display: block !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            pointer-events: auto !important;  /* CRITICAL: Re-enable for scene */
+        }
+
+        /* A-Frame canvas - ensure it fills the scene and doesn't block the button */
+        #aframe-container canvas,
+        #aframe-container a-scene canvas {
+            width: 100% !important;
+            height: 100% !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            z-index: 1 !important;  /* Force A-Frame canvas to be below button */
+            pointer-events: auto !important;  /* CRITICAL: Enable pointer events */
+            touch-action: auto !important;  /* CRITICAL: Enable touch interactions */
+        }
+        
+        .editor-toggle-btn {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #007acc;
+            color: white;
+            border: none;
+            border-radius: 0 4px 4px 0;
+            padding: 12px 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 10000;  /* Very high z-index to be above A-Frame canvas */
+            transition: all 0.3s ease-in-out;
+            box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.3);
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            pointer-events: auto !important;  /* CRITICAL: Ensure button receives touch events */
+            touch-action: manipulation !important;  /* CRITICAL: Prevent zoom on double-tap */
+        }
+
+        .editor-toggle-btn:hover {
+            background: #1177bb;
+        }
+
+        .editor-toggle-btn:active {
+            background: #0e639c;
+        }
+
+        /* When editor is open, button moves to right edge */
+        .editor-toggle-btn.editor-open {
+            left: auto;
+            right: 0;
+            border-radius: 4px 0 0 4px;
+        }
+        
+        .footer {
+            background: #007acc;
+            padding: 4px 12px;
+            font-size: 11px;
+            text-align: center;
+            color: white;
+        }
+        
+        .error-display {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #f14c4c;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            max-width: 300px;
+            display: none;
+            z-index: 1000;
+        }
+        
+        /* Floating Console Window */
+        .console-window {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 400px;
+            height: 300px;
+            background: #1e1e1e;
+            border: 1px solid #007acc;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            z-index: 2000;
+            resize: both;
+            overflow: hidden;
+            min-width: 300px;
+            min-height: 200px;
+            max-width: 90vw;
+            max-height: 80vh;
+        }
+
+        .console-window.minimized {
+            height: auto !important;
+            min-height: auto;
+            resize: none;
+        }
+
+        .console-window.minimized .console-resize-handle {
+            display: none;
+        }
+
+        .console-window.hidden {
+            display: none;
+        }
+
+        .console-title-bar {
+            background: #007acc;
+            color: white;
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: move;
+            user-select: none;
+            -webkit-user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 6px 6px 0 0;
+        }
+
+        .console-title {
+            flex: 1;
+        }
+
+        .console-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .console-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .console-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .console-content {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: auto;
+            padding: 12px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 11px;
+            color: #ccc;
+            background: #1e1e1e;
+            user-select: text;
+            -webkit-user-select: text;
+            cursor: text;
+        }
+
+        .console-window.minimized .console-content {
+            display: none;
+        }
+
+        .console-message {
+            margin: 2px 0;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            user-select: text;
+            -webkit-user-select: text;
+        }
+
+        .console-error {
+            color: #f14c4c;
+        }
+
+        .console-warning {
+            color: #ffcc02;
+        }
+
+        .console-log {
+            color: #ccc;
+        }
+
+        .console-resize-handle {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 16px;
+            height: 16px;
+            cursor: nwse-resize;
+            background: linear-gradient(135deg, transparent 50%, #007acc 50%);
+            opacity: 0.5;
+        }
+
+        .console-window.minimized .console-resize-handle {
+            display: none;
+        }
+
+        /* Console Open Button (always visible in editor) */
+        .console-open-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 48px;
+            height: 48px;
+            background: #007acc;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            z-index: 1500;
+            transition: all 0.2s;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .console-open-btn:hover {
+            background: #1177bb;
+            transform: scale(1.1);
+        }
+
+        .console-open-btn:active {
+            background: #0e639c;
+            transform: scale(0.95);
+        }
+
+        .console-open-btn.hidden {
+            display: none;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #cccccc;
+            font-size: 14px;
+            pointer-events: none;  /* CRITICAL: Don't block canvas interactions */
+            z-index: 100;  /* Above canvas but below controls */
+        }
+        
+        /* Remove media query - same behavior across all devices per requirements */
+        /* The editor starts hidden (width: 0%) on all screen sizes */
+    </style>
+</head>
+<body>
+    <div class="header">
+        <button class="menu-btn" onclick="runCode()">▶ Run</button>
+        <button class="menu-btn" onclick="formatCode()">{ } Format</button>
+        <button class="menu-btn" onclick="clearCode()">🗑 Clear</button>
+        <button class="menu-btn" onclick="saveScene()">💾 Save</button>
+        <button class="menu-btn" onclick="downloadScene()">⬇ Download</button>
+        <button class="menu-btn" onclick="newScene()">📄 New</button>
+        <button class="menu-btn" onclick="openDocumentation()">📖 Documentation</button>
+        <button class="menu-btn" onclick="toggleConsole()">🖥 Console</button>
+        <select class="menu-btn" onchange="loadExample(this.value)">
+            <option value="">Select Example...</option>
+            <option value="basic-scene">Basic Scene</option>
+            <option value="rotating-cube">Rotating Cube</option>
+            <option value="interactive-objects">Interactive Objects</option>
+            <option value="textured-sphere">Textured Sphere</option>
+            <option value="sky-gradient">Sky Gradient</option>
+            <option value="physics-demo">Physics Demo</option>
+            <option value="animated-camera">Animated Camera</option>
+            <option value="360-image">360° Image</option>
+            <option value="orbiting-planets">Orbiting Planets</option>
+            <option value="particle-ring">Particle Ring</option>
+            <option value="glowing-tunnel">Glowing Tunnel</option>
+            <option value="stacked-cubes">Stacked Cubes Tower</option>
+            <option value="color-changing">Color Changing Environment</option>
+            <option value="post-processing">Post-Processing Bloom</option>
+        </select>
+        <select class="menu-btn" id="cameraSelector" onchange="switchCamera(this.value)" style="margin-left: 10px;">
+            <option value="">Camera: Default</option>
+            <option value="wasd-controls">WASD Controls</option>
+            <option value="look-controls">Look Controls</option>
+            <option value="orbit-controls">Orbit Controls</option>
+        </select>
+        <label style="margin-left: 10px; color: white; cursor: pointer;">
+            <input type="checkbox" id="inspectorCheckbox" onchange="toggleInspector(this.checked)" style="cursor: pointer;">
+            <span style="margin-left: 5px;">Inspector</span>
+        </label>
+    </div>
+    
+    <div class="main-container">
+        <div class="editor-container" id="editorContainer">
+            <div id="monaco-editor" style="width: 100%; height: 100%;"></div>
+            <button class="console-open-btn" id="consoleOpenBtn" title="Open Console">📟</button>
+        </div>
+        <div class="scene-container" id="sceneContainer">
+            <button class="editor-toggle-btn" id="editorToggleBtn" onclick="toggleEditor()">CODE</button>
+            <div id="aframe-container" style="width: 100%; height: 100%;">
+                <div class="loading" id="loading">Loading A-Frame...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        A-Frame VR Playground - Powered by WebXR
+    </div>
+
+    <div class="error-display" id="errorDisplay"></div>
+
+    <!-- Floating Console Window -->
+    <div class="console-window" id="consoleWindow">
+        <div class="console-title-bar" id="consoleTitleBar">
+            <div class="console-title">Console</div>
+            <div class="console-controls">
+                <button class="console-btn" id="consoleCopyBtn" title="Copy All">📋</button>
+                <button class="console-btn" id="consoleClearBtn" title="Clear Console">🗑</button>
+                <button class="console-btn" id="consoleMinimizeBtn" title="Minimize">−</button>
+                <button class="console-btn" id="consoleToggleBtn" title="Expand">↕</button>
+                <button class="console-btn" id="consoleCloseBtn" title="Close">×</button>
+            </div>
+        </div>
+        <div class="console-content" id="consoleContent"></div>
+        <div class="console-resize-handle" id="consoleResizeHandle"></div>
+    </div>
+
+    <script>
+        let editor;
+        let currentScene;
+        let isResizing = false;
+        let consoleMessages = [];
+        let isEditorOpen = false;
+        let consoleState = {
+            x: null,
+            y: null,
+            width: 400,
+            height: 300,
+            minimized: false,
+            hidden: false
+        };
+
+        // Editor toggle functionality - switches between code view (100%) and scene view (100%)
+        function toggleEditor() {
+            isEditorOpen = !isEditorOpen;
+            const editorContainer = document.getElementById('editorContainer');
+            const sceneContainer = document.getElementById('sceneContainer');
+            const toggleBtn = document.getElementById('editorToggleBtn');
+
+            if (isEditorOpen) {
+                // Show code editor (100%), hide scene (0%)
+                editorContainer.classList.add('open');
+                sceneContainer.classList.add('editor-open');
+                toggleBtn.classList.add('editor-open');
+                toggleBtn.textContent = 'SCENE';
+
+                // Trigger Monaco layout after transition completes
+                setTimeout(() => {
+                    if (editor && typeof editor.layout === 'function') {
+                        editor.layout();
+                    }
+                }, 300);
+            } else {
+                // Show scene (100%), hide code editor (0%)
+                editorContainer.classList.remove('open');
+                sceneContainer.classList.remove('editor-open');
+                toggleBtn.classList.remove('editor-open');
+                toggleBtn.textContent = 'CODE';
+            }
+        }
+        
+        // Override console methods to capture logs
+        const originalConsole = {
+            log: console.log,
+            error: console.error,
+            warn: console.warn,
+            info: console.info
+        };
+        
+        console.log = (...args) => {
+            originalConsole.log(...args);
+            addConsoleMessage('log', args.map(arg => String(arg)).join(' '));
+        };
+        
+        console.error = (...args) => {
+            originalConsole.error(...args);
+            addConsoleMessage('error', args.map(arg => String(arg)).join(' '));
+        };
+        
+        console.warn = (...args) => {
+            originalConsole.warn(...args);
+            addConsoleMessage('warning', args.map(arg => String(arg)).join(' '));
+        };
+        
+        console.info = (...args) => {
+            originalConsole.info(...args);
+            addConsoleMessage('log', args.map(arg => String(arg)).join(' '));
+        };
+        
+        // Initialize Monaco Editor with enhanced error handling and fallback
+        console.log('Starting Monaco Editor initialization for A-Frame...');
+        
+        // Set longer timeout for CDN loading
+        let monacoTimeout = setTimeout(() => {
+            console.error('❌ Monaco Editor CDN loading timeout - creating fallback editor');
+            createFallbackEditor();
+        }, 10000); // 10 second timeout
+        
+        require.config({ 
+            paths: { vs: 'https://unpkg.com/monaco-editor@0.45.0/min/vs' },
+            waitSeconds: 30 // Increase wait time for CDN
+        });
+        
+        require(['vs/editor/editor.main'], function () {
+            clearTimeout(monacoTimeout); // Cancel timeout since loading succeeded
+            console.log('✅ Monaco modules loaded successfully, creating A-Frame editor...');
+
+            // Pre-creation diagnostics
+            console.log('🔍 Pre-creation checks:');
+            console.log('  - Monaco object:', typeof monaco);
+            console.log('  - Monaco.editor:', typeof monaco?.editor);
+            console.log('  - Monaco.editor.create:', typeof monaco?.editor?.create);
+
+            const container = document.getElementById('monaco-editor');
+            console.log('  - Container element:', !!container);
+            console.log('  - Container visible:', container?.offsetWidth > 0 && container?.offsetHeight > 0);
+            console.log('  - Container dimensions:', {
+                width: container?.offsetWidth,
+                height: container?.offsetHeight
+            });
+
+            const defaultCode = getBasicSceneCode();
+            console.log('  - Default code length:', defaultCode?.length);
+            console.log('  - Default code preview:', defaultCode?.substring(0, 100));
+
+            try {
+                editor = monaco.editor.create(document.getElementById('monaco-editor'), {
+                    value: getBasicSceneCode(),
+                    language: 'html',
+                    theme: 'vs-dark',
+                    automaticLayout: true,
+                    minimap: { enabled: true },
+                    fontSize: 14,
+                    wordWrap: 'on',
+                    scrollBeyondLastLine: false,
+                    renderLineHighlight: 'all',
+                    selectionHighlight: false,
+                    lineNumbers: 'on',
+                    glyphMargin: true,
+                    folding: true,
+                    foldingStrategy: 'indentation',
+                    showFoldingControls: 'always',
+                    unfoldOnClickAfterEndOfLine: false,
+                    tabSize: 2
+                });
+                
+                console.log('✅ Monaco editor created successfully:', !!editor);
+                
+                // Auto-save on changes
+                editor.onDidChangeModelContent(() => {
+                    debounce(notifyCodeChange, 500)();
+                });
+                
+                // Make editor globally accessible
+                window.editor = editor;
+                window.monacoEditor = editor;
+                window.codeEditor = editor;
+                
+                // Enhanced readiness check with multiple verification steps
+                function verifyAndMarkReady() {
+                    console.log('🔍 Verifying Monaco editor readiness for A-Frame...');
+                    console.log('- Editor instance:', !!editor);
+                    console.log('- Editor model:', !!editor.getModel());
+                    console.log('- setValue function:', typeof editor.setValue === 'function');
+                    console.log('- getValue function:', typeof editor.getValue === 'function');
+                    console.log('- DOM ready:', document.readyState);
+                    
+                    if (editor && editor.getModel && 
+                        typeof editor.setValue === 'function' && 
+                        typeof editor.getValue === 'function') {
+                        
+                        // Final functional test
+                        try {
+                            const testContent = editor.getValue();
+                            editor.layout(); // Trigger layout calculation
+                            console.log('✅ Monaco functional test passed - content length:', testContent.length);
+                            
+                            // Mark as ready
+                            window.editorReady = true;
+                            console.log('🎯 MONACO EDITOR MARKED AS READY FOR INJECTION');
+                            
+                            // Initialize A-Frame after Monaco is confirmed ready
+                            initializeAFrame();
+                            
+                        } catch (testError) {
+                            console.error('❌ Monaco functional test failed:', testError);
+                            setTimeout(verifyAndMarkReady, 500); // Retry
+                        }
+                    } else {
+                        console.warn('⚠️ Monaco not fully ready yet, retrying...');
+                        setTimeout(verifyAndMarkReady, 500); // Retry
+                    }
+                }
+                
+                // Start verification process with initial delay
+                setTimeout(verifyAndMarkReady, 1000);
+                
+            } catch (editorError) {
+                console.error('❌ Failed to create Monaco editor:', editorError);
+                console.error('🔍 Error type:', typeof editorError);
+                console.error('🔍 Error message:', editorError?.message);
+                console.error('🔍 Error stack:', editorError?.stack);
+                console.error('🔍 Error name:', editorError?.name);
+                console.error('🔍 Full error object:', JSON.stringify(editorError, Object.getOwnPropertyNames(editorError)));
+                console.error('🔍 Monaco available:', typeof monaco);
+                console.error('🔍 Monaco.editor available:', typeof monaco?.editor);
+                console.error('🔍 Container exists:', !!document.getElementById('monaco-editor'));
+                console.error('🔍 Container dimensions:', {
+                    width: document.getElementById('monaco-editor')?.offsetWidth,
+                    height: document.getElementById('monaco-editor')?.offsetHeight
+                });
+                createFallbackEditor();
+            }
+        }, function(error) {
+            clearTimeout(monacoTimeout);
+            console.error('❌ Failed to load Monaco from CDN:', error);
+            createFallbackEditor();
+        });
+        
+        // Fallback editor function for A-Frame
+        function createFallbackEditor() {
+            console.log('🔧 Creating fallback textarea editor for A-Frame...');
+            
+            const editorContainer = document.getElementById('monaco-editor');
+            if (!editorContainer) {
+                console.error('❌ Editor container not found');
+                return;
+            }
+            
+            // Create a textarea fallback
+            editorContainer.innerHTML = '<textarea id="fallback-editor" style="width: 100%; height: 100%; background: #1e1e1e; color: #fff; font-family: \'Monaco\', \'Consolas\', monospace; font-size: 14px; border: none; outline: none; padding: 10px;"></textarea>';
+            
+            const textarea = document.getElementById('fallback-editor');
+            if (textarea) {
+                textarea.value = getBasicSceneCode();
+                
+                // Create minimal editor interface
+                window.editor = {
+                    setValue: (code) => { textarea.value = code; },
+                    getValue: () => textarea.value,
+                    getModel: () => ({ setValue: (code) => textarea.value = code }),
+                    layout: () => {},
+                    focus: () => textarea.focus(),
+                    setPosition: () => {},
+                    onDidChangeModelContent: (callback) => {
+                        textarea.addEventListener('input', callback);
+                        return { dispose: () => {} };
+                    }
+                };
+                
+                window.monacoEditor = window.editor;
+                window.codeEditor = window.editor;
+                
+                // Auto-save on changes
+                textarea.addEventListener('input', () => {
+                    debounce(notifyCodeChange, 500)();
+                });
+                
+                // Mark as ready
+                window.editorReady = true;
+                console.log('✅ Fallback editor ready for injection');
+                
+                // Initialize A-Frame
+                initializeAFrame();
+            }
+        }
+        
+        // Initialize A-Frame
+        function initializeAFrame() {
+            console.log('Initializing A-Frame...');
+            
+            // Hide loading
+            document.getElementById('loading').style.display = 'none';
+            
+            // Create default scene
+            createDefaultScene();
+            
+            console.log('A-Frame initialization complete');
+
+            // CRITICAL FIX: Enforce pointer-events after A-Frame loads
+            // A-Frame might override our CSS, so force it via JavaScript
+            setTimeout(enforcePointerEvents, 100);
+            setTimeout(enforcePointerEvents, 500);
+            setTimeout(enforcePointerEvents, 1000);
+
+            // Notify Swift that initialization is complete
+            setTimeout(() => {
+                console.log('A-Frame playground fully initialized');
+                notifySwift('initializationComplete', {
+                    ready: true,
+                    editorReady: !!(window.editorReady && typeof editor !== 'undefined' && editor),
+                    engineReady: true // A-Frame is always ready once loaded
+                });
+            }, 1500);
+        }
+
+        // CRITICAL: Force pointer-events settings for Android WebView
+        function enforcePointerEvents() {
+            console.log('🔧 Enforcing pointer-events for Android WebView...');
+
+            // Container should NOT capture events (let them pass to buttons)
+            const container = document.getElementById('aframe-container');
+            if (container) {
+                container.style.pointerEvents = 'none';
+                container.style.touchAction = 'auto';
+                console.log('✅ Set aframe-container pointer-events: none, touch-action: auto');
+            }
+
+            // But scene and canvas SHOULD capture events for VR interaction
+            const scene = document.querySelector('#aframe-container a-scene');
+            if (scene) {
+                scene.style.pointerEvents = 'auto';
+                scene.style.touchAction = 'auto';
+                // CRITICAL: Enable cursor and raycaster for A-Frame interactions
+                scene.setAttribute('cursor', 'rayOrigin: mouse');
+                scene.setAttribute('raycaster', 'objects: [data-clickable], a-box, a-sphere, a-cylinder, a-plane, a-entity');
+                console.log('✅ Set a-scene pointer-events: auto with cursor/raycaster');
+            }
+
+            const canvas = document.querySelector('#aframe-container canvas');
+            if (canvas) {
+                canvas.style.pointerEvents = 'auto';
+                canvas.style.touchAction = 'auto';
+                console.log('✅ Set canvas pointer-events: auto, touch-action: auto');
+            }
+
+            // Ensure header and buttons are clickable
+            const header = document.querySelector('.header');
+            if (header) {
+                header.style.pointerEvents = 'auto';
+                header.style.zIndex = '10001';
+                header.style.touchAction = 'manipulation';
+                console.log('✅ Set header pointer-events: auto, z-index: 10001');
+            }
+
+            const buttons = document.querySelectorAll('.menu-btn, .editor-toggle-btn, .console-open-btn');
+            buttons.forEach(btn => {
+                btn.style.pointerEvents = 'auto';
+                btn.style.touchAction = 'manipulation';
+            });
+            console.log('✅ Set', buttons.length, 'buttons pointer-events: auto, touch-action: manipulation');
+        }
+        
+        function getBasicSceneCode() {
+            return `<!-- Neon Cyberpunk City Scene -->
+<!-- Features: Glowing buildings, animated lights, particle effects -->
+<a-scene embedded vr-mode-ui="enabled: true" background="color: #0a0015" fog="type: exponential; color: #0a0015; density: 0.05">
+    <!-- Sky with stars -->
+    <a-sky color="#0a0015" material="shader: flat"></a-sky>
+
+    <!-- Lighting -->
+    <a-light type="ambient" color="#220033" intensity="0.5"></a-light>
+
+    <!-- Neon cyan light -->
+    <a-light type="point" color="#00ffff" intensity="2" position="5 5 -5"
+        animation="property: position; to: -5 5 -5; dir: alternate; loop: true; dur: 4000; easing: easeInOutSine"></a-light>
+
+    <!-- Neon magenta light -->
+    <a-light type="point" color="#ff00ff" intensity="2" position="-5 5 -5"
+        animation="property: position; to: 5 5 -5; dir: alternate; loop: true; dur: 4000; easing: easeInOutSine"></a-light>
+
+    <!-- Central glowing orb -->
+    <a-sphere position="0 2.5 -6" radius="0.8" color="#00ffff"
+        material="shader: flat; emissive: #00ffff; emissiveIntensity: 2"
+        animation__rotate="property: rotation; to: 0 360 0; loop: true; dur: 3000"
+        animation__float="property: position; to: 0 3.5 -6; dir: alternate; loop: true; dur: 2000; easing: easeInOutSine"
+        animation__pulse="property: scale; to: 1.2 1.2 1.2; dir: alternate; loop: true; dur: 1000">
+    </a-sphere>
+
+    <!-- Neon buildings -->
+    <a-box position="-3 1.5 -8" width="1.5" height="3" depth="1.5" color="#ff00ff"
+        material="shader: flat; emissive: #ff00ff; emissiveIntensity: 1.5"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 8000"></a-box>
+
+    <a-box position="3 2 -8" width="1.5" height="4" depth="1.5" color="#00ffff"
+        material="shader: flat; emissive: #00ffff; emissiveIntensity: 1.5"
+        animation="property: rotation; to: 0 -360 0; loop: true; dur: 8000"></a-box>
+
+    <a-box position="0 1 -10" width="2" height="2" depth="2" color="#ffff00"
+        material="shader: flat; emissive: #ffff00; emissiveIntensity: 1.5"
+        animation="property: rotation; to: 360 360 0; loop: true; dur: 10000"></a-box>
+
+    <!-- Floating neon rings -->
+    <a-torus position="-2 2 -5" radius="0.5" radius-tubular="0.05" color="#ff0080"
+        material="shader: flat; emissive: #ff0080; emissiveIntensity: 2"
+        animation__rotate="property: rotation; to: 360 0 360; loop: true; dur: 5000"
+        animation__float="property: position; to: -2 3 -5; dir: alternate; loop: true; dur: 2500"></a-torus>
+
+    <a-torus position="2 2 -5" radius="0.5" radius-tubular="0.05" color="#0080ff"
+        material="shader: flat; emissive: #0080ff; emissiveIntensity: 2"
+        animation__rotate="property: rotation; to: 0 360 360; loop: true; dur: 5000"
+        animation__float="property: position; to: 2 3 -5; dir: alternate; loop: true; dur: 2500"></a-torus>
+
+    <!-- Grid floor (cyberpunk style) -->
+    <a-plane position="0 0 -6" rotation="-90 0 0" width="20" height="20"
+        color="#0a0a0a"
+        material="wireframe: true; wireframeLinewidth: 2; color: #ff00ff; opacity: 0.5; transparent: true"></a-plane>
+
+    <!-- Glowing text -->
+    <a-text value="NEON CITY" position="0 4 -7" align="center" width="6"
+        color="#00ffff"
+        material="shader: flat; emissive: #00ffff"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 12000"></a-text>
+
+    <!-- Camera -->
+    <a-camera look-controls wasd-controls position="0 1.6 0">
+        <a-cursor color="#00ffff"></a-cursor>
+    </a-camera>
+</a-scene>`;
+        }
+
+        function getRotatingCubeCode() {
+            return `<a-scene embedded vr-mode-ui="enabled: true" background="color: #0a001a">
+    <!-- Dim ambient for dramatic lighting -->
+    <a-light type="ambient" color="#2d1b4e" intensity="0.4"></a-light>
+
+    <!-- Central rotating cube cluster - 3 cubes with emissive glow -->
+    <a-box position="0 2.5 -5" rotation="0 45 0" width="1.5" height="1.5" depth="1.5" color="#ff00ff"
+        material="shader: flat; emissive: #ff00ff; emissiveIntensity: 2"
+        animation="property: rotation; to: 360 405 360; loop: true; dur: 5000; easing: linear"></a-box>
+
+    <a-box position="0 2.5 -5" rotation="45 0 0" width="1.2" height="1.2" depth="1.2" color="#00ffff"
+        material="shader: flat; emissive: #00ffff; emissiveIntensity: 1.8; opacity: 0.7; transparent: true"
+        animation="property: rotation; to: 405 360 0; loop: true; dur: 4000; easing: linear"></a-box>
+
+    <a-box position="0 2.5 -5" rotation="0 0 45" width="0.9" height="0.9" depth="0.9" color="#ffff00"
+        material="shader: flat; emissive: #ffff00; emissiveIntensity: 1.5; opacity: 0.8; transparent: true"
+        animation="property: rotation; to: 0 360 405; loop: true; dur: 3000; easing: linear"></a-box>
+
+    <!-- Point lights at cube positions -->
+    <a-light type="point" position="0 2.5 -5" intensity="2.5" color="#ff00ff" distance="8"></a-light>
+
+    <!-- Orbiting satellite cubes -->
+    <a-entity position="0 2.5 -5" animation="property: rotation; to: 0 360 0; loop: true; dur: 8000">
+        <a-box position="3 0 0" width="0.5" height="0.5" depth="0.5" color="#ff1493"
+            material="shader: flat; emissive: #ff1493; emissiveIntensity: 2"
+            animation="property: rotation; to: 360 360 360; loop: true; dur: 2000"></a-box>
+        <a-light type="point" position="3 0 0" intensity="1" color="#ff1493" distance="4"></a-light>
+    </a-entity>
+
+    <a-entity position="0 2.5 -5" animation="property: rotation; to: 0 -360 0; loop: true; dur: 6000">
+        <a-box position="3 0 0" width="0.5" height="0.5" depth="0.5" color="#00ff80"
+            material="shader: flat; emissive: #00ff80; emissiveIntensity: 2"
+            animation="property: rotation; to: -360 -360 -360; loop: true; dur: 2500"></a-box>
+        <a-light type="point" position="3 0 0" intensity="1" color="#00ff80" distance="4"></a-light>
+    </a-entity>
+
+    <!-- Wireframe spinning cubes on sides -->
+    <a-box position="-4 2.5 -5" width="1.5" height="1.5" depth="1.5" color="#00ffff"
+        material="shader: flat; wireframe: true; emissive: #00ffff; emissiveIntensity: 1.5"
+        animation="property: rotation; to: 360 0 360; loop: true; dur: 6000"></a-box>
+
+    <a-box position="4 2.5 -5" width="1.5" height="1.5" depth="1.5" color="#ff8800"
+        material="shader: flat; wireframe: true; emissive: #ff8800; emissiveIntensity: 1.5"
+        animation="property: rotation; to: 0 360 360; loop: true; dur: 7000"></a-box>
+
+    <!-- Glowing grid floor -->
+    <a-plane position="0 0 -5" rotation="-90 0 0" width="20" height="20" color="#1a0030"
+        material="shader: flat; wireframe: true; emissive: #8000ff; emissiveIntensity: 1"></a-plane>
+
+    <!-- Gently moving camera -->
+    <a-camera look-controls wasd-controls position="0 2.5 4"
+        animation="property: position; to: 1 3 4; dir: alternate; loop: true; dur: 8000; easing: easeInOutSine">
+        <a-cursor color="#fff"></a-cursor>
+    </a-camera>
+</a-scene>`;
+        }
+
+        function getInteractiveObjectsCode() {
+            return `<a-scene embedded vr-mode-ui="enabled: true" background="color: #0f0020">
+    <!-- Dim ambient lighting -->
+    <a-light type="ambient" color="#2a1850" intensity="0.5"></a-light>
+
+    <!-- Left sphere - Color change on click (Magenta to Cyan) -->
+    <a-sphere position="-3 2 -4" radius="0.9" color="#ff00ff" class="clickable"
+        material="shader: flat; emissive: #ff00ff; emissiveIntensity: 1.5"
+        animation__idle="property: position; to: -3 2.3 -4; dir: alternate; loop: true; dur: 2000; easing: easeInOutSine"
+        animation__click="property: components.material.material.color; type: color; from: #ff00ff; to: #00ffff; startEvents: click; dur: 500"
+        animation__click_emissive="property: components.material.material.emissive; type: color; from: #ff00ff; to: #00ffff; startEvents: click; dur: 500">
+    </a-sphere>
+    <a-light type="point" position="-3 2 -4" intensity="1.5" color="#ff00ff" distance="5"></a-light>
+
+    <!-- Center-left cube - Scale pulse on click -->
+    <a-box position="-1.5 2 -4" width="0.9" height="0.9" depth="0.9" color="#00ffff" class="clickable"
+        material="shader: flat; emissive: #00ffff; emissiveIntensity: 2"
+        animation__rotate="property: rotation; to: 0 360 0; loop: true; dur: 4000"
+        animation__click="property: scale; from: 1 1 1; to: 1.8 1.8 1.8; startEvents: click; dur: 600; dir: alternate; loop: 1; easing: easeOutElastic">
+    </a-box>
+    <a-light type="point" position="-1.5 2 -4" intensity="1.5" color="#00ffff" distance="5"></a-light>
+
+    <!-- Center torus - Spin on click -->
+    <a-torus position="0 2 -4" radius="0.7" radius-tubular="0.2" color="#ffff00" class="clickable"
+        material="shader: flat; emissive: #ffff00; emissiveIntensity: 2"
+        animation__float="property: position; to: 0 2.4 -4; dir: alternate; loop: true; dur: 2500; easing: easeInOutSine"
+        animation__click="property: rotation; to: 360 720 0; startEvents: click; dur: 1500; easing: easeOutBack">
+    </a-torus>
+    <a-light type="point" position="0 2 -4" intensity="2" color="#ffff00" distance="5"></a-light>
+
+    <!-- Center-right cylinder - Bounce on click -->
+    <a-cylinder position="1.5 2 -4" radius="0.4" height="1.2" color="#ff1493" class="clickable"
+        material="shader: flat; emissive: #ff1493; emissiveIntensity: 1.8"
+        animation__spin="property: rotation; to: 0 360 0; loop: true; dur: 3000"
+        animation__click="property: position; from: 1.5 2 -4; to: 1.5 4 -4; startEvents: click; dur: 800; dir: alternate; loop: 1; easing: easeOutBounce">
+    </a-cylinder>
+    <a-light type="point" position="1.5 2 -4" intensity="1.5" color="#ff1493" distance="5"></a-light>
+
+    <!-- Right octahedron - Explode effect on click -->
+    <a-octahedron position="3 2 -4" radius="0.8" color="#00ff80" class="clickable"
+        material="shader: flat; emissive: #00ff80; emissiveIntensity: 2"
+        animation__idle="property: rotation; to: 360 360 0; loop: true; dur: 5000; easing: linear"
+        animation__click_scale="property: scale; from: 1 1 1; to: 2.5 2.5 2.5; startEvents: click; dur: 500; dir: alternate; loop: 1; easing: easeOutQuint"
+        animation__click_opacity="property: components.material.material.opacity; from: 1; to: 0.2; startEvents: click; dur: 500; dir: alternate; loop: 1">
+    </a-octahedron>
+    <a-light type="point" position="3 2 -4" intensity="1.8" color="#00ff80" distance="5"></a-light>
+
+    <!-- Floating text instruction -->
+    <a-text value="CLICK THE OBJECTS!" position="0 3.5 -4" align="center" width="8" color="#ffffff"
+        material="shader: flat; emissive: #ffffff; emissiveIntensity: 1.5"
+        animation="property: position; to: 0 3.8 -4; dir: alternate; loop: true; dur: 2000; easing: easeInOutSine"></a-text>
+
+    <!-- Glowing floor grid -->
+    <a-plane position="0 0 -4" rotation="-90 0 0" width="20" height="20" color="#1a0030"
+        material="shader: flat; wireframe: true; emissive: #8000ff; emissiveIntensity: 1"></a-plane>
+
+    <!-- Camera with cursor -->
+    <a-camera look-controls wasd-controls position="0 2 2">
+        <a-cursor color="#ffffff" opacity="0.8" scale="0.7 0.7 0.7" raycaster="objects: .clickable"
+            material="shader: flat; emissive: #00ffff; emissiveIntensity: 2"
+            animation__hover="property: scale; from: 0.7 0.7 0.7; to: 1.2 1.2 1.2; startEvents: mouseenter; dur: 200"
+            animation__leave="property: scale; from: 1.2 1.2 1.2; to: 0.7 0.7 0.7; startEvents: mouseleave; dur: 200">
+        </a-cursor>
+    </a-camera>
+</a-scene>`;
+        }
+
+        function getTexturedSphereCode() {
+            return `<a-scene embedded vr-mode-ui="enabled: true" background="color: #0a0020">
+    <!-- Ambient purple lighting -->
+    <a-light type="ambient" color="#3d1e6d" intensity="0.5"></a-light>
+
+    <!-- Central metallic sphere - Magenta with high metalness -->
+    <a-sphere position="0 2.5 -5" radius="1.5"
+        material="color: #ff00ff; metalness: 0.9; roughness: 0.1; emissive: #ff00ff; emissiveIntensity: 0.5"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 8000"></a-sphere>
+    <a-light type="point" position="0 2.5 -5" intensity="2" color="#ff00ff" distance="8"></a-light>
+
+    <!-- Left metallic sphere - Cyan mirror -->
+    <a-sphere position="-3 2.5 -5" radius="1"
+        material="color: #00ffff; metalness: 0.95; roughness: 0.05; emissive: #00ffff; emissiveIntensity: 0.8"
+        animation="property: rotation; to: 360 0 360; loop: true; dur: 6000"></a-sphere>
+    <a-light type="point" position="-3 2.5 -5" intensity="1.5" color="#00ffff" distance="6"></a-light>
+
+    <!-- Right metallic sphere - Gold chrome -->
+    <a-sphere position="3 2.5 -5" radius="1"
+        material="color: #ffd700; metalness: 1.0; roughness: 0.0; emissive: #ffff00; emissiveIntensity: 0.6"
+        animation="property: rotation; to: 0 360 360; loop: true; dur: 7000"></a-sphere>
+    <a-light type="point" position="3 2.5 -5" intensity="1.8" color="#ffff00" distance="6"></a-light>
+
+    <!-- Orbiting rough sphere - Hot pink with texture -->
+    <a-entity position="0 2.5 -5" animation="property: rotation; to: 0 360 0; loop: true; dur: 10000">
+        <a-sphere position="4 0 0" radius="0.6"
+            material="color: #ff1493; metalness: 0.3; roughness: 0.9; emissive: #ff1493; emissiveIntensity: 1.5"
+            animation="property: rotation; to: 360 360 0; loop: true; dur: 3000"></a-sphere>
+        <a-light type="point" position="4 0 0" intensity="1" color="#ff1493" distance="4"></a-light>
+    </a-entity>
+
+    <!-- Orbiting smooth sphere - Lime green glossy -->
+    <a-entity position="0 2.5 -5" animation="property: rotation; to: 0 -360 0; loop: true; dur: 8000">
+        <a-sphere position="4 0 0" radius="0.6"
+            material="color: #00ff80; metalness: 0.7; roughness: 0.2; emissive: #00ff80; emissiveIntensity: 1.2"
+            animation="property: rotation; to: -360 -360 0; loop: true; dur: 4000"></a-sphere>
+        <a-light type="point" position="4 0 0" intensity="1.2" color="#00ff80" distance="4"></a-light>
+    </a-entity>
+
+    <!-- Top floating wireframe sphere -->
+    <a-sphere position="0 4.5 -5" radius="0.8"
+        material="shader: flat; wireframe: true; color: #ffffff; emissive: #ffffff; emissiveIntensity: 2"
+        animation__float="property: position; to: 0 5 -5; dir: alternate; loop: true; dur: 3000; easing: easeInOutSine"
+        animation__spin="property: rotation; to: 360 360 360; loop: true; dur: 5000"></a-sphere>
+
+    <!-- Colored directional lights -->
+    <a-light type="directional" position="5 5 5" intensity="1.5" color="#ff00ff"></a-light>
+    <a-light type="directional" position="-5 5 5" intensity="1.5" color="#00ffff"></a-light>
+
+    <!-- Reflective floor grid -->
+    <a-plane position="0 0 -5" rotation="-90 0 0" width="20" height="20"
+        material="color: #1a0030; metalness: 0.8; roughness: 0.3; wireframe: true; emissive: #8000ff; emissiveIntensity: 1"></a-plane>
+
+    <!-- Camera with gentle movement -->
+    <a-camera look-controls wasd-controls position="0 2.5 4"
+        animation="property: position; to: 1.5 3 4; dir: alternate; loop: true; dur: 12000; easing: easeInOutSine">
+        <a-cursor color="#fff"></a-cursor>
+    </a-camera>
+</a-scene>`;
+        }
+
+        function getSkyGradientCode() {
+            return `<a-scene embedded vr-mode-ui="enabled: true">
+    <!-- Animated gradient sky - Purple to cyan transition -->
+    <a-sky color="#ff00ff"
+        animation__color="property: color; from: #ff00ff; to: #00ffff; dir: alternate; loop: true; dur: 15000; easing: easeInOutSine"></a-sky>
+
+    <!-- Bright ambient with color shift -->
+    <a-light type="ambient" color="#ff88ff" intensity="0.8"
+        animation="property: light.color; from: #ff88ff; to: #88ffff; dir: alternate; loop: true; dur: 15000"></a-light>
+
+    <!-- Central glowing sphere - Magenta -->
+    <a-sphere position="0 3 -6" radius="1.2" color="#ff00ff"
+        material="shader: flat; emissive: #ff00ff; emissiveIntensity: 2"
+        animation__float="property: position; to: 0 3.8 -6; dir: alternate; loop: true; dur: 4000; easing: easeInOutSine"
+        animation__rotate="property: rotation; to: 0 360 0; loop: true; dur: 6000"></a-sphere>
+    <a-light type="point" position="0 3 -6" intensity="2.5" color="#ff00ff" distance="10"></a-light>
+
+    <!-- Left tower - Cyan gradient boxes -->
+    <a-box position="-4 0.5 -5" width="1" height="1" depth="1" color="#00ffff"
+        material="shader: flat; emissive: #00ffff; emissiveIntensity: 1.5"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 5000"></a-box>
+    <a-box position="-4 1.5 -5" width="0.9" height="0.9" depth="0.9" color="#00e5ff"
+        material="shader: flat; emissive: #00e5ff; emissiveIntensity: 1.5"
+        animation="property: rotation; to: 360 0 360; loop: true; dur: 4500"></a-box>
+    <a-box position="-4 2.3 -5" width="0.8" height="0.8" depth="0.8" color="#00bfff"
+        material="shader: flat; emissive: #00bfff; emissiveIntensity: 1.5"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 4000"></a-box>
+
+    <!-- Right tower - Yellow gradient cylinders -->
+    <a-cylinder position="4 1 -5" radius="0.5" height="2" color="#ffff00"
+        material="shader: flat; emissive: #ffff00; emissiveIntensity: 1.8"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 5500"></a-cylinder>
+    <a-cylinder position="4 2.7 -5" radius="0.4" height="1.4" color="#ffd700"
+        material="shader: flat; emissive: #ffd700; emissiveIntensity: 1.8"
+        animation="property: rotation; to: 360 0 0; loop: true; dur: 5000"></a-cylinder>
+
+    <!-- Floating torus rings -->
+    <a-torus position="-2 2.5 -4" radius="0.8" radius-tubular="0.15" color="#ff1493"
+        material="shader: flat; emissive: #ff1493; emissiveIntensity: 2"
+        animation__float="property: position; to: -2 3 -4; dir: alternate; loop: true; dur: 3000; easing: easeInOutSine"
+        animation__spin="property: rotation; to: 360 0 360; loop: true; dur: 4000"></a-torus>
+
+    <a-torus position="2 2.5 -4" radius="0.8" radius-tubular="0.15" color="#00ff80"
+        material="shader: flat; emissive: #00ff80; emissiveIntensity: 2"
+        animation__float="property: position; to: 2 3 -4; dir: alternate; loop: true; dur: 3500; easing: easeInOutSine"
+        animation__spin="property: rotation; to: 0 360 360; loop: true; dur: 4500"></a-torus>
+
+    <!-- Colorful floor with animated emissive -->
+    <a-plane position="0 0 -5" rotation="-90 0 0" width="30" height="30" color="#1a0030"
+        material="shader: flat; wireframe: true; emissive: #ff00ff; emissiveIntensity: 1"
+        animation="property: components.material.material.emissive; type: color; from: #ff00ff; to: #00ffff; dir: alternate; loop: true; dur: 15000"></a-plane>
+
+    <!-- Directional lights matching sky gradient -->
+    <a-light type="directional" position="10 10 5" intensity="1.5" color="#ff00ff"
+        animation="property: light.color; from: #ff00ff; to: #00ffff; dir: alternate; loop: true; dur: 15000"></a-light>
+
+    <!-- Camera with gentle orbit -->
+    <a-camera look-controls wasd-controls position="0 2 5"
+        animation="property: position; to: 2 2.5 5; dir: alternate; loop: true; dur: 10000; easing: easeInOutSine">
+        <a-cursor color="#fff"></a-cursor>
+    </a-camera>
+</a-scene>`;
+        }
+
+        function getPhysicsDemoCode() {
+            return `<a-scene embedded vr-mode-ui="enabled: true" background="color: #0a0015" physics="gravity: -9.8">
+    <!-- Dim ambient for dramatic glow -->
+    <a-light type="ambient" color="#2a1540" intensity="0.5"></a-light>
+
+    <!-- Falling glowing spheres - Magenta gradient -->
+    <a-sphere position="-1.5 8 -5" radius="0.6" color="#ff00ff" dynamic-body
+        material="shader: flat; emissive: #ff00ff; emissiveIntensity: 2"></a-sphere>
+    <a-sphere position="0 9 -5" radius="0.7" color="#ff1493" dynamic-body
+        material="shader: flat; emissive: #ff1493; emissiveIntensity: 2"></a-sphere>
+    <a-sphere position="1.5 10 -5" radius="0.6" color="#ff69b4" dynamic-body
+        material="shader: flat; emissive: #ff69b4; emissiveIntensity: 2"></a-sphere>
+
+    <!-- Falling glowing cubes - Cyan gradient -->
+    <a-box position="-2 11 -5" width="0.8" height="0.8" depth="0.8" color="#00ffff" dynamic-body
+        material="shader: flat; emissive: #00ffff; emissiveIntensity: 2.5"></a-box>
+    <a-box position="0 12 -5" width="0.9" height="0.9" depth="0.9" color="#00e5ff" dynamic-body
+        material="shader: flat; emissive: #00e5ff; emissiveIntensity: 2.5"></a-box>
+    <a-box position="2 13 -5" width="0.7" height="0.7" depth="0.7" color="#00bfff" dynamic-body
+        material="shader: flat; emissive: #00bfff; emissiveIntensity: 2.5"></a-box>
+
+    <!-- Falling glowing cylinders - Yellow gradient -->
+    <a-cylinder position="-1 14 -5" radius="0.4" height="1.2" color="#ffff00" dynamic-body
+        material="shader: flat; emissive: #ffff00; emissiveIntensity: 2.2"></a-cylinder>
+    <a-cylinder position="1 15 -5" radius="0.35" height="1" color="#ffd700" dynamic-body
+        material="shader: flat; emissive: #ffd700; emissiveIntensity: 2.2"></a-cylinder>
+
+    <!-- Static glowing platform (floor) -->
+    <a-plane position="0 0 -5" rotation="-90 0 0" width="12" height="12" color="#1a0030" static-body
+        material="shader: flat; wireframe: true; emissive: #8000ff; emissiveIntensity: 1.5"></a-plane>
+
+    <!-- Static glowing walls -->
+    <a-box position="-6 2 -5" width="0.3" height="4" depth="12" color="#ff00ff" static-body
+        material="shader: flat; wireframe: true; emissive: #ff00ff; emissiveIntensity: 1.2"></a-box>
+    <a-box position="6 2 -5" width="0.3" height="4" depth="12" color="#00ffff" static-body
+        material="shader: flat; wireframe: true; emissive: #00ffff; emissiveIntensity: 1.2"></a-box>
+
+    <!-- Colored point lights for falling objects -->
+    <a-light type="point" position="0 8 -5" intensity="2" color="#ff00ff" distance="8"></a-light>
+    <a-light type="point" position="0 12 -5" intensity="2.5" color="#00ffff" distance="10"></a-light>
+    <a-light type="point" position="0 14 -5" intensity="2" color="#ffff00" distance="8"></a-light>
+
+    <!-- Camera positioned to watch the physics -->
+    <a-camera look-controls wasd-controls position="0 3 5"
+        animation="property: position; to: 2 3.5 5; dir: alternate; loop: true; dur: 8000; easing: easeInOutSine">
+        <a-cursor color="#fff"></a-cursor>
+    </a-camera>
+</a-scene>`;
+        }
+
+        function getAnimatedCameraCode() {
+            return `<a-scene embedded vr-mode-ui="enabled: true" background="color: #0d0025">
+    <!-- Dim ambient -->
+    <a-light type="ambient" color="#2d1560" intensity="0.4"></a-light>
+
+    <!-- Central attraction - Glowing magenta sphere -->
+    <a-sphere position="0 2.5 -8" radius="1.5" color="#ff00ff"
+        material="shader: flat; emissive: #ff00ff; emissiveIntensity: 3"
+        animation__pulse="property: scale; to: 1.3 1.3 1.3; dir: alternate; loop: true; dur: 2000; easing: easeInOutSine"
+        animation__spin="property: rotation; to: 0 360 0; loop: true; dur: 6000"></a-sphere>
+    <a-light type="point" position="0 2.5 -8" intensity="3" color="#ff00ff" distance="12"></a-light>
+
+    <!-- Left monument - Cyan tower -->
+    <a-box position="-5 1 -6" width="1.5" height="2" depth="1.5" color="#00ffff"
+        material="shader: flat; emissive: #00ffff; emissiveIntensity: 2"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 8000"></a-box>
+    <a-box position="-5 3.5 -6" width="1" height="1" depth="1" color="#00e5ff"
+        material="shader: flat; emissive: #00e5ff; emissiveIntensity: 2.2"></a-box>
+    <a-light type="point" position="-5 3 -6" intensity="2" color="#00ffff" distance="8"></a-light>
+
+    <!-- Right monument - Yellow obelisk -->
+    <a-cylinder position="5 2 -6" radius="0.6" height="4" color="#ffff00"
+        material="shader: flat; emissive: #ffff00; emissiveIntensity: 2.5"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 7000"></a-cylinder>
+    <a-cone position="5 4.5 -6" radius-bottom="0.7" radius-top="0" height="1.5" color="#ffd700"
+        material="shader: flat; emissive: #ffd700; emissiveIntensity: 2.5"></a-cone>
+    <a-light type="point" position="5 3 -6" intensity="2.2" color="#ffff00" distance="8"></a-light>
+
+    <!-- Back left - Pink crystal -->
+    <a-octahedron position="-4 2 -12" radius="1.2" color="#ff1493"
+        material="shader: flat; emissive: #ff1493; emissiveIntensity: 2.8"
+        animation="property: rotation; to: 360 360 0; loop: true; dur: 5000"></a-octahedron>
+    <a-light type="point" position="-4 2 -12" intensity="2" color="#ff1493" distance="8"></a-light>
+
+    <!-- Back right - Green prism -->
+    <a-box position="4 1.5 -12" width="1.2" height="3" depth="1.2" color="#00ff80"
+        material="shader: flat; emissive: #00ff80; emissiveIntensity: 2.5"
+        animation="property: rotation; to: 0 360 360; loop: true; dur: 6000"></a-box>
+    <a-light type="point" position="4 2 -12" intensity="2" color="#00ff80" distance="8"></a-light>
+
+    <!-- Glowing grid floor -->
+    <a-plane position="0 0 -8" rotation="-90 0 0" width="30" height="30" color="#1a0030"
+        material="shader: flat; wireframe: true; emissive: #8000ff; emissiveIntensity: 1.2"></a-plane>
+
+    <!-- Animated camera - Automatic tour through the scene -->
+    <a-camera look-controls="enabled: false" wasd-controls="enabled: false" position="0 2 6"
+        animation__path="property: position; to: 0 4 -2; loop: true; dur: 8000; dir: alternate; easing: easeInOutSine"
+        animation__look="property: rotation; to: 0 360 0; loop: true; dur: 16000; easing: linear">
+        <a-cursor color="#ffffff" opacity="0.8"
+            material="shader: flat; emissive: #00ffff; emissiveIntensity: 2"></a-cursor>
+        <a-text value="CINEMATIC CAMERA MODE" position="0 0.3 -1" align="center" width="2" color="#00ffff"
+            material="shader: flat; emissive: #00ffff; emissiveIntensity: 2"></a-text>
+    </a-camera>
+</a-scene>`;
+        }
+
+        function get360ImageCode() {
+            return `<a-scene embedded vr-mode-ui="enabled: true">
+    <!-- Gradient sky with color animation - Purple to Cyan -->
+    <a-sky color="#ff00ff" radius="500"
+        animation="property: color; from: #ff00ff; to: #00ffff; dir: alternate; loop: true; dur: 20000; easing: easeInOutSine"></a-sky>
+
+    <!-- Bright ambient with matching color shift -->
+    <a-light type="ambient" color="#ff88ff" intensity="0.9"
+        animation="property: light.color; from: #ff88ff; to: #88ffff; dir: alternate; loop: true; dur: 20000"></a-light>
+
+    <!-- Floating title text -->
+    <a-text value="360° IMMERSIVE ENVIRONMENT" position="0 3.5 -4" align="center" width="10" color="#ffffff"
+        material="shader: flat; emissive: #ffffff; emissiveIntensity: 2"
+        animation__float="property: position; to: 0 4 -4; dir: alternate; loop: true; dur: 4000; easing: easeInOutSine"></a-text>
+
+    <!-- Central glowing sphere constellation -->
+    <a-sphere position="0 2 -5" radius="0.8" color="#ff00ff"
+        material="shader: flat; emissive: #ff00ff; emissiveIntensity: 3"
+        animation__spin="property: rotation; to: 0 360 0; loop: true; dur: 4000"
+        animation__pulse="property: scale; to: 1.3 1.3 1.3; dir: alternate; loop: true; dur: 2000"></a-sphere>
+    <a-light type="point" position="0 2 -5" intensity="2.5" color="#ff00ff" distance="10"></a-light>
+
+    <!-- Orbiting spheres around center -->
+    <a-entity position="0 2 -5" animation="property: rotation; to: 0 360 0; loop: true; dur: 8000">
+        <a-sphere position="2 0 0" radius="0.3" color="#00ffff"
+            material="shader: flat; emissive: #00ffff; emissiveIntensity: 3"></a-sphere>
+        <a-sphere position="-2 0 0" radius="0.3" color="#ffff00"
+            material="shader: flat; emissive: #ffff00; emissiveIntensity: 3"></a-sphere>
+        <a-sphere position="0 0 2" radius="0.3" color="#ff1493"
+            material="shader: flat; emissive: #ff1493; emissiveIntensity: 3"></a-sphere>
+        <a-sphere position="0 0 -2" radius="0.3" color="#00ff80"
+            material="shader: flat; emissive: #00ff80; emissiveIntensity: 3"></a-sphere>
+    </a-entity>
+
+    <!-- Distant glowing monuments in cardinal directions -->
+    <a-box position="0 1.5 -15" width="2" height="3" depth="2" color="#ff00ff"
+        material="shader: flat; emissive: #ff00ff; emissiveIntensity: 2"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 10000"></a-box>
+
+    <a-cylinder position="15 2 0" radius="1" height="4" color="#00ffff"
+        material="shader: flat; emissive: #00ffff; emissiveIntensity: 2.5"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 12000"></a-cylinder>
+
+    <a-octahedron position="-15 2 0" radius="1.5" color="#ffff00"
+        material="shader: flat; emissive: #ffff00; emissiveIntensity: 2.2"
+        animation="property: rotation; to: 360 360 0; loop: true; dur: 9000"></a-octahedron>
+
+    <a-torus position="0 2.5 15" radius="2" radius-tubular="0.4" color="#ff1493"
+        material="shader: flat; emissive: #ff1493; emissiveIntensity: 2.8"
+        animation="property: rotation; to: 360 0 360; loop: true; dur: 8000"></a-torus>
+
+    <!-- Floating rings in the sky -->
+    <a-ring position="0 8 0" radius-inner="8" radius-outer="9" rotation="-90 0 0" color="#00ffff"
+        material="shader: flat; emissive: #00ffff; emissiveIntensity: 1.5; opacity: 0.6; transparent: true; side: double"
+        animation="property: rotation; to: -90 360 0; loop: true; dur: 30000; easing: linear"></a-ring>
+
+    <a-ring position="0 12 0" radius-inner="12" radius-outer="13" rotation="-90 0 0" color="#ff00ff"
+        material="shader: flat; emissive: #ff00ff; emissiveIntensity: 1.5; opacity: 0.5; transparent: true; side: double"
+        animation="property: rotation; to: -90 -360 0; loop: true; dur: 40000; easing: linear"></a-ring>
+
+    <!-- Glowing floor grid -->
+    <a-plane position="0 0 0" rotation="-90 0 0" width="50" height="50" color="#1a0030"
+        material="shader: flat; wireframe: true; emissive: #8000ff; emissiveIntensity: 1"></a-plane>
+
+    <!-- Camera at center for full 360° view -->
+    <a-camera look-controls wasd-controls position="0 1.6 0"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 60000; easing: linear">
+        <a-cursor color="#ffffff" opacity="0.7"
+            material="shader: flat; emissive: #00ffff; emissiveIntensity: 2"></a-cursor>
+        <a-text value="Look around in 360°!" position="0 -0.5 -1.5" align="center" width="3" color="#00ffff"
+            material="shader: flat; emissive: #00ffff; emissiveIntensity: 1.5"></a-text>
+    </a-camera>
+</a-scene>`;
+        }
+
+        function getOrbitingPlanetsCode() {
+            return `<a-scene embedded vr-mode-ui="enabled: true" background="color: #000510" fog="type: exponential; color: #000510; density: 0.015">
+    <!-- Ambient starlight -->
+    <a-light type="ambient" color="#1a1a3e" intensity="0.4"></a-light>
+
+    <!-- Central Sun - Glowing yellow with pulsing light -->
+    <a-sphere position="0 0 0" radius="1.2" color="#ffff00"
+        material="shader: flat; emissive: #ffff00; emissiveIntensity: 3"
+        animation__pulse="property: scale; to: 1.3 1.3 1.3; dir: alternate; loop: true; dur: 2000; easing: easeInOutSine"
+        animation__rotate="property: rotation; to: 0 360 0; loop: true; dur: 20000"></a-sphere>
+    <a-light type="point" position="0 0 0" intensity="3" color="#ffff00" distance="20"></a-light>
+
+    <!-- Mercury - Fast silver orbit -->
+    <a-entity position="0 0 0" animation="property: rotation; to: 0 360 0; loop: true; dur: 4000">
+        <a-sphere position="2.5 0 0" radius="0.15" color="#c0c0c0"
+            material="shader: flat; emissive: #c0c0c0; emissiveIntensity: 0.8"
+            animation="property: rotation; to: 360 360 0; loop: true; dur: 3000"></a-sphere>
+        <a-light type="point" position="2.5 0 0" intensity="0.5" color="#c0c0c0" distance="3"></a-light>
+    </a-entity>
+
+    <!-- Venus - Bright cyan with glow -->
+    <a-entity position="0 0 0" animation="property: rotation; to: 0 360 0; loop: true; dur: 7000">
+        <a-sphere position="4 0 0" radius="0.25" color="#00ffff"
+            material="shader: flat; emissive: #00ffff; emissiveIntensity: 2"
+            animation="property: rotation; to: 0 360 360; loop: true; dur: 5000"></a-sphere>
+        <a-light type="point" position="4 0 0" intensity="1.5" color="#00ffff" distance="5"></a-light>
+        <!-- Venus ring trail -->
+        <a-ring position="4 0 0" radius-inner="0.3" radius-outer="0.4" color="#00ffff"
+            material="shader: flat; emissive: #00ffff; emissiveIntensity: 1; opacity: 0.3; transparent: true"
+            rotation="-90 0 0"></a-ring>
+    </a-entity>
+
+    <!-- Earth - Blue with green glow -->
+    <a-entity position="0 0 0" animation="property: rotation; to: 0 360 0; loop: true; dur: 10000">
+        <a-sphere position="6 0 0" radius="0.3" color="#0080ff"
+            material="shader: flat; emissive: #00ff80; emissiveIntensity: 1.5"
+            animation="property: rotation; to: 0 360 0; loop: true; dur: 6000"></a-sphere>
+        <a-light type="point" position="6 0 0" intensity="1.2" color="#00ff80" distance="4"></a-light>
+        <!-- Moon orbiting Earth -->
+        <a-entity position="6 0 0" animation="property: rotation; to: 0 360 0; loop: true; dur: 2000">
+            <a-sphere position="0.6 0 0" radius="0.08" color="#d0d0d0"
+                material="shader: flat; emissive: #d0d0d0; emissiveIntensity: 1"></a-sphere>
+        </a-entity>
+    </a-entity>
+
+    <!-- Mars - Red warrior planet -->
+    <a-entity position="0 0 0" animation="property: rotation; to: 0 360 0; loop: true; dur: 13000">
+        <a-sphere position="8.5 0 0" radius="0.28" color="#ff4500"
+            material="shader: flat; emissive: #ff4500; emissiveIntensity: 1.8"
+            animation="property: rotation; to: 360 0 360; loop: true; dur: 7000"></a-sphere>
+        <a-light type="point" position="8.5 0 0" intensity="1" color="#ff4500" distance="4"></a-light>
+    </a-entity>
+
+    <!-- Jupiter - Massive magenta giant -->
+    <a-entity position="0 0 0" animation="property: rotation; to: 0 360 0; loop: true; dur: 18000">
+        <a-sphere position="12 0 0" radius="0.6" color="#ff00ff"
+            material="shader: flat; emissive: #ff00ff; emissiveIntensity: 2.5"
+            animation="property: rotation; to: 0 360 0; loop: true; dur: 4000"></a-sphere>
+        <a-light type="point" position="12 0 0" intensity="2" color="#ff00ff" distance="8"></a-light>
+        <!-- Jupiter's ring -->
+        <a-ring position="12 0 0" radius-inner="0.8" radius-outer="1.2" color="#ff00ff"
+            material="shader: flat; emissive: #ff00ff; emissiveIntensity: 1.5; opacity: 0.4; transparent: true"
+            rotation="-80 0 0"></a-ring>
+    </a-entity>
+
+    <!-- Saturn - Yellow with bright rings -->
+    <a-entity position="0 0 0" animation="property: rotation; to: 0 360 0; loop: true; dur: 22000">
+        <a-sphere position="16 0 0" radius="0.5" color="#ffff00"
+            material="shader: flat; emissive: #ffe600; emissiveIntensity: 2"
+            animation="property: rotation; to: 0 360 0; loop: true; dur: 5000"></a-sphere>
+        <a-light type="point" position="16 0 0" intensity="1.8" color="#ffff00" distance="7"></a-light>
+        <!-- Saturn's iconic rings -->
+        <a-ring position="16 0 0" radius-inner="0.7" radius-outer="1.1" color="#ffe600"
+            material="shader: flat; emissive: #ffe600; emissiveIntensity: 2; opacity: 0.6; transparent: true"
+            rotation="-75 0 0"></a-ring>
+        <a-ring position="16 0 0" radius-inner="1.15" radius-outer="1.4" color="#ffd700"
+            material="shader: flat; emissive: #ffd700; emissiveIntensity: 1.5; opacity: 0.5; transparent: true"
+            rotation="-75 0 0"></a-ring>
+    </a-entity>
+
+    <!-- Starfield particles -->
+    <a-entity position="0 0 0">
+        <a-sphere position="25 15 -20" radius="0.05" color="#ffffff" material="shader: flat; emissive: #ffffff; emissiveIntensity: 2"></a-sphere>
+        <a-sphere position="-30 20 -25" radius="0.06" color="#00ffff" material="shader: flat; emissive: #00ffff; emissiveIntensity: 2"></a-sphere>
+        <a-sphere position="35 -18 -30" radius="0.05" color="#ff00ff" material="shader: flat; emissive: #ff00ff; emissiveIntensity: 2"></a-sphere>
+        <a-sphere position="-25 -22 -28" radius="0.07" color="#ffff00" material="shader: flat; emissive: #ffff00; emissiveIntensity: 2"></a-sphere>
+        <a-sphere position="28 25 -35" radius="0.05" color="#ff8800" material="shader: flat; emissive: #ff8800; emissiveIntensity: 2"></a-sphere>
+        <a-sphere position="-32 -15 -32" radius="0.06" color="#00ff80" material="shader: flat; emissive: #00ff80; emissiveIntensity: 2"></a-sphere>
+    </a-entity>
+
+    <!-- Orbiting camera with smooth movement -->
+    <a-camera look-controls wasd-controls position="0 8 18"
+        animation="property: position; to: 5 10 18; dir: alternate; loop: true; dur: 15000; easing: easeInOutSine">
+        <a-cursor color="#fff"></a-cursor>
+    </a-camera>
+</a-scene>`;
+        }
+
+        function getParticleRingCode() {
+            return `<a-scene embedded vr-mode-ui="enabled: true" background="color: #0d0015" fog="type: linear; color: #0d0015; near: 5; far: 30">
+    <!-- Dim ambient for particle visibility -->
+    <a-light type="ambient" color="#1a0030" intensity="0.3"></a-light>
+
+    <!-- Central glowing core -->
+    <a-sphere position="0 2 -5" radius="0.4" color="#ff00ff"
+        material="shader: flat; emissive: #ff00ff; emissiveIntensity: 3"
+        animation__pulse="property: scale; to: 0.5 0.5 0.5; dir: alternate; loop: true; dur: 1500; easing: easeInOutSine"
+        animation__rotate="property: rotation; to: 0 360 360; loop: true; dur: 6000"></a-sphere>
+    <a-light type="point" position="0 2 -5" intensity="2.5" color="#ff00ff" distance="10"></a-light>
+
+    <!-- Outer rotating ring - Hot pink particles -->
+    <a-entity position="0 2 -5" animation="property: rotation; to: 0 360 0; loop: true; dur: 8000">
+        <a-sphere position="3 0 0" radius="0.12" color="#ff1493" material="shader: flat; emissive: #ff1493; emissiveIntensity: 2"></a-sphere>
+        <a-sphere position="2.12 2.12 0" radius="0.12" color="#ff00ff" material="shader: flat; emissive: #ff00ff; emissiveIntensity: 2"></a-sphere>
+        <a-sphere position="0 3 0" radius="0.12" color="#ff69b4" material="shader: flat; emissive: #ff69b4; emissiveIntensity: 2"></a-sphere>
+        <a-sphere position="-2.12 2.12 0" radius="0.12" color="#ff1493" material="shader: flat; emissive: #ff1493; emissiveIntensity: 2"></a-sphere>
+        <a-sphere position="-3 0 0" radius="0.12" color="#ff00ff" material="shader: flat; emissive: #ff00ff; emissiveIntensity: 2"></a-sphere>
+        <a-sphere position="-2.12 -2.12 0" radius="0.12" color="#ff69b4" material="shader: flat; emissive: #ff69b4; emissiveIntensity: 2"></a-sphere>
+        <a-sphere position="0 -3 0" radius="0.12" color="#ff1493" material="shader: flat; emissive: #ff1493; emissiveIntensity: 2"></a-sphere>
+        <a-sphere position="2.12 -2.12 0" radius="0.12" color="#ff00ff" material="shader: flat; emissive: #ff00ff; emissiveIntensity: 2"></a-sphere>
+    </a-entity>
+
+    <!-- Middle ring - Cyan particles (counter-rotating) -->
+    <a-entity position="0 2 -5" animation="property: rotation; to: 0 -360 0; loop: true; dur: 6000">
+        <a-sphere position="2 0 0" radius="0.1" color="#00ffff" material="shader: flat; emissive: #00ffff; emissiveIntensity: 2.5"></a-sphere>
+        <a-sphere position="1.41 1.41 0" radius="0.1" color="#00e5ff" material="shader: flat; emissive: #00e5ff; emissiveIntensity: 2.5"></a-sphere>
+        <a-sphere position="0 2 0" radius="0.1" color="#00bfff" material="shader: flat; emissive: #00bfff; emissiveIntensity: 2.5"></a-sphere>
+        <a-sphere position="-1.41 1.41 0" radius="0.1" color="#00ffff" material="shader: flat; emissive: #00ffff; emissiveIntensity: 2.5"></a-sphere>
+        <a-sphere position="-2 0 0" radius="0.1" color="#00e5ff" material="shader: flat; emissive: #00e5ff; emissiveIntensity: 2.5"></a-sphere>
+        <a-sphere position="-1.41 -1.41 0" radius="0.1" color="#00bfff" material="shader: flat; emissive: #00bfff; emissiveIntensity: 2.5"></a-sphere>
+        <a-sphere position="0 -2 0" radius="0.1" color="#00ffff" material="shader: flat; emissive: #00ffff; emissiveIntensity: 2.5"></a-sphere>
+        <a-sphere position="1.41 -1.41 0" radius="0.1" color="#00e5ff" material="shader: flat; emissive: #00e5ff; emissiveIntensity: 2.5"></a-sphere>
+    </a-entity>
+
+    <!-- Inner ring - Yellow particles (fastest) -->
+    <a-entity position="0 2 -5" animation="property: rotation; to: 0 360 0; loop: true; dur: 4000">
+        <a-sphere position="1 0 0" radius="0.08" color="#ffff00" material="shader: flat; emissive: #ffff00; emissiveIntensity: 3"></a-sphere>
+        <a-sphere position="0.71 0.71 0" radius="0.08" color="#ffd700" material="shader: flat; emissive: #ffd700; emissiveIntensity: 3"></a-sphere>
+        <a-sphere position="0 1 0" radius="0.08" color="#ffea00" material="shader: flat; emissive: #ffea00; emissiveIntensity: 3"></a-sphere>
+        <a-sphere position="-0.71 0.71 0" radius="0.08" color="#ffff00" material="shader: flat; emissive: #ffff00; emissiveIntensity: 3"></a-sphere>
+        <a-sphere position="-1 0 0" radius="0.08" color="#ffd700" material="shader: flat; emissive: #ffd700; emissiveIntensity: 3"></a-sphere>
+        <a-sphere position="-0.71 -0.71 0" radius="0.08" color="#ffea00" material="shader: flat; emissive: #ffea00; emissiveIntensity: 3"></a-sphere>
+        <a-sphere position="0 -1 0" radius="0.08" color="#ffff00" material="shader: flat; emissive: #ffff00; emissiveIntensity: 3"></a-sphere>
+        <a-sphere position="0.71 -0.71 0" radius="0.08" color="#ffd700" material="shader: flat; emissive: #ffd700; emissiveIntensity: 3"></a-sphere>
+    </a-entity>
+
+    <!-- Orbital lights -->
+    <a-entity position="0 2 -5" animation="property: rotation; to: 0 360 0; loop: true; dur: 5000">
+        <a-light type="point" position="4 0 0" intensity="1.5" color="#00ffff" distance="6"></a-light>
+    </a-entity>
+    <a-entity position="0 2 -5" animation="property: rotation; to: 0 -360 0; loop: true; dur: 7000">
+        <a-light type="point" position="4 0 0" intensity="1.5" color="#ff00ff" distance="6"></a-light>
+    </a-entity>
+
+    <!-- Energy waves (expanding rings) -->
+    <a-ring position="0 2 -5" radius-inner="1.5" radius-outer="1.7" color="#00ffff"
+        material="shader: flat; emissive: #00ffff; emissiveIntensity: 2; opacity: 0.5; transparent: true; side: double"
+        animation__scale="property: scale; to: 3 3 3; loop: true; dur: 3000; easing: easeOutQuad"
+        animation__opacity="property: components.material.material.opacity; from: 0.5; to: 0; loop: true; dur: 3000; easing: easeOutQuad"></a-ring>
+
+    <!-- Glowing floor grid -->
+    <a-plane position="0 0 -5" rotation="-90 0 0" width="20" height="20" color="#1a0030"
+        material="shader: flat; wireframe: true; wireframeLinewidth: 2; emissive: #ff00ff; emissiveIntensity: 0.8"></a-plane>
+
+    <!-- Camera with subtle movement -->
+    <a-camera look-controls wasd-controls position="0 3 2"
+        animation="property: position; to: 1 3.5 2; dir: alternate; loop: true; dur: 8000; easing: easeInOutSine">
+        <a-cursor color="#fff"></a-cursor>
+    </a-camera>
+</a-scene>`;
+        }
+
+        function getGlowingTunnelCode() {
+            return `<a-scene embedded vr-mode-ui="enabled: true" background="color: #05000a" fog="type: exponential; color: #05000a; density: 0.03">
+    <!-- Very dark ambient for dramatic glow -->
+    <a-light type="ambient" color="#0a0010" intensity="0.2"></a-light>
+
+    <!-- Magenta ring 1 - closest -->
+    <a-torus position="0 2 -3" radius="2.5" radius-tubular="0.15" color="#ff00ff"
+        material="shader: flat; emissive: #ff00ff; emissiveIntensity: 2.5"
+        animation="property: rotation; to: 360 0 0; loop: true; dur: 3000; easing: linear"></a-torus>
+    <a-light type="point" position="0 2 -3" intensity="2" color="#ff00ff" distance="8"></a-light>
+
+    <!-- Cyan ring 2 -->
+    <a-torus position="0 2 -6" radius="2.5" radius-tubular="0.15" color="#00ffff"
+        material="shader: flat; emissive: #00ffff; emissiveIntensity: 2.5"
+        animation="property: rotation; to: -360 360 0; loop: true; dur: 3500; easing: linear"></a-torus>
+    <a-light type="point" position="0 2 -6" intensity="2" color="#00ffff" distance="8"></a-light>
+
+    <!-- Yellow ring 3 -->
+    <a-torus position="0 2 -9" radius="2.5" radius-tubular="0.15" color="#ffff00"
+        material="shader: flat; emissive: #ffff00; emissiveIntensity: 2.5"
+        animation="property: rotation; to: 360 0 360; loop: true; dur: 4000; easing: linear"></a-torus>
+    <a-light type="point" position="0 2 -9" intensity="2" color="#ffff00" distance="8"></a-light>
+
+    <!-- Hot Pink ring 4 -->
+    <a-torus position="0 2 -12" radius="2.5" radius-tubular="0.15" color="#ff1493"
+        material="shader: flat; emissive: #ff1493; emissiveIntensity: 2.5"
+        animation="property: rotation; to: 0 -360 360; loop: true; dur: 4500; easing: linear"></a-torus>
+    <a-light type="point" position="0 2 -12" intensity="2" color="#ff1493" distance="8"></a-light>
+
+    <!-- Lime green ring 5 -->
+    <a-torus position="0 2 -15" radius="2.5" radius-tubular="0.15" color="#00ff80"
+        material="shader: flat; emissive: #00ff80; emissiveIntensity: 2.5"
+        animation="property: rotation; to: 360 360 0; loop: true; dur: 5000; easing: linear"></a-torus>
+    <a-light type="point" position="0 2 -15" intensity="2" color="#00ff80" distance="8"></a-light>
+
+    <!-- Orange ring 6 -->
+    <a-torus position="0 2 -18" radius="2.5" radius-tubular="0.15" color="#ff8800"
+        material="shader: flat; emissive: #ff8800; emissiveIntensity: 2.5"
+        animation="property: rotation; to: -360 0 -360; loop: true; dur: 5500; easing: linear"></a-torus>
+    <a-light type="point" position="0 2 -18" intensity="2" color="#ff8800" distance="8"></a-light>
+
+    <!-- Deep blue ring 7 -->
+    <a-torus position="0 2 -21" radius="2.5" radius-tubular="0.15" color="#0080ff"
+        material="shader: flat; emissive: #0080ff; emissiveIntensity: 2.5"
+        animation="property: rotation; to: 360 -360 0; loop: true; dur: 6000; easing: linear"></a-torus>
+    <a-light type="point" position="0 2 -21" intensity="2" color="#0080ff" distance="8"></a-light>
+
+    <!-- Purple ring 8 - furthest -->
+    <a-torus position="0 2 -24" radius="2.5" radius-tubular="0.15" color="#8000ff"
+        material="shader: flat; emissive: #8000ff; emissiveIntensity: 2.5"
+        animation="property: rotation; to: 0 360 360; loop: true; dur: 6500; easing: linear"></a-torus>
+    <a-light type="point" position="0 2 -24" intensity="2" color="#8000ff" distance="8"></a-light>
+
+    <!-- Floating energy orbs inside tunnel -->
+    <a-entity position="0 2 -12" animation="property: rotation; to: 0 360 0; loop: true; dur: 8000">
+        <a-sphere position="1.5 0 0" radius="0.1" color="#ff00ff" material="shader: flat; emissive: #ff00ff; emissiveIntensity: 3"></a-sphere>
+        <a-sphere position="-1.5 0 0" radius="0.1" color="#00ffff" material="shader: flat; emissive: #00ffff; emissiveIntensity: 3"></a-sphere>
+        <a-sphere position="0 1.5 0" radius="0.1" color="#ffff00" material="shader: flat; emissive: #ffff00; emissiveIntensity: 3"></a-sphere>
+        <a-sphere position="0 -1.5 0" radius="0.1" color="#ff1493" material="shader: flat; emissive: #ff1493; emissiveIntensity: 3"></a-sphere>
+    </a-entity>
+
+    <!-- Camera with automatic forward movement through tunnel -->
+    <a-camera look-controls wasd-controls position="0 2 2"
+        animation="property: position; to: 0 2 -26; loop: true; dur: 20000; easing: linear; dir: alternate">
+        <a-cursor color="#fff"></a-cursor>
+    </a-camera>
+</a-scene>`;
+        }
+
+        function getStackedCubesCode() {
+            return `<a-scene embedded vr-mode-ui="enabled: true" background="color: #1a0030">
+    <!-- Ambient purple lighting -->
+    <a-light type="ambient" color="#3d1e6d" intensity="0.5"></a-light>
+
+    <!-- Tower 1 - Magenta gradient tower (left) -->
+    <a-box position="-3 0.5 -6" width="1" height="1" depth="1" color="#ff00ff"
+        material="shader: flat; emissive: #ff00ff; emissiveIntensity: 1.5"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 4000"></a-box>
+    <a-box position="-3 1.5 -6" width="0.9" height="0.9" depth="0.9" color="#ff1493"
+        material="shader: flat; emissive: #ff1493; emissiveIntensity: 1.5"
+        animation="property: rotation; to: 360 0 360; loop: true; dur: 3500"></a-box>
+    <a-box position="-3 2.4 -6" width="0.8" height="0.8" depth="0.8" color="#ff69b4"
+        material="shader: flat; emissive: #ff69b4; emissiveIntensity: 1.5"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 3000"></a-box>
+    <a-box position="-3 3.2 -6" width="0.7" height="0.7" depth="0.7" color="#ff87c3"
+        material="shader: flat; emissive: #ff87c3; emissiveIntensity: 1.5"
+        animation="property: rotation; to: 360 0 360; loop: true; dur: 2500"></a-box>
+    <a-light type="point" position="-3 3.5 -6" intensity="1.5" color="#ff00ff" distance="6"></a-light>
+
+    <!-- Tower 2 - Cyan gradient tower (center) -->
+    <a-box position="0 0.5 -6" width="1" height="1" depth="1" color="#00ffff"
+        material="shader: flat; emissive: #00ffff; emissiveIntensity: 2"
+        animation="property: rotation; to: 360 360 0; loop: true; dur: 4500"></a-box>
+    <a-box position="0 1.5 -6" width="0.9" height="0.9" depth="0.9" color="#00e5ff"
+        material="shader: flat; emissive: #00e5ff; emissiveIntensity: 2"
+        animation="property: rotation; to: 0 360 360; loop: true; dur: 4000"></a-box>
+    <a-box position="0 2.4 -6" width="0.8" height="0.8" depth="0.8" color="#00bfff"
+        material="shader: flat; emissive: #00bfff; emissiveIntensity: 2"
+        animation="property: rotation; to: 360 0 360; loop: true; dur: 3500"></a-box>
+    <a-box position="0 3.2 -6" width="0.7" height="0.7" depth="0.7" color="#87ceeb"
+        material="shader: flat; emissive: #87ceeb; emissiveIntensity: 2"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 3000"></a-box>
+    <a-box position="0 3.9 -6" width="0.6" height="0.6" depth="0.6" color="#add8e6"
+        material="shader: flat; emissive: #add8e6; emissiveIntensity: 2"
+        animation="property: rotation; to: 360 360 0; loop: true; dur: 2500"></a-box>
+    <a-light type="point" position="0 4.2 -6" intensity="2" color="#00ffff" distance="7"></a-light>
+
+    <!-- Tower 3 - Yellow-Orange gradient tower (right) -->
+    <a-box position="3 0.5 -6" width="1" height="1" depth="1" color="#ffff00"
+        material="shader: flat; emissive: #ffff00; emissiveIntensity: 1.8"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 3800"></a-box>
+    <a-box position="3 1.5 -6" width="0.9" height="0.9" depth="0.9" color="#ffd700"
+        material="shader: flat; emissive: #ffd700; emissiveIntensity: 1.8"
+        animation="property: rotation; to: 360 0 360; loop: true; dur: 3300"></a-box>
+    <a-box position="3 2.4 -6" width="0.8" height="0.8" depth="0.8" color="#ffa500"
+        material="shader: flat; emissive: #ffa500; emissiveIntensity: 1.8"
+        animation="property: rotation; to: 0 360 360; loop: true; dur: 2800"></a-box>
+    <a-light type="point" position="3 3 -6" intensity="1.5" color="#ffff00" distance="5"></a-light>
+
+    <!-- Floating accent cubes -->
+    <a-entity position="0 2 -6" animation="property: rotation; to: 0 360 0; loop: true; dur: 10000">
+        <a-box position="5 0 0" width="0.3" height="0.3" depth="0.3" color="#00ff80"
+            material="shader: flat; emissive: #00ff80; emissiveIntensity: 2"
+            animation="property: rotation; to: 360 360 360; loop: true; dur: 3000"></a-box>
+        <a-box position="-5 0 0" width="0.3" height="0.3" depth="0.3" color="#ff0080"
+            material="shader: flat; emissive: #ff0080; emissiveIntensity: 2"
+            animation="property: rotation; to: -360 -360 -360; loop: true; dur: 3000"></a-box>
+    </a-entity>
+
+    <!-- Glowing grid floor -->
+    <a-plane position="0 0 -6" rotation="-90 0 0" width="20" height="20" color="#1a0030"
+        material="shader: flat; wireframe: true; emissive: #8000ff; emissiveIntensity: 1"></a-plane>
+
+    <!-- Orbiting camera -->
+    <a-camera look-controls wasd-controls position="0 3 4"
+        animation="property: position; to: 3 3 4; dir: alternate; loop: true; dur: 12000; easing: easeInOutSine">
+        <a-cursor color="#fff"></a-cursor>
+    </a-camera>
+</a-scene>`;
+        }
+
+        function getColorChangingCode() {
+            return `<a-scene embedded vr-mode-ui="enabled: true" background="color: #000000">
+    <!-- Animated ambient lighting - cycles through colors -->
+    <a-light type="ambient" color="#ff00ff" intensity="0.6"
+        animation__color="property: light.color; from: #ff00ff; to: #00ffff; dir: alternate; loop: true; dur: 4000"
+        animation__intensity="property: light.intensity; from: 0.4; to: 0.8; dir: alternate; loop: true; dur: 3000"></a-light>
+
+    <!-- Central sphere - Rainbow color cycle with emissive glow -->
+    <a-sphere position="0 2.5 -5" radius="1.2" color="#ff00ff"
+        material="shader: flat; emissive: #ff00ff; emissiveIntensity: 2"
+        animation__color="property: components.material.material.color; type: color; from: #ff00ff; to: #ff0000; dir: normal; loop: true; dur: 6000; easing: linear"
+        animation__emissive="property: components.material.material.emissive; type: color; from: #ff00ff; to: #ff0000; dir: normal; loop: true; dur: 6000; easing: linear"
+        animation__rotate="property: rotation; to: 0 360 0; loop: true; dur: 5000"
+        animation__scale="property: scale; to: 1.3 1.3 1.3; dir: alternate; loop: true; dur: 2000"></a-sphere>
+
+    <!-- Left cube - Cyan to Yellow transition -->
+    <a-box position="-3 1.5 -5" width="1.5" height="1.5" depth="1.5" color="#00ffff"
+        material="shader: flat; emissive: #00ffff; emissiveIntensity: 1.5"
+        animation__color="property: components.material.material.color; type: color; from: #00ffff; to: #ffff00; dir: alternate; loop: true; dur: 4000"
+        animation__emissive="property: components.material.material.emissive; type: color; from: #00ffff; to: #ffff00; dir: alternate; loop: true; dur: 4000"
+        animation="property: rotation; to: 360 360 0; loop: true; dur: 6000"></a-box>
+
+    <!-- Right cube - Magenta to Lime transition -->
+    <a-box position="3 1.5 -5" width="1.5" height="1.5" depth="1.5" color="#ff00ff"
+        material="shader: flat; emissive: #ff00ff; emissiveIntensity: 1.5"
+        animation__color="property: components.material.material.color; type: color; from: #ff00ff; to: #00ff80; dir: alternate; loop: true; dur: 5000"
+        animation__emissive="property: components.material.material.emissive; type: color; from: #ff00ff; to: #00ff80; dir: alternate; loop: true; dur: 5000"
+        animation="property: rotation; to: 0 360 360; loop: true; dur: 7000"></a-box>
+
+    <!-- Top floating torus - Orange to Blue -->
+    <a-torus position="0 4 -5" radius="0.8" radius-tubular="0.15" color="#ff8800"
+        material="shader: flat; emissive: #ff8800; emissiveIntensity: 2"
+        animation__color="property: components.material.material.color; type: color; from: #ff8800; to: #0080ff; dir: alternate; loop: true; dur: 3500"
+        animation__emissive="property: components.material.material.emissive; type: color; from: #ff8800; to: #0080ff; dir: alternate; loop: true; dur: 3500"
+        animation="property: rotation; to: 360 0 360; loop: true; dur: 4000"></a-torus>
+
+    <!-- Orbiting color-changing particles -->
+    <a-entity position="0 2.5 -5" animation="property: rotation; to: 0 360 0; loop: true; dur: 8000">
+        <a-sphere position="2 0 0" radius="0.2" color="#ff0000"
+            material="shader: flat; emissive: #ff0000; emissiveIntensity: 3"
+            animation__color="property: components.material.material.color; type: color; from: #ff0000; to: #00ff00; dir: alternate; loop: true; dur: 2500"
+            animation__emissive="property: components.material.material.emissive; type: color; from: #ff0000; to: #00ff00; dir: alternate; loop: true; dur: 2500"></a-sphere>
+        <a-sphere position="-2 0 0" radius="0.2" color="#0000ff"
+            material="shader: flat; emissive: #0000ff; emissiveIntensity: 3"
+            animation__color="property: components.material.material.color; type: color; from: #0000ff; to: #ffff00; dir: alternate; loop: true; dur: 3000"
+            animation__emissive="property: components.material.material.emissive; type: color; from: #0000ff; to: #ffff00; dir: alternate; loop: true; dur: 3000"></a-sphere>
+        <a-sphere position="0 2 0" radius="0.2" color="#00ff00"
+            material="shader: flat; emissive: #00ff00; emissiveIntensity: 3"
+            animation__color="property: components.material.material.color; type: color; from: #00ff00; to: #ff00ff; dir: alternate; loop: true; dur: 2000"
+            animation__emissive="property: components.material.material.emissive; type: color; from: #00ff00; to: #ff00ff; dir: alternate; loop: true; dur: 2000"></a-sphere>
+        <a-sphere position="0 -2 0" radius="0.2" color="#ffff00"
+            material="shader: flat; emissive: #ffff00; emissiveIntensity: 3"
+            animation__color="property: components.material.material.color; type: color; from: #ffff00; to: #00ffff; dir: alternate; loop: true; dur: 2800"
+            animation__emissive="property: components.material.material.emissive; type: color; from: #ffff00; to: #00ffff; dir: alternate; loop: true; dur: 2800"></a-sphere>
+    </a-entity>
+
+    <!-- Dynamic floor - Color morphing grid -->
+    <a-plane position="0 0 -5" rotation="-90 0 0" width="20" height="20" color="#1a0030"
+        material="shader: flat; wireframe: true; emissive: #ff00ff; emissiveIntensity: 1"
+        animation__color="property: components.material.material.color; type: color; from: #1a0030; to: #001a30; dir: alternate; loop: true; dur: 6000"
+        animation__emissive="property: components.material.material.emissive; type: color; from: #ff00ff; to: #00ffff; dir: alternate; loop: true; dur: 5000"></a-plane>
+
+    <!-- Animated colored point lights -->
+    <a-entity position="0 2.5 -5" animation="property: rotation; to: 0 -360 0; loop: true; dur: 6000">
+        <a-light type="point" position="4 0 0" intensity="2" color="#ff00ff" distance="10"
+            animation__color="property: light.color; from: #ff00ff; to: #00ffff; dir: alternate; loop: true; dur: 4000"></a-light>
+    </a-entity>
+    <a-entity position="0 2.5 -5" animation="property: rotation; to: 0 360 0; loop: true; dur: 7000">
+        <a-light type="point" position="4 0 0" intensity="2" color="#ffff00" distance="10"
+            animation__color="property: light.color; from: #ffff00; to: #ff8800; dir: alternate; loop: true; dur: 3500"></a-light>
+    </a-entity>
+
+    <!-- Camera with gentle movement -->
+    <a-camera look-controls wasd-controls position="0 2.5 5"
+        animation="property: position; to: 1 3 5; dir: alternate; loop: true; dur: 10000; easing: easeInOutSine">
+        <a-cursor color="#fff"></a-cursor>
+    </a-camera>
+</a-scene>`;
+        }
+
+        function getPostProcessingCode() {
+            return `<!-- NEON BLOOM POST-PROCESSING DEMO -->
+<script src="https://unpkg.com/aframe-effects@5.0.0/dist/aframe-effects.min.js"><\/script>
+
+<a-scene effects="bloom" bloom="radius: 1.2; strength: 1.8; threshold: 0.1"
+         background="color: #000000"
+         vr-mode-ui="enabled: false">
+
+        <!-- Very dim ambient light to make bloom pop -->
+        <a-light type="ambient" color="#0a0a0a" intensity="0.2"></a-light>
+
+        <!-- MASSIVE pulsing central sphere - SUPER BRIGHT -->
+        <a-sphere position="0 2 -5" radius="1.5"
+            material="color: #FF0099; emissive: #FF0099; emissiveIntensity: 5; metalness: 1; roughness: 0"
+            animation="property: rotation; to: 0 360 0; loop: true; dur: 3000"
+            animation__scale="property: scale; to: 1.8 1.8 1.8; dir: alternate; loop: true; dur: 1500; easing: easeInOutQuad"
+            animation__color="property: material.emissive; from: #FF0099; to: #00FFFF; dir: alternate; loop: true; dur: 3000"></a-sphere>
+
+        <!-- FAST spinning ring of ultra-bright cubes -->
+        <a-entity position="0 2 -5" animation="property: rotation; to: 0 360 0; loop: true; dur: 3000">
+            <a-box position="4 0 0" width="1" height="1" depth="1"
+                material="color: #00FFFF; emissive: #00FFFF; emissiveIntensity: 6; metalness: 1; roughness: 0"
+                animation="property: rotation; to: 360 360 360; loop: true; dur: 2000"></a-box>
+
+            <a-box position="-4 0 0" width="1" height="1" depth="1"
+                material="color: #FFFF00; emissive: #FFFF00; emissiveIntensity: 6; metalness: 1; roughness: 0"
+                animation="property: rotation; to: 360 360 360; loop: true; dur: 2000"></a-box>
+
+            <a-box position="0 0 4" width="1" height="1" depth="1"
+                material="color: #FF00FF; emissive: #FF00FF; emissiveIntensity: 6; metalness: 1; roughness: 0"
+                animation="property: rotation; to: 360 360 360; loop: true; dur: 2000"></a-box>
+
+            <a-box position="0 0 -4" width="1" height="1" depth="1"
+                material="color: #00FF00; emissive: #00FF00; emissiveIntensity: 6; metalness: 1; roughness: 0"
+                animation="property: rotation; to: 360 360 360; loop: true; dur: 2000"></a-box>
+        </a-entity>
+
+        <!-- Secondary ring spinning opposite direction -->
+        <a-entity position="0 2 -5" animation="property: rotation; to: 0 -360 0; loop: true; dur: 4000">
+            <a-box position="3 0 0" width="0.8" height="0.8" depth="0.8"
+                material="color: #FF3300; emissive: #FF3300; emissiveIntensity: 5; metalness: 1; roughness: 0"
+                animation="property: rotation; to: -360 -360 -360; loop: true; dur: 2500"></a-box>
+
+            <a-box position="-3 0 0" width="0.8" height="0.8" depth="0.8"
+                material="color: #00FFAA; emissive: #00FFAA; emissiveIntensity: 5; metalness: 1; roughness: 0"
+                animation="property: rotation; to: -360 -360 -360; loop: true; dur: 2500"></a-box>
+
+            <a-box position="0 0 3" width="0.8" height="0.8" depth="0.8"
+                material="color: #AA00FF; emissive: #AA00FF; emissiveIntensity: 5; metalness: 1; roughness: 0"
+                animation="property: rotation; to: -360 -360 -360; loop: true; dur: 2500"></a-box>
+
+            <a-box position="0 0 -3" width="0.8" height="0.8" depth="0.8"
+                material="color: #FFAA00; emissive: #FFAA00; emissiveIntensity: 5; metalness: 1; roughness: 0"
+                animation="property: rotation; to: -360 -360 -360; loop: true; dur: 2500"></a-box>
+        </a-entity>
+
+        <!-- MASSIVE color-shifting torus rings -->
+        <a-torus position="0 5 -5" radius="2.5" radius-tubular="0.3"
+            material="color: #00FF00; emissive: #00FF00; emissiveIntensity: 6; metalness: 1; roughness: 0"
+            animation="property: rotation; to: 360 360 0; loop: true; dur: 4000"
+            animation__color="property: material.emissive; from: #00FF00; to: #FF00FF; dir: alternate; loop: true; dur: 2000"></a-torus>
+
+        <a-torus position="0 -1 -5" radius="3" radius-tubular="0.25" rotation="90 0 0"
+            material="color: #FF0000; emissive: #FF0000; emissiveIntensity: 6; metalness: 1; roughness: 0"
+            animation="property: rotation; to: 90 360 360; loop: true; dur: 5000"
+            animation__color="property: material.emissive; from: #FF0000; to: #00FFFF; dir: alternate; loop: true; dur: 2500"></a-torus>
+
+        <a-torus position="0 2 -5" radius="2" radius-tubular="0.2" rotation="0 0 90"
+            material="color: #0099FF; emissive: #0099FF; emissiveIntensity: 6; metalness: 1; roughness: 0"
+            animation="property: rotation; to: 360 0 90; loop: true; dur: 6000"
+            animation__color="property: material.emissive; from: #0099FF; to: #FFFF00; dir: alternate; loop: true; dur: 3000"></a-torus>
+
+        <!-- Swarm of FAST moving ultra-bright spheres -->
+        <a-sphere position="-3 4 -6" radius="0.5"
+            material="color: #FFFFFF; emissive: #FFFFFF; emissiveIntensity: 8"
+            animation="property: position; to: -3 1 -6; dir: alternate; loop: true; dur: 800; easing: linear"
+            animation__x="property: position; from: -3 4 -6; to: 3 4 -6; dir: alternate; loop: true; dur: 2000; easing: easeInOutQuad"></a-sphere>
+
+        <a-sphere position="3 1 -7" radius="0.6"
+            material="color: #FF00FF; emissive: #FF00FF; emissiveIntensity: 7"
+            animation="property: position; to: 3 4 -7; dir: alternate; loop: true; dur: 1000; easing: linear"
+            animation__x="property: position; from: 3 1 -7; to: -3 1 -7; dir: alternate; loop: true; dur: 2500; easing: easeInOutQuad"></a-sphere>
+
+        <a-sphere position="-2 3 -8" radius="0.4"
+            material="color: #00FFFF; emissive: #00FFFF; emissiveIntensity: 8"
+            animation="property: position; to: 2 3 -8; dir: alternate; loop: true; dur: 1200; easing: easeInOutQuad"></a-sphere>
+
+        <a-sphere position="2 3 -6" radius="0.45"
+            material="color: #FFFF00; emissive: #FFFF00; emissiveIntensity: 7"
+            animation="property: position; to: -2 3 -6; dir: alternate; loop: true; dur: 1400; easing: easeInOutQuad"></a-sphere>
+
+        <a-sphere position="0 5 -7" radius="0.5"
+            material="color: #FF6600; emissive: #FF6600; emissiveIntensity: 8"
+            animation="property: position; to: 0 0.5 -7; dir: alternate; loop: true; dur: 1600; easing: easeInOutQuad"></a-sphere>
+
+        <!-- Spinning NEON cylinders with color shift -->
+        <a-cylinder position="-4 2 -6" radius="0.4" height="3"
+            material="color: #FF0099; emissive: #FF0099; emissiveIntensity: 6; metalness: 1; roughness: 0"
+            animation="property: rotation; to: 0 360 360; loop: true; dur: 2000"
+            animation__color="property: material.emissive; from: #FF0099; to: #00FFFF; dir: alternate; loop: true; dur: 1500"></a-cylinder>
+
+        <a-cylinder position="4 2 -6" radius="0.4" height="3"
+            material="color: #00FF99; emissive: #00FF99; emissiveIntensity: 6; metalness: 1; roughness: 0"
+            animation="property: rotation; to: 360 0 360; loop: true; dur: 2000"
+            animation__color="property: material.emissive; from: #00FF99; to: #FF00FF; dir: alternate; loop: true; dur: 1500"></a-cylinder>
+
+        <!-- Orbiting BRIGHT octahedrons -->
+        <a-entity position="0 2 -5" animation="property: rotation; to: 0 360 360; loop: true; dur: 5000">
+            <a-octahedron position="5 0 0" radius="0.8"
+                material="color: #FF0099; emissive: #FF0099; emissiveIntensity: 6; metalness: 1; roughness: 0"
+                animation="property: rotation; to: 360 360 0; loop: true; dur: 2000"></a-octahedron>
+
+            <a-octahedron position="-5 0 0" radius="0.8"
+                material="color: #00FFFF; emissive: #00FFFF; emissiveIntensity: 6; metalness: 1; roughness: 0"
+                animation="property: rotation; to: 360 360 0; loop: true; dur: 2000"></a-octahedron>
+        </a-entity>
+
+        <!-- Dark mirror floor -->
+        <a-plane position="0 -1.5 -5" rotation="-90 0 0" width="40" height="40"
+            material="color: #000000; emissive: #050510; emissiveIntensity: 0.3; metalness: 1; roughness: 0"></a-plane>
+
+    <!-- Camera with automatic rotation -->
+    <a-entity position="0 2.5 3"
+              animation="property: rotation; to: 0 360 0; loop: true; dur: 60000; easing: linear">
+        <a-camera look-controls wasd-controls>
+            <a-cursor color="#FFF"></a-cursor>
+        </a-camera>
+    </a-entity>
+</a-scene>`;
+        }
+
+        function createDefaultScene() {
+            try {
+                // Execute user code
+                const userCode = editor ? editor.getValue() : getBasicSceneCode();
+                executeUserCode(userCode);
+                
+                hideError();
+            } catch (error) {
+                showError('Scene Creation Error: ' + error.message);
+                console.error('Scene creation error:', error);
+            }
+        }
+        
+        function executeUserCode(code) {
+            try {
+                console.log('=== EXECUTING A-FRAME USER CODE ===');
+                
+                clearConsole();
+                clearScene();
+                
+                // Create new A-Frame scene from HTML
+                const container = document.getElementById('aframe-container');
+                container.innerHTML = code;
+                
+                // Wait for A-Frame to initialize the scene
+                setTimeout(() => {
+                    currentScene = container.querySelector('a-scene');
+                    if (currentScene) {
+                        console.log('✅ A-Frame scene created successfully');
+
+                        // CRITICAL: Re-enforce pointer-events after scene creation
+                        setTimeout(enforcePointerEvents, 100);
+                        setTimeout(enforcePointerEvents, 300);
+                        setTimeout(enforcePointerEvents, 600);
+
+                        hideError();
+                        notifySwift('sceneCreated', { success: true });
+                    } else {
+                        throw new Error('No a-scene element found in code');
+                    }
+                }, 500);
+                
+            } catch (error) {
+                const errorMsg = 'Execution Error: ' + error.message;
+                console.error('❌ executeUserCode failed:', errorMsg);
+                showError(errorMsg);
+                notifySwift('sceneError', { error: error.message });
+                
+                // Create fallback scene
+                createFallbackScene();
+            }
+        }
+        
+        function clearScene() {
+            const container = document.getElementById('aframe-container');
+            if (container) {
+                container.innerHTML = '<div class="loading" id="loading" style="display: none;">Loading A-Frame...</div>';
+            }
+        }
+        
+        function createFallbackScene() {
+            console.log('Creating A-Frame fallback scene');
+            const container = document.getElementById('aframe-container');
+            container.innerHTML = `
+                <a-scene embedded background="color: #333">
+                    <a-light type="ambient" color="#404040"></a-light>
+                    <a-box position="0 1 -3" color="#00ff00"></a-box>
+                    <a-camera look-controls wasd-controls position="0 1.6 0">
+                        <a-cursor color="#fff"></a-cursor>
+                    </a-camera>
+                </a-scene>
+            `;
+
+            // CRITICAL: Re-enforce pointer-events after fallback scene creation
+            setTimeout(enforcePointerEvents, 100);
+            setTimeout(enforcePointerEvents, 300);
+        }
+        
+        // Playground functions
+        function runCode() {
+            console.log('Run code button pressed');
+            createDefaultScene();
+            notifySwift('codeRun', {});
+        }
+        
+        function formatCode() {
+            if (editor) {
+                editor.getAction('editor.action.formatDocument').run();
+                notifySwift('codeFormatted', {});
+            }
+        }
+        
+        function clearCode() {
+            if (editor) {
+                editor.setValue(getBasicSceneCode());
+                notifySwift('codeCleared', {});
+            }
+        }
+        
+        function saveScene() {
+            const code = editor ? editor.getValue() : '';
+            notifySwift('saveRequested', { code: code });
+        }
+        
+        function downloadScene() {
+            const code = editor ? editor.getValue() : '';
+            notifySwift('downloadRequested', { code: code });
+        }
+        
+        function newScene() {
+            clearCode();
+            runCode();
+        }
+        
+        function openDocumentation() {
+            // Open A-Frame documentation in Safari
+            window.location.href = 'https://aframe.io/docs/';
+        }
+        
+        function initFloatingConsole() {
+            const consoleWindow = document.getElementById('consoleWindow');
+            const titleBar = document.getElementById('consoleTitleBar');
+            const copyBtn = document.getElementById('consoleCopyBtn');
+            const clearBtn = document.getElementById('consoleClearBtn');
+            const minimizeBtn = document.getElementById('consoleMinimizeBtn');
+            const toggleBtn = document.getElementById('consoleToggleBtn');
+            const closeBtn = document.getElementById('consoleCloseBtn');
+            const resizeHandle = document.getElementById('consoleResizeHandle');
+            const consoleOpenBtn = document.getElementById('consoleOpenBtn');
+
+            // Safety check - return if elements don't exist yet
+            if (!consoleWindow || !titleBar || !copyBtn || !clearBtn || !minimizeBtn || !toggleBtn || !closeBtn || !resizeHandle || !consoleOpenBtn) {
+                console.warn('Console elements not ready yet, skipping initialization');
+                return;
+            }
+
+            // Load saved state from localStorage
+            const saved = localStorage.getItem('aframe_console_state');
+            if (saved) {
+                consoleState = { ...consoleState, ...JSON.parse(saved) };
+                applyConsoleState();
+            }
+
+            // Copy button
+            copyBtn.addEventListener('click', () => {
+                copyConsoleToClipboard();
+            });
+
+            // Clear button
+            clearBtn.addEventListener('click', () => {
+                clearConsole();
+            });
+
+            // Minimize button
+            minimizeBtn.addEventListener('click', () => {
+                consoleState.minimized = !consoleState.minimized;
+                consoleWindow.classList.toggle('minimized', consoleState.minimized);
+                minimizeBtn.textContent = consoleState.minimized ? '+' : '−';
+                saveConsoleState();
+            });
+
+            // Toggle/Expand button
+            toggleBtn.addEventListener('click', () => {
+                if (consoleState.minimized) {
+                    consoleState.minimized = false;
+                    consoleWindow.classList.remove('minimized');
+                    minimizeBtn.textContent = '−';
+                }
+                saveConsoleState();
+            });
+
+            // Close button
+            closeBtn.addEventListener('click', () => {
+                consoleState.hidden = true;
+                consoleWindow.classList.add('hidden');
+                saveConsoleState();
+                updateConsoleOpenButtonVisibility();
+            });
+
+            // Dragging
+            let isDragging = false;
+            let dragStartX, dragStartY, dragStartLeft, dragStartTop;
+
+            titleBar.addEventListener('mousedown', startDrag);
+            titleBar.addEventListener('touchstart', startDrag, { passive: false });
+
+            function startDrag(e) {
+                if (e.target.closest('.console-btn')) return;
+                isDragging = true;
+
+                const rect = consoleWindow.getBoundingClientRect();
+                const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+
+                dragStartX = clientX;
+                dragStartY = clientY;
+                dragStartLeft = rect.left;
+                dragStartTop = rect.top;
+
+                e.preventDefault();
+            }
+
+            function doDrag(e) {
+                if (!isDragging) return;
+
+                const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+
+                const deltaX = clientX - dragStartX;
+                const deltaY = clientY - dragStartY;
+
+                consoleState.x = dragStartLeft + deltaX;
+                consoleState.y = dragStartTop + deltaY;
+
+                consoleWindow.style.left = consoleState.x + 'px';
+                consoleWindow.style.top = consoleState.y + 'px';
+                consoleWindow.style.right = 'auto';
+                consoleWindow.style.bottom = 'auto';
+
+                e.preventDefault();
+            }
+
+            function stopDrag() {
+                if (isDragging) {
+                    isDragging = false;
+                    saveConsoleState();
+                }
+            }
+
+            document.addEventListener('mousemove', doDrag);
+            document.addEventListener('touchmove', doDrag, { passive: false });
+            document.addEventListener('mouseup', stopDrag);
+            document.addEventListener('touchend', stopDrag);
+
+            // Resizing
+            let isResizingConsole = false;
+            let resizeStartX, resizeStartY, resizeStartWidth, resizeStartHeight;
+
+            resizeHandle.addEventListener('mousedown', startResize);
+            resizeHandle.addEventListener('touchstart', startResize, { passive: false });
+
+            function startResize(e) {
+                isResizingConsole = true;
+
+                const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+
+                resizeStartX = clientX;
+                resizeStartY = clientY;
+                resizeStartWidth = consoleWindow.offsetWidth;
+                resizeStartHeight = consoleWindow.offsetHeight;
+
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            function doResize(e) {
+                if (!isResizingConsole) return;
+
+                const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+
+                const deltaX = clientX - resizeStartX;
+                const deltaY = clientY - resizeStartY;
+
+                consoleState.width = Math.max(300, Math.min(resizeStartWidth + deltaX, window.innerWidth * 0.9));
+                consoleState.height = Math.max(200, Math.min(resizeStartHeight + deltaY, window.innerHeight * 0.8));
+
+                consoleWindow.style.width = consoleState.width + 'px';
+                consoleWindow.style.height = consoleState.height + 'px';
+
+                e.preventDefault();
+            }
+
+            function stopResize() {
+                if (isResizingConsole) {
+                    isResizingConsole = false;
+                    saveConsoleState();
+                }
+            }
+
+            document.addEventListener('mousemove', doResize);
+            document.addEventListener('touchmove', doResize, { passive: false });
+            document.addEventListener('mouseup', stopResize);
+            document.addEventListener('touchend', stopResize);
+
+            // Console Open Button (already declared at top of function)
+            consoleOpenBtn.addEventListener('click', () => {
+                consoleState.hidden = false;
+                consoleState.minimized = false;
+                consoleWindow.classList.remove('hidden');
+                consoleWindow.classList.remove('minimized');
+                minimizeBtn.textContent = '−';
+                saveConsoleState();
+                updateConsoleOpenButtonVisibility();
+            });
+
+            // Update button visibility based on console state
+            updateConsoleOpenButtonVisibility();
+        }
+
+        function updateConsoleOpenButtonVisibility() {
+            const consoleOpenBtn = document.getElementById('consoleOpenBtn');
+            const consoleWindow = document.getElementById('consoleWindow');
+
+            // Show button only when console is hidden
+            if (consoleState.hidden) {
+                consoleOpenBtn.classList.remove('hidden');
+            } else {
+                consoleOpenBtn.classList.add('hidden');
+            }
+        }
+
+        function applyConsoleState() {
+            const consoleWindow = document.getElementById('consoleWindow');
+            const minimizeBtn = document.getElementById('consoleMinimizeBtn');
+
+            if (consoleState.x !== null && consoleState.y !== null) {
+                consoleWindow.style.left = consoleState.x + 'px';
+                consoleWindow.style.top = consoleState.y + 'px';
+                consoleWindow.style.right = 'auto';
+                consoleWindow.style.bottom = 'auto';
+            }
+
+            consoleWindow.style.width = consoleState.width + 'px';
+            consoleWindow.style.height = consoleState.height + 'px';
+
+            consoleWindow.classList.toggle('minimized', consoleState.minimized);
+            consoleWindow.classList.toggle('hidden', consoleState.hidden);
+            minimizeBtn.textContent = consoleState.minimized ? '+' : '−';
+
+            updateConsoleOpenButtonVisibility();
+        }
+
+        function saveConsoleState() {
+            localStorage.setItem('aframe_console_state', JSON.stringify(consoleState));
+        }
+
+        function toggleConsole() {
+            consoleState.hidden = !consoleState.hidden;
+            document.getElementById('consoleWindow').classList.toggle('hidden', consoleState.hidden);
+            saveConsoleState();
+            updateConsoleOpenButtonVisibility();
+            if (!consoleState.hidden && consoleMessages.length === 0) {
+                console.log('Console opened - no messages yet');
+            }
+        }
+
+        // Camera switching function for A-Frame
+        function switchCamera(cameraType) {
+            console.log('Switching to camera type:', cameraType);
+
+            const aframeScene = document.querySelector('a-scene');
+            if (!aframeScene) {
+                console.warn('No A-Frame scene found');
+                return;
+            }
+
+            // Get or create camera entity
+            let camera = aframeScene.querySelector('[camera]');
+            if (!camera) {
+                console.warn('No camera found in scene');
+                return;
+            }
+
+            if (!cameraType || cameraType === '') {
+                console.log('Camera set to default');
+                // Reset to default camera controls
+                camera.setAttribute('wasd-controls', 'enabled: true');
+                camera.setAttribute('look-controls', 'enabled: true');
+                camera.removeAttribute('orbit-controls');
+                return;
+            }
+
+            try {
+                switch(cameraType) {
+                    case 'wasd-controls':
+                        // Enable WASD movement controls
+                        camera.setAttribute('wasd-controls', 'enabled: true');
+                        camera.setAttribute('look-controls', 'enabled: true');
+                        camera.removeAttribute('orbit-controls');
+                        console.log('✅ Switched to WASD Controls');
+                        break;
+
+                    case 'look-controls':
+                        // Look controls only (no movement)
+                        camera.setAttribute('wasd-controls', 'enabled: false');
+                        camera.setAttribute('look-controls', 'enabled: true');
+                        camera.removeAttribute('orbit-controls');
+                        console.log('✅ Switched to Look Controls');
+                        break;
+
+                    case 'orbit-controls':
+                        // Orbit controls (requires aframe-extras)
+                        camera.setAttribute('orbit-controls', 'target: 0 1 0; minDistance: 1; maxDistance: 20; initialPosition: 0 2 5');
+                        camera.setAttribute('wasd-controls', 'enabled: false');
+                        camera.setAttribute('look-controls', 'enabled: false');
+                        console.log('✅ Switched to Orbit Controls');
+                        break;
+
+                    default:
+                        console.warn('Unknown camera type:', cameraType);
+                        return;
+                }
+
+                console.log('Camera switched successfully to:', cameraType);
+
+            } catch(error) {
+                console.error('Error switching camera:', error);
+            }
+        }
+
+        // A-Frame Inspector toggle (using official A-Frame Inspector)
+        function toggleInspector(checked) {
+            console.log('Toggle inspector:', checked);
+
+            const aframeScene = document.querySelector('a-scene');
+            if (!aframeScene) {
+                console.warn('No A-Frame scene found for inspector');
+                document.getElementById('inspectorCheckbox').checked = false;
+                return;
+            }
+
+            if (checked) {
+                openInspector();
+            } else {
+                closeInspector();
+            }
+        }
+
+        function openInspector() {
+            console.log('🔍 Opening A-Frame Inspector...');
+
+            try {
+                const aframeScene = document.querySelector('a-scene');
+                if (!aframeScene) {
+                    console.error('A-Frame scene not found');
+                    return;
+                }
+
+                // Check if AFRAME is available
+                if (typeof AFRAME === 'undefined' || !AFRAME.INSPECTOR) {
+                    console.error('A-Frame Inspector not loaded. Loading now...');
+
+                    // Load inspector if not already loaded
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/gh/aframevr/aframe-inspector@master/dist/aframe-inspector.min.js';
+                    script.onload = () => {
+                        console.log('✅ A-Frame Inspector loaded');
+                        setTimeout(() => {
+                            if (AFRAME.INSPECTOR) {
+                                AFRAME.INSPECTOR.open();
+                                console.log('✅ A-Frame Inspector opened');
+                            }
+                        }, 500);
+                    };
+                    script.onerror = () => {
+                        console.error('Failed to load A-Frame Inspector');
+                        document.getElementById('inspectorCheckbox').checked = false;
+                    };
+                    document.head.appendChild(script);
+                } else {
+                    // Inspector already loaded, just open it
+                    AFRAME.INSPECTOR.open();
+                    console.log('✅ A-Frame Inspector opened');
+                    console.log('💡 Press <Ctrl> + <Alt> + I to toggle inspector');
+                }
+
+            } catch (error) {
+                console.error('Failed to open A-Frame Inspector:', error);
+                document.getElementById('inspectorCheckbox').checked = false;
+            }
+        }
+
+        function closeInspector() {
+            console.log('🔍 Closing A-Frame Inspector...');
+
+            try {
+                if (typeof AFRAME !== 'undefined' && AFRAME.INSPECTOR) {
+                    AFRAME.INSPECTOR.close();
+                    console.log('✅ A-Frame Inspector closed');
+                }
+            } catch (error) {
+                console.error('Error closing A-Frame Inspector:', error);
+            }
+        }
+
+        // Initialize console on page load
+        window.addEventListener('DOMContentLoaded', initFloatingConsole);
+
+        function loadExample(exampleId) {
+            if (!exampleId) return;
+
+            const examples = {
+                'basic-scene': getBasicSceneCode(),
+                'rotating-cube': getRotatingCubeCode(),
+                'interactive-objects': getInteractiveObjectsCode(),
+                'textured-sphere': getTexturedSphereCode(),
+                'sky-gradient': getSkyGradientCode(),
+                'physics-demo': getPhysicsDemoCode(),
+                'animated-camera': getAnimatedCameraCode(),
+                '360-image': get360ImageCode(),
+                'orbiting-planets': getOrbitingPlanetsCode(),
+                'particle-ring': getParticleRingCode(),
+                'glowing-tunnel': getGlowingTunnelCode(),
+                'stacked-cubes': getStackedCubesCode(),
+                'color-changing': getColorChangingCode(),
+                'post-processing': getPostProcessingCode()
+            };
+
+            if (examples[exampleId] && editor) {
+                editor.setValue(examples[exampleId]);
+                runCode();
+            }
+        }
+        
+        // Enhanced code insertion functions with multi-level fallback
+        function insertCodeAtCursor(codeString) {
+            console.log('🎯 A-Frame insertCodeAtCursor called with code length:', codeString.length);
+            console.log('🔍 A-Frame editor readiness:', {
+                editor: !!editor,
+                editorReady: !!window.editorReady,
+                monacoLoaded: typeof monaco !== 'undefined'
+            });
+            
+            if (editor && window.editorReady) {
+                try {
+                    console.log('✅ A-Frame editor ready, inserting at cursor');
+                    const position = editor.getPosition();
+                    editor.executeEdits('ai-insertion', [{
+                        range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+                        text: codeString
+                    }]);
+                    editor.setPosition(position);
+                    editor.focus();
+                    console.log('✅ A-Frame code inserted at cursor position');
+                    notifySwift('codeInserted', { code: codeString, library: 'aframe' });
+                    return true;
+                } catch (error) {
+                    console.error('❌ A-Frame failed to insert at cursor:', error);
+                    // Fall back to setFullEditorContent
+                    return setFullEditorContent(codeString);
+                }
+            } else {
+                console.warn('⚠️ A-Frame editor not ready for cursor insertion, falling back to full content replacement');
+                return setFullEditorContent(codeString);
+            }
+        }
+        
+        function setFullEditorContent(codeString) {
+            console.log('🎯 A-Frame setFullEditorContent called with code length:', codeString.length);
+            console.log('🔍 A-Frame editor state check:', {
+                editorExists: !!editor,
+                editorReady: !!window.editorReady,
+                domReady: document.readyState,
+                monacoGlobal: typeof monaco !== 'undefined'
+            });
+            
+            // Multi-level injection strategy for A-Frame
+            const strategies = [
+                // Strategy 1: Standard Monaco API
+                () => {
+                    if (editor && window.editorReady && typeof editor.setValue === 'function') {
+                        console.log('📝 A-Frame Strategy 1: Using standard Monaco setValue');
+                        editor.setValue(codeString);
+                        editor.focus();
+                        editor.setPosition({lineNumber: 1, column: 1});
+                        editor.layout();
+                        
+                        // Verify content was set
+                        const verification = editor.getValue();
+                        if (verification === codeString) {
+                            console.log('✅ A-Frame Strategy 1 successful - content verified');
+                            return true;
+                        } else {
+                            console.warn('⚠️ A-Frame Strategy 1 verification failed');
+                            return false;
+                        }
+                    }
+                    return false;
+                },
+                
+                // Strategy 2: Direct model manipulation
+                () => {
+                    if (editor && editor.getModel && typeof editor.getModel === 'function') {
+                        console.log('📝 A-Frame Strategy 2: Using Monaco model setValue');
+                        const model = editor.getModel();
+                        if (model && typeof model.setValue === 'function') {
+                            model.setValue(codeString);
+                            editor.focus();
+                            console.log('✅ A-Frame Strategy 2 successful - model setValue');
+                            return true;
+                        }
+                    }
+                    return false;
+                },
+                
+                // Strategy 3: Emergency retry with delay
+                () => {
+                    return new Promise((resolve) => {
+                        console.log('📝 A-Frame Strategy 3: Emergency retry with delay');
+                        setTimeout(() => {
+                            if (editor && typeof editor.setValue === 'function') {
+                                try {
+                                    editor.setValue(codeString);
+                                    console.log('✅ A-Frame Strategy 3 successful - delayed retry');
+                                    resolve(true);
+                                } catch (e) {
+                                    console.error('❌ A-Frame Strategy 3 failed:', e);
+                                    resolve(false);
+                                }
+                            } else {
+                                resolve(false);
+                            }
+                        }, 1000);
+                    });
+                }
+            ];
+            
+            // Try each strategy sequentially
+            const executeStrategies = async () => {
+                for (let i = 0; i < strategies.length; i++) {
+                    try {
+                        const result = await strategies[i]();
+                        if (result) {
+                            console.log(`🎉 A-Frame content injection successful using strategy ${i + 1}`);
+                            
+                            // Auto-run the code after successful injection
+                            setTimeout(() => {
+                                console.log('🚀 Auto-running the injected A-Frame code...');
+                                runCode();
+                            }, 500);
+                            
+                            notifySwift('codeInserted', { 
+                                code: codeString,
+                                strategy: i + 1,
+                                success: true,
+                                library: 'aframe'
+                            });
+                            return true;
+                        }
+                    } catch (error) {
+                        console.error(`❌ A-Frame Strategy ${i + 1} failed:`, error);
+                    }
+                }
+                
+                console.error('❌ All A-Frame injection strategies failed');
+                notifySwift('codeInserted', { 
+                    code: codeString,
+                    success: false,
+                    error: 'All A-Frame injection strategies failed',
+                    library: 'aframe'
+                });
+                return false;
+            };
+            
+            return executeStrategies();
+        }
+        
+        // Utility functions
+        function showError(message) {
+            const errorDisplay = document.getElementById('errorDisplay');
+            errorDisplay.textContent = message;
+            errorDisplay.style.display = 'block';
+            setTimeout(() => {
+                errorDisplay.style.display = 'none';
+            }, 5000);
+        }
+        
+        function hideError() {
+            document.getElementById('errorDisplay').style.display = 'none';
+        }
+        
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+        
+        function notifySwift(action, data) {
+            if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.playgroundHandler) {
+                window.webkit.messageHandlers.playgroundHandler.postMessage({
+                    action: action,
+                    data: data
+                });
+            }
+        }
+        
+        function notifyCodeChange() {
+            const code = editor ? editor.getValue() : '';
+            notifySwift('codeChanged', { code: code });
+        }
+        
+        // Console management
+        function addConsoleMessage(type, message) {
+            consoleMessages.push({ type, message, timestamp: Date.now() });
+            if (consoleMessages.length > 50) {
+                consoleMessages = consoleMessages.slice(-50);
+            }
+            updateConsoleDisplay();
+        }
+        
+        function updateConsoleDisplay() {
+            const consoleContent = document.getElementById('consoleContent');
+            if (consoleContent && consoleMessages.length > 0) {
+                consoleContent.innerHTML = consoleMessages.map(msg =>
+                    `<div class="console-message console-${msg.type}">${escapeHtml(msg.message)}</div>`
+                ).join('');
+                consoleContent.scrollTop = consoleContent.scrollHeight;
+            }
+        }
+        
+        function clearConsole() {
+            consoleMessages = [];
+            const consoleContent = document.getElementById('consoleContent');
+            if (consoleContent) {
+                consoleContent.innerHTML = '';
+            }
+        }
+
+        function copyConsoleToClipboard() {
+            if (consoleMessages.length === 0) {
+                console.log('No console messages to copy');
+                return;
+            }
+
+            // Create plain text version of all console messages
+            const text = consoleMessages.map(msg => `[${msg.type.toUpperCase()}] ${msg.message}`).join('\n');
+
+            // Try modern clipboard API first
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    console.log('✅ Console content copied to clipboard');
+                    showCopyFeedback();
+                }).catch(err => {
+                    console.error('Failed to copy to clipboard:', err);
+                    fallbackCopy(text);
+                });
+            } else {
+                fallbackCopy(text);
+            }
+        }
+
+        function fallbackCopy(text) {
+            // Fallback for older browsers
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                console.log('✅ Console content copied to clipboard (fallback)');
+                showCopyFeedback();
+            } catch (err) {
+                console.error('Fallback copy failed:', err);
+            }
+            document.body.removeChild(textarea);
+        }
+
+        function showCopyFeedback() {
+            const copyBtn = document.getElementById('consoleCopyBtn');
+            if (copyBtn) {
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = '✓';
+                copyBtn.style.color = '#4caf50';
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                    copyBtn.style.color = '';
+                }, 1500);
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Example code templates
+        function getInteractiveCode() {
+            return `<a-scene embedded vr-mode-ui="enabled: true" background="color: #212">
+    <a-assets>
+        <!-- Define clickable class for cursor interaction -->
+    </a-assets>
+    
+    <a-light type="ambient" color="#404040" intensity="0.6"></a-light>
+    <a-light type="directional" position="10 10 5" color="#ffffff" intensity="0.8"></a-light>
+    
+    <!-- Interactive spheres that change color on click -->
+    <a-sphere 
+        position="-2 1.5 -3" 
+        radius="0.8" 
+        color="#ff6b6b"
+        class="clickable"
+        animation__click="property: color; to: #00ff00; startEvents: click; dur: 500">
+    </a-sphere>
+    
+    <a-sphere 
+        position="0 1.5 -3" 
+        radius="0.8" 
+        color="#4ecdc4"
+        class="clickable"
+        animation__click="property: scale; to: 1.5 1.5 1.5; startEvents: click; dur: 1000; direction: alternate">
+    </a-sphere>
+    
+    <a-sphere 
+        position="2 1.5 -3" 
+        radius="0.8" 
+        color="#ffe66d"
+        class="clickable"
+        animation__click="property: rotation; to: 0 360 0; startEvents: click; dur: 2000">
+    </a-sphere>
+    
+    <!-- Ground -->
+    <a-plane position="0 0 -4" rotation="-90 0 0" width="10" height="10" color="#95e1d3"></a-plane>
+    
+    <!-- Instructions -->
+    <a-text 
+        value="Click the spheres!" 
+        position="0 3 -2" 
+        align="center" 
+        color="#fff">
+    </a-text>
+    
+    <a-camera look-controls wasd-controls position="0 1.6 0">
+        <a-cursor 
+            color="#fff" 
+            raycaster="objects: .clickable">
+        </a-cursor>
+    </a-camera>
+</a-scene>`;
+        }
+        
+        function getAnimationCode() {
+            return `<a-scene embedded vr-mode-ui="enabled: true" background="color: #001122">
+    <a-light type="ambient" color="#404040" intensity="0.4"></a-light>
+    <a-light type="directional" position="10 10 5" color="#ffffff" intensity="0.8"></a-light>
+    
+    <!-- Floating and rotating objects -->
+    <a-box 
+        position="-3 2 -5" 
+        color="#ff6b6b"
+        animation="property: rotation; to: 360 360 0; loop: true; dur: 4000"
+        animation__float="property: position; to: -3 3 -5; direction: alternate; loop: true; dur: 2000">
+    </a-box>
+    
+    <a-sphere 
+        position="0 1 -4" 
+        radius="1.2" 
+        color="#4ecdc4"
+        animation="property: scale; to: 1.5 1.5 1.5; direction: alternate; loop: true; dur: 2000"
+        animation__color="property: color; to: #ff6b6b; direction: alternate; loop: true; dur: 3000">
+    </a-sphere>
+    
+    <a-cylinder 
+        position="3 1 -5" 
+        radius="0.8" 
+        height="2" 
+        color="#ffe66d"
+        animation="property: position; to: 3 3 -5; direction: alternate; loop: true; dur: 1500"
+        animation__spin="property: rotation; to: 0 0 360; loop: true; dur: 2000">
+    </a-cylinder>
+    
+    <!-- Pulsing lights -->
+    <a-light 
+        type="point" 
+        position="-3 4 -3" 
+        color="#ff0000"
+        animation="property: intensity; to: 2; direction: alternate; loop: true; dur: 1000">
+    </a-light>
+    
+    <a-light 
+        type="point" 
+        position="3 4 -3" 
+        color="#0000ff"
+        animation="property: intensity; to: 2; direction: alternate; loop: true; dur: 1500">
+    </a-light>
+    
+    <!-- Animated ground -->
+    <a-plane 
+        position="0 0 -4" 
+        rotation="-90 0 0" 
+        width="20" 
+        height="20" 
+        color="#2d5a27"
+        animation="property: color; to: #5a2d27; direction: alternate; loop: true; dur: 4000">
+    </a-plane>
+    
+    <a-text 
+        value="Animated VR Scene" 
+        position="0 4 -3" 
+        align="center" 
+        color="#fff"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 10000">
+    </a-text>
+    
+    <a-camera look-controls wasd-controls position="0 1.6 2">
+        <a-cursor color="#fff"></a-cursor>
+    </a-camera>
+</a-scene>`;
+        }
+        
+        function getVRControlsCode() {
+            return `<a-scene embedded vr-mode-ui="enabled: true" background="color: #001122">
+    <a-assets>
+        <!-- VR controller models will be loaded automatically -->
+    </a-assets>
+    
+    <a-light type="ambient" color="#404040" intensity="0.6"></a-light>
+    <a-light type="directional" position="10 10 5" color="#ffffff" intensity="0.8"></a-light>
+    
+    <!-- Interactive objects for VR controllers -->
+    <a-box 
+        position="-2 1 -3" 
+        color="#ff6b6b"
+        class="interactive"
+        animation__grab="property: scale; to: 1.2 1.2 1.2; startEvents: gripdown; dur: 200"
+        animation__release="property: scale; to: 1 1 1; startEvents: gripup; dur: 200">
+    </a-box>
+    
+    <a-sphere 
+        position="0 1 -3" 
+        radius="0.8" 
+        color="#4ecdc4"
+        class="interactive">
+    </a-sphere>
+    
+    <a-cylinder 
+        position="2 1 -3" 
+        radius="0.5" 
+        height="1.5" 
+        color="#ffe66d"
+        class="interactive">
+    </a-cylinder>
+    
+    <!-- Ground -->
+    <a-plane position="0 0 -4" rotation="-90 0 0" width="10" height="10" color="#95e1d3"></a-plane>
+    
+    <!-- Instructions -->
+    <a-text 
+        value="Use VR controllers to interact!" 
+        position="0 2.5 -2" 
+        align="center" 
+        color="#fff">
+    </a-text>
+    
+    <!-- VR Camera rig with hand controls -->
+    <a-entity id="cameraRig" position="0 0 0">
+        <a-camera 
+            look-controls 
+            wasd-controls="enabled: false" 
+            position="0 1.6 0">
+        </a-camera>
+        
+        <!-- Left hand controller -->
+        <a-entity 
+            id="leftHand"
+            hand-controls="hand: left; handModelStyle: lowPoly; color: #ffcccc"
+            laser-controls="hand: left"
+            raycaster="objects: .interactive">
+        </a-entity>
+        
+        <!-- Right hand controller -->
+        <a-entity 
+            id="rightHand"
+            hand-controls="hand: right; handModelStyle: lowPoly; color: #ccffcc"
+            laser-controls="hand: right"
+            raycaster="objects: .interactive">
+        </a-entity>
+    </a-entity>
+</a-scene>`;
+        }
+    </script>
+</body>
+</html>

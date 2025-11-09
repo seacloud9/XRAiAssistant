@@ -1,0 +1,3625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js Playground</title>
+    
+    <!-- Three.js Core - Use UMD builds for Android WebView compatibility -->
+    <!-- CRITICAL: Android WebView doesn't support ES modules, use r149 which has UMD builds -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+
+    <script>
+        console.log('📦 Three.js loading via traditional script tags for Android WebView...');
+
+        // Wait for all scripts to load
+        window.addEventListener('load', function() {
+            console.log('✅ Window loaded, checking THREE availability...');
+
+            if (typeof THREE !== 'undefined') {
+                console.log('✅ THREE.js loaded successfully, version:', THREE.REVISION);
+                console.log('✅ OrbitControls available:', typeof THREE.OrbitControls !== 'undefined');
+                console.log('✅ EffectComposer available:', typeof THREE.EffectComposer !== 'undefined');
+                console.log('✅ RenderPass available:', typeof THREE.RenderPass !== 'undefined');
+                console.log('✅ UnrealBloomPass available:', typeof THREE.UnrealBloomPass !== 'undefined');
+
+                // Make addons easily accessible
+                window.OrbitControls = THREE.OrbitControls;
+                window.EffectComposer = THREE.EffectComposer;
+                window.RenderPass = THREE.RenderPass;
+                window.UnrealBloomPass = THREE.UnrealBloomPass;
+                window.OutputPass = THREE.OutputPass || THREE.ShaderPass; // Fallback
+
+                // Dispatch ready event
+                window.threeJSReady = true;
+                window.dispatchEvent(new CustomEvent('threejs-loaded'));
+                console.log('✅ threejs-loaded event dispatched, window.threeJSReady set to true');
+            } else {
+                console.error('❌ THREE.js failed to load');
+            }
+        });
+    </script>
+
+
+    <!-- Monaco Editor -->
+    <script src="https://unpkg.com/monaco-editor@0.45.0/min/vs/loader.js" onerror="console.error('❌ Failed to load Monaco loader')"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: #1e1e1e;
+            color: #fff;
+        }
+        
+        .header {
+            background: #2d2d30;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid #3e3e42;
+            min-height: 40px;
+        }
+        
+        .menu-btn {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background-color 0.2s;
+        }
+        
+        .menu-btn:hover {
+            background: #1177bb;
+        }
+        
+        .menu-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        
+        .main-container {
+            flex: 1;
+            display: flex;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .editor-container {
+            width: 0%;
+            background: #1e1e1e;
+            border-right: 1px solid #3e3e42;
+            position: relative;
+            overflow: hidden;
+            transition: width 0.3s ease-in-out;
+        }
+
+        .editor-container.open {
+            width: 100%;
+        }
+
+        .canvas-container {
+            width: 100%;
+            background: #252526;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: width 0.3s ease-in-out;
+            overflow: hidden;
+        }
+
+        .canvas-container.editor-open {
+            width: 0%;
+        }
+
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            outline: none;
+            display: block;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        /* Hide canvas when editor is open */
+        .canvas-container.editor-open #renderCanvas {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .editor-toggle-btn {
+            position: fixed;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #007acc;
+            color: white;
+            border: none;
+            border-radius: 0 4px 4px 0;
+            padding: 12px 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 1000;
+            transition: all 0.3s ease-in-out;
+            box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.3);
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .editor-toggle-btn:hover {
+            background: #1177bb;
+        }
+
+        .editor-toggle-btn:active {
+            background: #0e639c;
+        }
+
+        /* When editor is open, button moves to right edge */
+        .editor-toggle-btn.editor-open {
+            left: auto;
+            right: 0;
+            border-radius: 4px 0 0 4px;
+        }
+        
+        .footer {
+            background: #007acc;
+            padding: 4px 12px;
+            font-size: 11px;
+            text-align: center;
+            color: white;
+        }
+        
+        .error-display {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #f14c4c;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            max-width: 300px;
+            display: none;
+            z-index: 1000;
+        }
+        
+        /* Floating Console Window */
+        .console-window {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 400px;
+            height: 300px;
+            background: #1e1e1e;
+            border: 1px solid #007acc;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            z-index: 2000;
+            resize: both;
+            overflow: hidden;
+            min-width: 300px;
+            min-height: 200px;
+            max-width: 90vw;
+            max-height: 80vh;
+        }
+
+        .console-window.minimized {
+            height: auto !important;
+            min-height: auto;
+            resize: none;
+        }
+
+        .console-window.minimized .console-resize-handle {
+            display: none;
+        }
+
+        .console-window.hidden {
+            display: none;
+        }
+
+        .console-title-bar {
+            background: #007acc;
+            color: white;
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: move;
+            user-select: none;
+            -webkit-user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 6px 6px 0 0;
+        }
+
+        .console-title {
+            flex: 1;
+        }
+
+        .console-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .console-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .console-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .console-content {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: auto;
+            padding: 12px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 11px;
+            color: #ccc;
+            background: #1e1e1e;
+            user-select: text;
+            -webkit-user-select: text;
+            cursor: text;
+        }
+
+        .console-window.minimized .console-content {
+            display: none;
+        }
+
+        .console-message {
+            margin: 2px 0;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            user-select: text;
+            -webkit-user-select: text;
+        }
+
+        .console-error {
+            color: #f14c4c;
+        }
+
+        .console-warning {
+            color: #ffcc02;
+        }
+
+        .console-log {
+            color: #ccc;
+        }
+
+        .console-resize-handle {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 16px;
+            height: 16px;
+            cursor: nwse-resize;
+            background: linear-gradient(135deg, transparent 50%, #007acc 50%);
+            opacity: 0.5;
+        }
+
+        .console-window.minimized .console-resize-handle {
+            display: none;
+        }
+
+        /* Console Open Button (always visible in editor) */
+        .console-open-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 48px;
+            height: 48px;
+            background: #007acc;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            z-index: 1500;
+            transition: all 0.2s;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .console-open-btn:hover {
+            background: #1177bb;
+            transform: scale(1.1);
+        }
+
+        .console-open-btn:active {
+            background: #0e639c;
+            transform: scale(0.95);
+        }
+
+        .console-open-btn.hidden {
+            display: none;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #cccccc;
+            font-size: 14px;
+        }
+        
+        /* Remove media query - same behavior across all devices per requirements */
+        /* The editor starts hidden (width: 0%) on all screen sizes */
+    </style>
+</head>
+<body>
+    <div class="header">
+        <button class="menu-btn" onclick="runCode()">▶ Run</button>
+        <button class="menu-btn" onclick="formatCode()">{ } Format</button>
+        <button class="menu-btn" onclick="clearCode()">🗑 Clear</button>
+        <button class="menu-btn" onclick="saveScene()">💾 Save</button>
+        <button class="menu-btn" onclick="downloadScene()">⬇ Download</button>
+        <button class="menu-btn" onclick="newScene()">📄 New</button>
+        <button class="menu-btn" onclick="openDocumentation()">📖 Docs</button>
+        <button class="menu-btn" onclick="toggleConsole()">🖥 Console</button>
+        <select class="menu-btn" onchange="loadExample(this.value)">
+            <option value="">Demo</option>
+            <option value="neon-cubes">💫 Neon Cubes</option>
+            <option value="basic-scene">Basic Scene</option>
+            <option value="lighting">Orbiting Lights 💡</option>
+            <option value="materials">Materials Demo</option>
+            <option value="rainbow">Rainbow Arc 🌈</option>
+            <option value="particle-spiral-galaxy">🌌 Particle Spiral Galaxy</option>
+            <option value="morphing-geometry">🔮 Morphing Geometry</option>
+            <option value="interactive-color-spheres">🎨 Interactive Color Spheres</option>
+            <option value="glowing-torus-knots">✨ Glowing Torus Knots</option>
+            <option value="postprocessing">Bloom Effect ✨</option>
+            <option value="enhanced-bloom">💎 Enhanced Unreal Bloom</option>
+            <option value="glitch-effect">📺 Glitch Effect</option>
+            <option value="rgb-shift">🌈 RGB Shift + Dot Screen</option>
+            <option value="wireframe-dance">🎪 Wireframe Geometry Dance</option>
+            <option value="gradient-wave">🌊 Gradient Plane Wave</option>
+            <option value="ring-portal">🌀 Ring Portal</option>
+            <option value="bouncing-spheres">⚽ Bouncing Spheres Physics</option>
+        </select>
+        <select class="menu-btn" id="cameraSelector" onchange="switchCamera(this.value)" style="margin-left: 10px;">
+            <option value="">Camera: Auto</option>
+            <option value="PerspectiveCamera">Perspective</option>
+            <option value="OrthographicCamera">Orthographic</option>
+            <option value="OrbitControls">Orbit Controls</option>
+        </select>
+        <label style="margin-left: 10px; color: white; cursor: pointer;">
+            <input type="checkbox" id="debugCheckbox" onchange="toggleDebugger(this.checked)" style="cursor: pointer;">
+        </label>
+    </div>
+    
+    <div class="main-container">
+        <div class="editor-container" id="editorContainer">
+            <div id="monaco-editor" style="width: 100%; height: 100%;"></div>
+            <button class="console-open-btn" id="consoleOpenBtn" title="Open Console">📟</button>
+        </div>
+        <div class="canvas-container" id="canvasContainer">
+            <button class="editor-toggle-btn" id="editorToggleBtn" onclick="toggleEditor()">CODE</button>
+            <canvas id="renderCanvas"></canvas>
+            <div class="loading" id="loading">Loading Three.js...</div>
+        </div>
+    </div>
+
+    <div class="footer">
+        Three.js Playground - Powered by WebGL
+    </div>
+
+    <div class="error-display" id="errorDisplay"></div>
+
+    <!-- Floating Console Window -->
+    <div class="console-window" id="consoleWindow">
+        <div class="console-title-bar" id="consoleTitleBar">
+            <div class="console-title">Console</div>
+            <div class="console-controls">
+                <button class="console-btn" id="consoleCopyBtn" title="Copy All">📋</button>
+                <button class="console-btn" id="consoleClearBtn" title="Clear Console">🗑</button>
+                <button class="console-btn" id="consoleMinimizeBtn" title="Minimize">−</button>
+                <button class="console-btn" id="consoleToggleBtn" title="Expand">↕</button>
+                <button class="console-btn" id="consoleCloseBtn" title="Close">×</button>
+            </div>
+        </div>
+        <div class="console-content" id="consoleContent"></div>
+        <div class="console-resize-handle" id="consoleResizeHandle"></div>
+    </div>
+
+    <script>
+        // IMMEDIATE LOGGING TO DEBUG THREE.JS TEMPLATE LOADING
+        console.log('🚀 THREE.JS TEMPLATE SCRIPT STARTING...');
+        console.log('🔍 Three.js availability:', typeof THREE !== 'undefined');
+        console.log('🔍 Monaco availability:', typeof monaco !== 'undefined');
+        console.log('🔍 Document state:', document.readyState);
+        console.log('🔍 Window loaded:', document.readyState === 'complete');
+        
+        let editor;
+        let renderer;
+        let scene;
+        let camera;
+        let controls;
+        let canvas;
+        let animationId;
+        let isResizing = false;
+        let consoleMessages = [];
+        let isEditorOpen = false;
+        let consoleState = {
+            x: null,
+            y: null,
+            width: 400,
+            height: 300,
+            minimized: false,
+            hidden: false
+        };
+
+        // Editor toggle functionality - switches between code view (100%) and scene view (100%)
+        function toggleEditor() {
+            isEditorOpen = !isEditorOpen;
+            const editorContainer = document.getElementById('editorContainer');
+            const canvasContainer = document.getElementById('canvasContainer');
+            const toggleBtn = document.getElementById('editorToggleBtn');
+
+            if (isEditorOpen) {
+                // Show code editor (100%), hide scene (0%)
+                editorContainer.classList.add('open');
+                canvasContainer.classList.add('editor-open');
+                toggleBtn.classList.add('editor-open');
+                toggleBtn.textContent = 'SCENE';
+
+                // Trigger Monaco layout after transition completes
+                setTimeout(() => {
+                    if (editor && typeof editor.layout === 'function') {
+                        editor.layout();
+                    }
+                }, 300);
+            } else {
+                // Show scene (100%), hide code editor (0%)
+                editorContainer.classList.remove('open');
+                canvasContainer.classList.remove('editor-open');
+                toggleBtn.classList.remove('editor-open');
+                toggleBtn.textContent = 'CODE';
+            }
+
+            // Resize canvas and renderer
+            if (renderer && camera) {
+                setTimeout(() => {
+                    const canvas = document.getElementById('renderCanvas');
+                    if (canvas) {
+                        camera.aspect = canvas.clientWidth / canvas.clientHeight;
+                        camera.updateProjectionMatrix();
+                        renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+                    }
+                }, 350);
+            }
+        }
+        
+        console.log('✅ Three.js template variables initialized');
+        
+        // Console management functions (must be defined before console overrides)
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function updateConsoleDisplay() {
+            const consoleContent = document.getElementById('consoleContent');
+            if (consoleContent && consoleMessages.length > 0) {
+                consoleContent.innerHTML = consoleMessages.map(msg =>
+                    `<div class="console-message console-${msg.type}">${escapeHtml(msg.message)}</div>`
+                ).join('');
+                consoleContent.scrollTop = consoleContent.scrollHeight;
+            }
+        }
+        
+        function clearConsole() {
+            consoleMessages = [];
+            updateConsoleDisplay();
+        }
+
+        function copyConsoleToClipboard() {
+            if (consoleMessages.length === 0) {
+                console.log('No console messages to copy');
+                return;
+            }
+            const text = consoleMessages.map(msg => `[${msg.type.toUpperCase()}] ${msg.message}`).join('\n');
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    console.log('✅ Console content copied to clipboard');
+                    showCopyFeedback();
+                }).catch(err => {
+                    console.error('Failed to copy to clipboard:', err);
+                    fallbackCopy(text);
+                });
+            } else {
+                fallbackCopy(text);
+            }
+        }
+
+        function fallbackCopy(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                console.log('✅ Console content copied to clipboard (fallback)');
+                showCopyFeedback();
+            } catch (err) {
+                console.error('Fallback copy failed:', err);
+            }
+            document.body.removeChild(textarea);
+        }
+
+        function showCopyFeedback() {
+            const copyBtn = document.getElementById('consoleCopyBtn');
+            if (copyBtn) {
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = '✓';
+                copyBtn.style.color = '#4caf50';
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                    copyBtn.style.color = '';
+                }, 1500);
+            }
+        }
+
+        function addConsoleMessage(type, message) {
+            consoleMessages.push({ type, message, timestamp: Date.now() });
+            if (consoleMessages.length > 50) {
+                consoleMessages = consoleMessages.slice(-50);
+            }
+            updateConsoleDisplay();
+        }
+        
+        // Define critical injection functions BEFORE Monaco initialization
+        function setFullEditorContent(codeString) {
+            console.log('🎯 Three.js setFullEditorContent called with code length:', codeString.length);
+            console.log('🔍 Three.js editor state check:', {
+                editorExists: !!editor,
+                editorReady: !!window.editorReady,
+                domReady: document.readyState,
+                monacoGlobal: typeof monaco !== 'undefined'
+            });
+            
+            // Multi-level injection strategy for Three.js
+            const strategies = [
+                // Strategy 1: Standard Monaco API
+                () => {
+                    if (editor && window.editorReady && typeof editor.setValue === 'function') {
+                        console.log('📝 Three.js Strategy 1: Using standard Monaco setValue');
+                        editor.setValue(codeString);
+                        editor.focus();
+                        editor.setPosition({lineNumber: 1, column: 1});
+                        editor.layout();
+                        
+                        // Verify content was set
+                        const verification = editor.getValue();
+                        if (verification === codeString) {
+                            console.log('✅ Three.js Strategy 1 successful - content verified');
+                            return true;
+                        } else {
+                            console.warn('⚠️ Three.js Strategy 1 verification failed');
+                            return false;
+                        }
+                    }
+                    return false;
+                },
+                
+                // Strategy 2: Direct model manipulation
+                () => {
+                    if (editor && editor.getModel && typeof editor.getModel === 'function') {
+                        console.log('📝 Three.js Strategy 2: Using Monaco model setValue');
+                        const model = editor.getModel();
+                        if (model && typeof model.setValue === 'function') {
+                            model.setValue(codeString);
+                            editor.focus();
+                            console.log('✅ Three.js Strategy 2 successful - model setValue');
+                            return true;
+                        }
+                    }
+                    return false;
+                },
+                
+                // Strategy 3: Emergency retry with delay
+                () => {
+                    return new Promise((resolve) => {
+                        console.log('📝 Three.js Strategy 3: Emergency retry with delay');
+                        setTimeout(() => {
+                            if (editor && typeof editor.setValue === 'function') {
+                                try {
+                                    editor.setValue(codeString);
+                                    console.log('✅ Three.js Strategy 3 successful - delayed retry');
+                                    resolve(true);
+                                } catch (e) {
+                                    console.error('❌ Three.js Strategy 3 failed:', e);
+                                    resolve(false);
+                                }
+                            } else {
+                                resolve(false);
+                            }
+                        }, 1000);
+                    });
+                }
+            ];
+            
+            // Try each strategy sequentially
+            const executeStrategies = async () => {
+                for (let i = 0; i < strategies.length; i++) {
+                    try {
+                        const result = await strategies[i]();
+                        if (result) {
+                            console.log(`🎉 Three.js content injection successful using strategy ${i + 1}`);
+                            
+                            // Auto-run the code after successful injection
+                            setTimeout(() => {
+                                console.log('🚀 Auto-running the injected Three.js code...');
+                                runCode();
+                                
+                                // Force immediate render after code injection
+                                if (scene && camera && renderer) {
+                                    renderer.render(scene, camera);
+                                    console.log('🎯 Forced immediate render after code injection');
+                                }
+                            }, 500);
+                            
+                            notifySwift('codeInserted', { 
+                                code: codeString,
+                                strategy: i + 1,
+                                success: true,
+                                library: 'threejs'
+                            });
+                            return true;
+                        }
+                    } catch (error) {
+                        console.error(`❌ Three.js Strategy ${i + 1} failed:`, error);
+                    }
+                }
+                
+                console.error('❌ All Three.js injection strategies failed');
+                notifySwift('codeInserted', { 
+                    code: codeString,
+                    success: false,
+                    error: 'All Three.js injection strategies failed',
+                    library: 'threejs'
+                });
+                return false;
+            };
+            
+            return executeStrategies();
+        }
+        
+        // Override console methods to capture logs
+        const originalConsole = {
+            log: console.log,
+            error: console.error,
+            warn: console.warn,
+            info: console.info
+        };
+        
+        console.log = (...args) => {
+            originalConsole.log(...args);
+            addConsoleMessage('log', args.map(arg => String(arg)).join(' '));
+        };
+        
+        console.error = (...args) => {
+            originalConsole.error(...args);
+            addConsoleMessage('error', args.map(arg => String(arg)).join(' '));
+            // Auto-show console for critical errors
+            const consoleDisplay = document.getElementById('consoleDisplay');
+            if (consoleDisplay) {
+                consoleDisplay.style.display = 'block';
+            }
+        };
+        
+        console.warn = (...args) => {
+            originalConsole.warn(...args);
+            addConsoleMessage('warning', args.map(arg => String(arg)).join(' '));
+            // Auto-show console for warnings
+            const consoleDisplay = document.getElementById('consoleDisplay');
+            if (consoleDisplay) {
+                consoleDisplay.style.display = 'block';
+            }
+        };
+        
+        console.info = (...args) => {
+            originalConsole.info(...args);
+            addConsoleMessage('log', args.map(arg => String(arg)).join(' '));
+        };
+        
+        // Global error handler to catch uncaught errors
+        window.addEventListener('error', function(event) {
+            console.error('❌ UNCAUGHT ERROR:', event.error);
+            console.error('❌ Error message:', event.message);
+            console.error('❌ Error source:', event.filename + ':' + event.lineno);
+            if (event.error && event.error.stack) {
+                console.error('❌ Stack trace:', event.error.stack);
+            }
+        });
+
+        // Catch unhandled promise rejections
+        window.addEventListener('unhandledrejection', function(event) {
+            console.error('❌ UNHANDLED PROMISE REJECTION:', event.reason);
+        });
+
+        // Initialize Monaco Editor with enhanced error handling and fallback
+        console.log('Starting Monaco Editor initialization...');
+        
+        // Set longer timeout for CDN loading
+        let monacoTimeout = setTimeout(() => {
+            console.error('❌ Monaco Editor CDN loading timeout - creating fallback editor');
+            createFallbackEditor();
+        }, 10000); // 10 second timeout
+        
+        require.config({ 
+            paths: { vs: 'https://unpkg.com/monaco-editor@0.45.0/min/vs' },
+            waitSeconds: 30 // Increase wait time for CDN
+        });
+        
+        require(['vs/editor/editor.main'], function () {
+            clearTimeout(monacoTimeout); // Cancel timeout since loading succeeded
+            console.log('✅ Monaco modules loaded successfully, creating editor...');
+            
+            try {
+                const editorContainer = document.getElementById('monaco-editor');
+                if (!editorContainer) {
+                    throw new Error('Monaco editor container not found');
+                }
+                
+                editor = monaco.editor.create(editorContainer, {
+                    value: getDefaultCode(),
+                    language: 'javascript',
+                    theme: 'vs-dark',
+                    automaticLayout: true,
+                    minimap: { enabled: true },
+                    fontSize: 14,
+                    wordWrap: 'on',
+                    scrollBeyondLastLine: false,
+                    renderLineHighlight: 'all',
+                    selectionHighlight: false,
+                    lineNumbers: 'on',
+                    glyphMargin: true,
+                    folding: true,
+                    foldingStrategy: 'indentation',
+                    showFoldingControls: 'always',
+                    unfoldOnClickAfterEndOfLine: false,
+                    tabSize: 4
+                });
+                
+                console.log('✅ Monaco editor created successfully:', !!editor);
+                
+                // Auto-save on changes
+                editor.onDidChangeModelContent(() => {
+                    debounce(notifyCodeChange, 500)();
+                });
+                
+                // Make editor globally accessible with multiple references
+                window.editor = editor;
+                window.monacoEditor = editor;
+                window.codeEditor = editor;
+                
+                        // Simple readiness check - simplified to match working Babylon.js exactly
+                if (editor && editor.getModel && typeof editor.setValue === 'function') {
+                    // Mark as ready immediately like Babylon.js does
+                    window.editorReady = true;
+                    console.log('✅ Monaco editor ready for injection');
+                    
+                    // Initialize Three.js after Monaco is confirmed ready
+                    initializeThreeJS();
+                } else {
+                    console.error('❌ Monaco editor creation failed');
+                    createFallbackEditor();
+                }
+                
+                
+            } catch (editorError) {
+                console.error('❌ Failed to create Monaco editor:', editorError);
+                createFallbackEditor();
+            }
+        }, function(error) {
+            clearTimeout(monacoTimeout);
+            console.error('❌ Failed to load Monaco from CDN:', error);
+            createFallbackEditor();
+        });
+        
+        // Fallback editor function
+        function createFallbackEditor() {
+            console.log('🔧 Creating fallback textarea editor...');
+            
+            const editorContainer = document.getElementById('monaco-editor');
+            if (!editorContainer) {
+                console.error('❌ Editor container not found');
+                return;
+            }
+            
+            // Create a textarea fallback
+            editorContainer.innerHTML = '<textarea id="fallback-editor" style="width: 100%; height: 100%; background: #1e1e1e; color: #fff; font-family: \'Monaco\', \'Consolas\', monospace; font-size: 14px; border: none; outline: none; padding: 10px;"></textarea>';
+            
+            const textarea = document.getElementById('fallback-editor');
+            if (textarea) {
+                textarea.value = getDefaultCode();
+                
+                // Create minimal editor interface
+                window.editor = {
+                    setValue: (code) => { textarea.value = code; },
+                    getValue: () => textarea.value,
+                    getModel: () => ({ setValue: (code) => textarea.value = code }),
+                    layout: () => {},
+                    focus: () => textarea.focus(),
+                    setPosition: () => {},
+                    onDidChangeModelContent: (callback) => {
+                        textarea.addEventListener('input', callback);
+                        return { dispose: () => {} };
+                    }
+                };
+                
+                window.monacoEditor = window.editor;
+                window.codeEditor = window.editor;
+                
+                // Auto-save on changes
+                textarea.addEventListener('input', () => {
+                    debounce(notifyCodeChange, 500)();
+                });
+                
+                // Mark as ready
+                window.editorReady = true;
+                console.log('✅ Fallback editor ready for injection');
+                
+                // Initialize Three.js
+                initializeThreeJS();
+            }
+        }
+        
+        // Initialize Three.js with comprehensive error handling
+        function initializeThreeJS() {
+            console.log('🚀 Initializing Three.js...');
+
+            // Check if THREE is available, if not wait for it
+            if (typeof THREE === 'undefined') {
+                console.log('⏳ Waiting for Three.js module to load...');
+                window.addEventListener('threejs-loaded', function() {
+                    console.log('✅ Three.js module loaded event received');
+                    initializeThreeJSCore();
+                }, { once: true });
+                return;
+            }
+
+            initializeThreeJSCore();
+        }
+
+        function initializeThreeJSCore() {
+            console.log('🚀 Starting Three.js core initialization...');
+
+            try {
+                // Verify THREE is available
+                if (typeof THREE === 'undefined') {
+                    console.error('❌ CRITICAL: THREE.js library not loaded from CDN');
+                    throw new Error('THREE.js library not loaded - check network connection');
+                }
+                
+                canvas = document.getElementById('renderCanvas');
+                if (!canvas) {
+                    console.error('❌ CRITICAL: Canvas element not found in DOM');
+                    throw new Error('Canvas element not found');
+                }
+                
+                console.log('✅ Canvas found:', canvas.clientWidth + 'x' + canvas.clientHeight);
+                console.log('✅ THREE.js version available:', THREE.REVISION);
+                
+                // Create renderer with error handling
+                console.log('🎨 Creating WebGL renderer...');
+                renderer = new THREE.WebGLRenderer({ 
+                    canvas: canvas,
+                    antialias: true,
+                    preserveDrawingBuffer: true
+                });
+                
+                const canvasWidth = canvas.clientWidth || 800;
+                const canvasHeight = canvas.clientHeight || 600;
+                renderer.setSize(canvasWidth, canvasHeight);
+                renderer.setPixelRatio(window.devicePixelRatio);
+                renderer.shadowMap.enabled = true;
+                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                
+                console.log('✅ Three.js renderer created successfully:', canvasWidth + 'x' + canvasHeight);
+                
+                // Test renderer capabilities
+                const gl = renderer.getContext();
+                if (!gl) {
+                    console.error('❌ CRITICAL: WebGL context not available');
+                    throw new Error('WebGL not supported');
+                }
+                console.log('✅ WebGL context created successfully');
+                
+            } catch (rendererError) {
+                console.error('❌ CRITICAL: Three.js renderer creation failed:', rendererError);
+                console.error('❌ Error stack:', rendererError.stack);
+                return; // Don't continue if renderer fails
+            }
+            
+            try {
+                // Create default scene and camera
+                scene = new THREE.Scene();
+                camera = new THREE.PerspectiveCamera(75, (canvas.clientWidth || 800) / (canvas.clientHeight || 600), 0.1, 1000);
+                console.log('✅ Scene and camera created');
+            } catch (sceneError) {
+                console.error('❌ Scene/camera creation failed:', sceneError);
+                return;
+            }
+            
+            // Set up camera position and create OrbitControls
+            camera.position.set(0, 5, 10);
+            camera.lookAt(0, 0, 0);
+
+            // Create real OrbitControls if available, otherwise use mock
+            if (typeof OrbitControls !== 'undefined') {
+                try {
+                    controls = new OrbitControls(camera, canvas);
+                    controls.enableDamping = true;
+                    controls.dampingFactor = 0.05;
+                    controls.target.set(0, 0, 0);
+                    controls.update();
+                    console.log('✅ Camera positioned with OrbitControls');
+                } catch (controlsError) {
+                    console.warn('⚠️ OrbitControls creation failed, using mock controls:', controlsError);
+                    createMockControls();
+                }
+            } else {
+                console.warn('⚠️ OrbitControls not available, using mock controls');
+                createMockControls();
+            }
+
+            function createMockControls() {
+                controls = {
+                    target: { x: 0, y: 0, z: 0, set: function(x, y, z) { this.x = x; this.y = y; this.z = z; } },
+                    update: function() {},
+                    enableDamping: false,
+                    dampingFactor: 0.05
+                };
+            }
+            
+            // Make globals available
+            window.canvas = canvas;
+            window.renderer = renderer;
+            window.scene = scene;
+            window.camera = camera;
+            window.controls = controls;
+            window.THREE = THREE;
+            
+            // Hide loading
+            document.getElementById('loading').style.display = 'none';
+            
+            // Start render loop BEFORE creating default scene
+            startRenderLoop();
+            
+            // Create default scene AND run it automatically
+            console.log('🎯 Auto-running default scene on initialization...');
+            createDefaultScene();
+            
+            console.log('Three.js initialization complete');
+            
+            // Handle resize
+            window.addEventListener('resize', onWindowResize);
+            
+            // Notify Swift that initialization is complete
+            setTimeout(() => {
+                console.log('Three.js playground fully initialized');
+                notifySwift('initializationComplete', { 
+                    ready: true,
+                    editorReady: !!(window.editorReady && typeof editor !== 'undefined' && editor),
+                    engineReady: !!renderer 
+                });
+            }, 1500);
+        }
+        
+        function startRenderLoop() {
+            console.log('🎬 Starting Three.js render loop...');
+            let frameCount = 0;
+
+            function animate() {
+                animationId = requestAnimationFrame(animate);
+                frameCount++;
+
+                // Debug every 60 frames (about once per second at 60fps)
+                if (frameCount % 60 === 0) {
+                    console.log('🎬 Render loop active, frame:', frameCount, 'scene children:', scene?.children?.length || 0);
+                }
+
+                controls.update();
+
+                // Execute any scene animations
+                if (scene && scene.userData && scene.userData.animate) {
+                    scene.userData.animate();
+                }
+
+                if (scene && camera && renderer) {
+                    // Check if scene has a custom composer (for postprocessing)
+                    if (scene.userData && scene.userData.composer) {
+                        scene.userData.composer.render();
+                    } else {
+                        renderer.render(scene, camera);
+                    }
+                } else if (frameCount < 10) {
+                    console.log('⚠️ Missing components - scene:', !!scene, 'camera:', !!camera, 'renderer:', !!renderer);
+                }
+            }
+            animate();
+        }
+        
+        function onWindowResize() {
+            if (camera && renderer && canvas) {
+                camera.aspect = canvas.clientWidth / canvas.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+            }
+        }
+        
+        function getDefaultCode() {
+            return `// Welcome to Three.js Playground!
+// Create your 3D scene using Three.js r160+
+
+const createScene = () => {
+    // Create scene
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x606060); // Even lighter background for better visibility
+    
+    // Create camera (use canvas dimensions for proper aspect ratio)
+    const camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+    camera.position.set(0, 5, 10);
+    
+    // Lighting - Enhanced for better visibility
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.8); // Increased ambient intensity
+    scene.add(ambientLight);
+    
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0); // Full intensity
+    directionalLight.position.set(10, 10, 5);
+    scene.add(directionalLight);
+    
+    // Add point light for additional illumination
+    const pointLight = new THREE.PointLight(0xffffff, 0.5, 50);
+    pointLight.position.set(-10, 10, -10);
+    scene.add(pointLight);
+    
+    // Create geometry and material
+    const geometry = new THREE.SphereGeometry(1, 32, 32);
+    const material = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
+    const sphere = new THREE.Mesh(geometry, material);
+    sphere.position.y = 1;
+    scene.add(sphere);
+    
+    // Create ground
+    const groundGeometry = new THREE.PlaneGeometry(10, 10);
+    const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+    
+    // Set up controls
+    controls.target.set(0, 0, 0);
+    controls.update();
+    
+    console.log("Scene created with camera:", !!camera, "objects:", scene.children.length);
+    
+    return { scene, camera };
+};
+
+// Execute the scene creation and update global references
+const sceneResult = createScene();
+if (sceneResult && sceneResult.scene) {
+    window.scene = sceneResult.scene;
+    scene = sceneResult.scene;
+}
+if (sceneResult && sceneResult.camera) {
+    window.camera = sceneResult.camera;
+    camera = sceneResult.camera;
+}
+
+console.log("✅ Default scene creation complete!");`;
+        }
+        
+        function createDefaultScene() {
+            try {
+                console.log('🎯 createDefaultScene called...');
+                
+                // Get current editor code or fall back to default
+                const codeToRun = editor ? editor.getValue() : getDefaultCode();
+                const isDefaultCode = !editor || editor.getValue() === getDefaultCode();
+                
+                console.log('🎯 Running code:', isDefaultCode ? 'DEFAULT CODE' : 'EDITOR CONTENT');
+                console.log('🎯 Code length:', codeToRun.length);
+                
+                // Execute the code (this handles scene replacement)
+                executeUserCode(codeToRun);
+                
+                hideError();
+            } catch (error) {
+                console.error('❌ createDefaultScene failed:', error);
+                showError('Scene Creation Error: ' + error.message);
+                
+                // Create emergency fallback scene
+                createFallbackScene();
+            }
+        }
+        
+        function clearScene() {
+            if (scene) {
+                console.log('🧹 Clearing scene objects (preserving lighting)...');
+                
+                // Only remove non-light objects to preserve lighting
+                const objectsToRemove = [];
+                
+                // Collect non-light objects
+                scene.children.forEach(child => {
+                    if (!(child instanceof THREE.Light) && 
+                        !child.isAmbientLight && 
+                        !child.isDirectionalLight && 
+                        !child.isPointLight && 
+                        !child.isSpotLight && 
+                        !child.isHemisphereLight) {
+                        objectsToRemove.push(child);
+                    }
+                });
+                
+                // Remove and dispose non-light objects
+                objectsToRemove.forEach(object => {
+                    if (object.geometry) object.geometry.dispose();
+                    if (object.material) {
+                        if (Array.isArray(object.material)) {
+                            object.material.forEach(mat => {
+                                if (mat.map) mat.map.dispose();
+                                mat.dispose();
+                            });
+                        } else {
+                            if (object.material.map) object.material.map.dispose();
+                            object.material.dispose();
+                        }
+                    }
+                    scene.remove(object);
+                });
+                
+                console.log('✅ Scene cleared, lights preserved:', scene.children.length, 'objects remaining');
+            }
+        }
+        
+        function executeUserCode(code) {
+            try {
+                console.log('=== EXECUTING THREE.JS USER CODE ===');
+
+                // CRITICAL: Check if THREE is loaded before executing
+                if (typeof THREE === 'undefined') {
+                    console.log('⏳ THREE not ready yet...');
+
+                    // Check if the module already loaded but THREE isn't accessible yet (race condition fix)
+                    if (window.threeJSReady) {
+                        console.log('⏳ THREE event fired but library not accessible, retrying in 100ms...');
+                        setTimeout(() => executeUserCode(code), 100);
+                        return;
+                    }
+
+                    // Otherwise wait for the event
+                    console.log('⏳ Waiting for threejs-loaded event...');
+                    window.addEventListener('threejs-loaded', function() {
+                        console.log('✅ THREE loaded event received, retrying code execution...');
+                        executeUserCode(code);
+                    }, { once: true });
+                    return;
+                }
+
+                clearConsole();
+
+                // Store old scene and camera for comparison
+                const oldScene = scene;
+                const oldCamera = camera;
+
+                // Clear existing objects but preserve lighting
+                clearScene();
+
+                // CRITICAL: Clean user code to remove JSX/HTML tags (React Three Fiber syntax)
+                // Remove any JSX tags like <mesh>, <box>, <Canvas>, etc.
+                code = code.replace(/<[^>]+>/g, '');
+
+                // Remove import statements (ES modules don't work here)
+                code = code.replace(/import\s+.*?from\s+['"].*?['"]\s*;?\s*/g, '');
+
+                // Remove export statements
+                code = code.replace(/export\s+(default\s+)?/g, '');
+
+                // Clean user code to remove conflicting animation loops
+                // Remove standalone animate() function definitions that call composer.render()
+                code = code.replace(/function\s+animate\s*\(\s*\)\s*\{[^}]*requestAnimationFrame\s*\(\s*animate\s*\)[^}]*composer\.render\s*\(\s*\)[^}]*\}\s*animate\s*\(\s*\)\s*;?/g, '');
+
+                // Remove arrow function animate loops
+                code = code.replace(/const\s+animate\s*=\s*\(\s*\)\s*=>\s*\{[^}]*requestAnimationFrame\s*\(\s*animate\s*\)[^}]*composer\.render\s*\(\s*\)[^}]*\}\s*;?\s*animate\s*\(\s*\)\s*;?/g, '');
+
+                console.log('🧹 Cleaned user code: removed JSX/imports and animation loops');
+
+                // Execute the code in global context
+                const executeCode = new Function('THREE', 'scene', 'camera', 'renderer', 'controls', 'canvas',
+                    `try {
+                        ${code}
+                        
+                        // Check if code created a new scene vs modifying existing
+                        let resultScene = window.scene || scene;
+                        let resultCamera = window.camera || camera;
+                        
+                        // If user code creates its own scene, use that
+                        if (typeof createScene === 'function') {
+                            const sceneResult = createScene();
+                            if (sceneResult && sceneResult.scene) {
+                                resultScene = sceneResult.scene;
+                                resultCamera = sceneResult.camera || camera;
+                            } else if (sceneResult && sceneResult.constructor === THREE.Scene) {
+                                resultScene = sceneResult;
+                            }
+                        }
+                        
+                        return { scene: resultScene, camera: resultCamera };
+                    } catch (execError) {
+                        console.error('Code execution error:', execError);
+                        throw execError;
+                    }`
+                );
+                
+                const result = executeCode(THREE, scene, camera, renderer, controls, canvas);
+                
+                // Handle scene replacement
+                if (result && result.scene && result.scene !== oldScene) {
+                    console.log('🔄 Replacing scene with new one');
+                    scene = result.scene;
+                    window.scene = result.scene;
+                } else if (result && result.scene) {
+                    console.log('🔧 Using modified existing scene');
+                    scene = result.scene;
+                    window.scene = result.scene;
+                }
+                
+                // Handle camera replacement
+                if (result && result.camera && result.camera !== oldCamera) {
+                    console.log('📷 Replacing camera with new one');
+                    camera = result.camera;
+                    window.camera = result.camera;
+                } else if (result && result.camera) {
+                    camera = result.camera;
+                    window.camera = result.camera;
+                }
+                
+                // Ensure renderer uses correct canvas dimensions (fix common user error)
+                const canvasWidth = canvas.clientWidth || 800;
+                const canvasHeight = canvas.clientHeight || 600;
+                renderer.setSize(canvasWidth, canvasHeight);
+                
+                // Fix camera aspect ratio if needed
+                if (camera && camera.isPerspectiveCamera) {
+                    camera.aspect = canvasWidth / canvasHeight;
+                    camera.updateProjectionMatrix();
+                }
+                
+                console.log('✅ Three.js scene created successfully');
+                console.log('🎯 Renderer size:', renderer.getSize(new THREE.Vector2()));
+                console.log('🎯 Canvas size:', canvas.clientWidth + 'x' + canvas.clientHeight);
+                console.log('🎯 Scene children:', scene.children.length);
+                console.log('🎯 Camera position:', camera.position);
+                console.log('🎯 Scene background:', scene.background);
+                console.log('🎯 Render loop running:', !!animationId);
+                
+                // Log scene composition for debugging
+                if (scene.children.length > 0) {
+                    console.log('🎯 Scene objects:', scene.children.map(child => child.constructor.name).join(', '));
+                    const lightCount = scene.children.filter(child => child instanceof THREE.Light).length;
+                    const meshCount = scene.children.filter(child => child instanceof THREE.Mesh).length;
+                    console.log(`🎯 Scene composition: ${lightCount} lights, ${meshCount} meshes`);
+                }
+                
+                // Force an immediate render to test
+                if (scene && camera && renderer) {
+                    console.log('🎯 Forcing immediate render test...');
+                    renderer.render(scene, camera);
+
+                    // Detect and update camera selector
+                    setTimeout(() => {
+                        detectCurrentCamera();
+                    }, 100);
+                }
+
+                hideError();
+
+                notifySwift('sceneCreated', { success: true });
+                
+            } catch (error) {
+                const errorMsg = 'Execution Error: ' + error.message;
+                console.error('❌ executeUserCode failed:', errorMsg);
+                showError(errorMsg);
+                notifySwift('sceneError', { error: error.message });
+                
+                // Create fallback scene
+                createFallbackScene();
+            }
+        }
+        
+        function createFallbackScene() {
+            console.log('🚨 Creating Three.js EMERGENCY fallback scene...');
+            
+            try {
+                clearScene();
+                
+                // Recreate scene and camera with global assignment
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x606060); // Light background for visibility
+                
+                camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+                camera.position.set(0, 5, 10);
+                camera.lookAt(0, 0, 0);
+                
+                // Enhanced lighting for fallback scene
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
+                scene.add(ambientLight);
+                
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+                directionalLight.position.set(10, 10, 5);
+                scene.add(directionalLight);
+                
+                const pointLight = new THREE.PointLight(0xffffff, 0.5, 50);
+                pointLight.position.set(-10, 10, -10);
+                scene.add(pointLight);
+                
+                // Create bright green sphere for visibility
+                const geometry = new THREE.SphereGeometry(1, 32, 32);
+                const material = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
+                const sphere = new THREE.Mesh(geometry, material);
+                sphere.position.y = 1;
+                scene.add(sphere);
+                
+                // Add ground plane
+                const groundGeometry = new THREE.PlaneGeometry(10, 10);
+                const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+                const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+                ground.rotation.x = -Math.PI / 2;
+                scene.add(ground);
+                
+                // Set controls
+                controls.target.set(0, 0, 0);
+                controls.update();
+                
+                // Update global references
+                window.scene = scene;
+                window.camera = camera;
+                
+                console.log('✅ Fallback scene created with objects:', scene.children.length);
+                console.log('✅ Fallback camera position:', camera.position);
+                
+                // Force immediate render
+                if (renderer) {
+                    renderer.render(scene, camera);
+                    console.log('✅ Fallback scene rendered immediately');
+                }
+                
+            } catch (fallbackError) {
+                console.error('❌ CRITICAL: Even fallback scene creation failed:', fallbackError);
+            }
+        }
+        
+        // Playground functions
+        function runCode() {
+            console.log('🚀 Run code button pressed - executing current editor content');
+            
+            try {
+                // Get current code from editor
+                const currentCode = editor ? editor.getValue() : getDefaultCode();
+                console.log('🎯 Executing code with length:', currentCode.length);
+                
+                // Execute the current code (this will replace the scene)
+                executeUserCode(currentCode);
+                
+                notifySwift('codeRun', { success: true });
+            } catch (error) {
+                console.error('❌ runCode failed:', error);
+                showError('Run Error: ' + error.message);
+                notifySwift('codeRun', { success: false, error: error.message });
+            }
+        }
+        
+        function formatCode() {
+            if (editor) {
+                editor.getAction('editor.action.formatDocument').run();
+                notifySwift('codeFormatted', {});
+            }
+        }
+        
+        function clearCode() {
+            if (editor) {
+                editor.setValue(getDefaultCode());
+                notifySwift('codeCleared', {});
+            }
+        }
+        
+        function saveScene() {
+            const code = editor ? editor.getValue() : '';
+            notifySwift('saveRequested', { code: code });
+        }
+        
+        function downloadScene() {
+            const code = editor ? editor.getValue() : '';
+            notifySwift('downloadRequested', { code: code });
+        }
+        
+        function newScene() {
+            clearCode();
+            runCode();
+        }
+        
+        function openDocumentation() {
+            // Open Three.js documentation in Safari
+            window.location.href = 'https://threejs.org/docs/';
+        }
+        
+        function initFloatingConsole() {
+            const consoleWindow = document.getElementById('consoleWindow');
+            const titleBar = document.getElementById('consoleTitleBar');
+            const copyBtn = document.getElementById('consoleCopyBtn');
+            const clearBtn = document.getElementById('consoleClearBtn');
+            const minimizeBtn = document.getElementById('consoleMinimizeBtn');
+            const toggleBtn = document.getElementById('consoleToggleBtn');
+            const closeBtn = document.getElementById('consoleCloseBtn');
+            const resizeHandle = document.getElementById('consoleResizeHandle');
+            const consoleOpenBtn = document.getElementById('consoleOpenBtn');
+
+            // Safety check - return if elements don't exist yet
+            if (!consoleWindow || !titleBar || !copyBtn || !clearBtn || !minimizeBtn || !toggleBtn || !closeBtn || !resizeHandle || !consoleOpenBtn) {
+                console.warn('Console elements not ready yet, skipping initialization');
+                return;
+            }
+
+            // Load saved state from localStorage
+            const saved = localStorage.getItem('threejs_console_state');
+            if (saved) {
+                consoleState = { ...consoleState, ...JSON.parse(saved) };
+                applyConsoleState();
+            }
+
+            // Copy button
+            copyBtn.addEventListener('click', () => {
+                copyConsoleToClipboard();
+            });
+
+            // Clear button
+            clearBtn.addEventListener('click', () => {
+                clearConsole();
+            });
+
+            // Minimize button
+            minimizeBtn.addEventListener('click', () => {
+                consoleState.minimized = !consoleState.minimized;
+                consoleWindow.classList.toggle('minimized', consoleState.minimized);
+                minimizeBtn.textContent = consoleState.minimized ? '+' : '−';
+                saveConsoleState();
+            });
+
+            // Toggle/Expand button
+            toggleBtn.addEventListener('click', () => {
+                if (consoleState.minimized) {
+                    consoleState.minimized = false;
+                    consoleWindow.classList.remove('minimized');
+                    minimizeBtn.textContent = '−';
+                }
+                saveConsoleState();
+            });
+
+            // Close button
+            closeBtn.addEventListener('click', () => {
+                consoleState.hidden = true;
+                consoleWindow.classList.add('hidden');
+                saveConsoleState();
+                updateConsoleOpenButtonVisibility();
+            });
+
+            // Dragging
+            let isDragging = false;
+            let dragStartX, dragStartY, dragStartLeft, dragStartTop;
+
+            titleBar.addEventListener('mousedown', startDrag);
+            titleBar.addEventListener('touchstart', startDrag, { passive: false });
+
+            function startDrag(e) {
+                if (e.target.closest('.console-btn')) return;
+                isDragging = true;
+
+                const rect = consoleWindow.getBoundingClientRect();
+                const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+
+                dragStartX = clientX;
+                dragStartY = clientY;
+                dragStartLeft = rect.left;
+                dragStartTop = rect.top;
+
+                e.preventDefault();
+            }
+
+            function doDrag(e) {
+                if (!isDragging) return;
+
+                const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+
+                const deltaX = clientX - dragStartX;
+                const deltaY = clientY - dragStartY;
+
+                consoleState.x = dragStartLeft + deltaX;
+                consoleState.y = dragStartTop + deltaY;
+
+                consoleWindow.style.left = consoleState.x + 'px';
+                consoleWindow.style.top = consoleState.y + 'px';
+                consoleWindow.style.right = 'auto';
+                consoleWindow.style.bottom = 'auto';
+
+                e.preventDefault();
+            }
+
+            function stopDrag() {
+                if (isDragging) {
+                    isDragging = false;
+                    saveConsoleState();
+                }
+            }
+
+            document.addEventListener('mousemove', doDrag);
+            document.addEventListener('touchmove', doDrag, { passive: false });
+            document.addEventListener('mouseup', stopDrag);
+            document.addEventListener('touchend', stopDrag);
+
+            // Resizing
+            let isResizingConsole = false;
+            let resizeStartX, resizeStartY, resizeStartWidth, resizeStartHeight;
+
+            resizeHandle.addEventListener('mousedown', startResize);
+            resizeHandle.addEventListener('touchstart', startResize, { passive: false });
+
+            function startResize(e) {
+                isResizingConsole = true;
+
+                const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+
+                resizeStartX = clientX;
+                resizeStartY = clientY;
+                resizeStartWidth = consoleWindow.offsetWidth;
+                resizeStartHeight = consoleWindow.offsetHeight;
+
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            function doResize(e) {
+                if (!isResizingConsole) return;
+
+                const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+
+                const deltaX = clientX - resizeStartX;
+                const deltaY = clientY - resizeStartY;
+
+                consoleState.width = Math.max(300, Math.min(resizeStartWidth + deltaX, window.innerWidth * 0.9));
+                consoleState.height = Math.max(200, Math.min(resizeStartHeight + deltaY, window.innerHeight * 0.8));
+
+                consoleWindow.style.width = consoleState.width + 'px';
+                consoleWindow.style.height = consoleState.height + 'px';
+
+                e.preventDefault();
+            }
+
+            function stopResize() {
+                if (isResizingConsole) {
+                    isResizingConsole = false;
+                    saveConsoleState();
+                }
+            }
+
+            document.addEventListener('mousemove', doResize);
+            document.addEventListener('touchmove', doResize, { passive: false });
+            document.addEventListener('mouseup', stopResize);
+            document.addEventListener('touchend', stopResize);
+
+            // Console Open Button (already declared at top of function)
+            consoleOpenBtn.addEventListener('click', () => {
+                consoleState.hidden = false;
+                consoleState.minimized = false;
+                consoleWindow.classList.remove('hidden');
+                consoleWindow.classList.remove('minimized');
+                minimizeBtn.textContent = '−';
+                saveConsoleState();
+                updateConsoleOpenButtonVisibility();
+            });
+
+            // Update button visibility based on console state
+            updateConsoleOpenButtonVisibility();
+        }
+
+        function updateConsoleOpenButtonVisibility() {
+            const consoleOpenBtn = document.getElementById('consoleOpenBtn');
+            const consoleWindow = document.getElementById('consoleWindow');
+
+            // Show button only when console is hidden
+            if (consoleState.hidden) {
+                consoleOpenBtn.classList.remove('hidden');
+            } else {
+                consoleOpenBtn.classList.add('hidden');
+            }
+        }
+
+        function applyConsoleState() {
+            const consoleWindow = document.getElementById('consoleWindow');
+            const minimizeBtn = document.getElementById('consoleMinimizeBtn');
+
+            if (consoleState.x !== null && consoleState.y !== null) {
+                consoleWindow.style.left = consoleState.x + 'px';
+                consoleWindow.style.top = consoleState.y + 'px';
+                consoleWindow.style.right = 'auto';
+                consoleWindow.style.bottom = 'auto';
+            }
+
+            consoleWindow.style.width = consoleState.width + 'px';
+            consoleWindow.style.height = consoleState.height + 'px';
+
+            consoleWindow.classList.toggle('minimized', consoleState.minimized);
+            consoleWindow.classList.toggle('hidden', consoleState.hidden);
+            minimizeBtn.textContent = consoleState.minimized ? '+' : '−';
+
+            updateConsoleOpenButtonVisibility();
+        }
+
+        function saveConsoleState() {
+            localStorage.setItem('threejs_console_state', JSON.stringify(consoleState));
+        }
+
+        function toggleConsole() {
+            consoleState.hidden = !consoleState.hidden;
+            document.getElementById('consoleWindow').classList.toggle('hidden', consoleState.hidden);
+            saveConsoleState();
+            updateConsoleOpenButtonVisibility();
+            if (!consoleState.hidden && consoleMessages.length === 0) {
+                console.log('Console opened - no messages yet');
+            }
+        }
+
+        // Initialize console on page load
+        window.addEventListener('DOMContentLoaded', initFloatingConsole);
+
+        // Camera switching functionality for Three.js
+        function switchCamera(cameraType) {
+            if (!scene || !camera || !renderer) {
+                console.warn('No scene/camera/renderer available for camera switching');
+                return;
+            }
+
+            if (!cameraType || cameraType === '') {
+                console.log('Camera set to Auto - using scene default');
+                return;
+            }
+
+            console.log('Switching to camera type:', cameraType);
+
+            // Store current camera position and rotation
+            const currentPosition = camera.position.clone();
+            const currentRotation = camera.rotation.clone();
+
+            // Get aspect ratio
+            const aspect = window.innerWidth / 2 / window.innerHeight;
+
+            try {
+                switch(cameraType) {
+                    case 'PerspectiveCamera':
+                        // Dispose OrbitControls if they exist
+                        if (window.controls && window.controls.dispose) {
+                            window.controls.dispose();
+                            window.controls = null;
+                        }
+
+                        camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000);
+                        camera.position.copy(currentPosition);
+                        camera.rotation.copy(currentRotation);
+                        window.camera = camera;
+                        console.log('Switched to PerspectiveCamera');
+                        break;
+
+                    case 'OrthographicCamera':
+                        // Dispose OrbitControls if they exist
+                        if (window.controls && window.controls.dispose) {
+                            window.controls.dispose();
+                            window.controls = null;
+                        }
+
+                        const width = 10;
+                        const height = width / aspect;
+                        camera = new THREE.OrthographicCamera(
+                            width / -2, width / 2,
+                            height / 2, height / -2,
+                            0.1, 1000
+                        );
+                        camera.position.copy(currentPosition);
+                        camera.rotation.copy(currentRotation);
+                        window.camera = camera;
+                        console.log('Switched to OrthographicCamera');
+                        break;
+
+                    case 'OrbitControls':
+                        // Create PerspectiveCamera if not already one
+                        if (!(camera instanceof THREE.PerspectiveCamera)) {
+                            camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000);
+                            camera.position.copy(currentPosition);
+                            window.camera = camera;
+                        }
+
+                        // Create OrbitControls
+                        if (window.OrbitControls) {
+                            const controls = new window.OrbitControls(camera, renderer.domElement);
+                            controls.enableDamping = true;
+                            controls.dampingFactor = 0.05;
+                            controls.screenSpacePanning = false;
+                            controls.minDistance = 1;
+                            controls.maxDistance = 100;
+                            controls.maxPolarAngle = Math.PI;
+                            window.controls = controls;
+                            console.log('Switched to OrbitControls');
+                        } else {
+                            console.warn('OrbitControls not available');
+                        }
+                        break;
+
+                    default:
+                        console.warn('Unknown camera type:', cameraType);
+                        return;
+                }
+
+                console.log('Camera switched successfully to:', cameraType);
+
+            } catch(error) {
+                console.error('Error switching camera:', error);
+            }
+        }
+
+        // three-inspect debugger toggle (using official three-inspect library)
+        let inspectorInstance = null;
+
+        function toggleDebugger(checked) {
+            if (!scene || !camera || !renderer) {
+                console.warn('No scene/camera/renderer available for three-inspect');
+                document.getElementById('debugCheckbox').checked = false;
+                return;
+            }
+
+            if (checked) {
+                createThreeInspector();
+            } else {
+                removeThreeInspector();
+            }
+        }
+
+        function createThreeInspector() {
+            console.log('🔍 Opening three-inspect...');
+
+            try {
+                if (!window.createInspector) {
+                    console.error('createInspector not available. three-inspect may not have loaded.');
+                    document.getElementById('debugCheckbox').checked = false;
+                    return;
+                }
+
+                // Get the canvas container (use correct camelCase ID)
+                const canvasContainer = document.getElementById('canvasContainer');
+                if (!canvasContainer) {
+                    console.error('Canvas container not found');
+                    document.getElementById('debugCheckbox').checked = false;
+                    return;
+                }
+
+                // Initialize three-inspect
+                inspectorInstance = window.createInspector(canvasContainer, {
+                    scene: scene,
+                    camera: camera,
+                    renderer: renderer
+                });
+
+                console.log('✅ three-inspect opened successfully');
+                console.log('💡 Press "i" key to toggle inspector, or use the checkbox');
+
+            } catch (error) {
+                console.error('Failed to initialize three-inspect:', error);
+                document.getElementById('debugCheckbox').checked = false;
+            }
+        }
+
+        function removeThreeInspector() {
+            console.log('🔍 Closing three-inspect...');
+
+            try {
+                if (inspectorInstance && typeof inspectorInstance.dispose === 'function') {
+                    inspectorInstance.dispose();
+                    inspectorInstance = null;
+                    console.log('✅ three-inspect closed successfully');
+                }
+            } catch (error) {
+                console.error('Error closing three-inspect:', error);
+            }
+        }
+
+        // Auto-detect camera type when scene changes
+        function detectCurrentCamera() {
+            if (!camera) {
+                document.getElementById('cameraSelector').value = '';
+                return;
+            }
+
+            const selector = document.getElementById('cameraSelector');
+
+            if (window.controls && window.controls instanceof window.OrbitControls) {
+                selector.value = 'OrbitControls';
+                console.log('Detected OrbitControls');
+            } else if (camera instanceof THREE.PerspectiveCamera) {
+                selector.value = 'PerspectiveCamera';
+                console.log('Detected PerspectiveCamera');
+            } else if (camera instanceof THREE.OrthographicCamera) {
+                selector.value = 'OrthographicCamera';
+                console.log('Detected OrthographicCamera');
+            } else {
+                selector.value = '';
+                console.log('Camera type not recognized');
+            }
+        }
+
+        function loadExample(exampleId) {
+            if (!exampleId) return;
+
+            const examples = {
+                'neon-cubes': getNeonCubesCode(),
+                'basic-scene': getDefaultCode(),
+                'lighting': getLightingDemoCode(),
+                'materials': getMaterialsDemoCode(),
+                'rainbow': getRainbowCode(),
+                'particle-spiral-galaxy': getParticleSpiralGalaxyCode(),
+                'morphing-geometry': getMorphingGeometryCode(),
+                'interactive-color-spheres': getInteractiveColorSpheresCode(),
+                'glowing-torus-knots': getGlowingTorusKnotsCode(),
+                'postprocessing': getPostprocessingCode(),
+                'enhanced-bloom': getEnhancedBloomCode(),
+                'glitch-effect': getGlitchEffectCode(),
+                'rgb-shift': getRGBShiftCode(),
+                'wireframe-dance': getWireframeDanceCode(),
+                'gradient-wave': getGradientWaveCode(),
+                'ring-portal': getRingPortalCode(),
+                'bouncing-spheres': getBouncingSpheresCode()
+            };
+
+            if (examples[exampleId] && editor) {
+                editor.setValue(examples[exampleId]);
+                runCode();
+            }
+        }
+        
+        // Enhanced code insertion functions with multi-level fallback
+        function insertCodeAtCursor(codeString) {
+            console.log('🎯 insertCodeAtCursor called with code length:', codeString.length);
+            console.log('🔍 Three.js editor readiness:', {
+                editor: !!editor,
+                editorReady: !!window.editorReady,
+                monacoLoaded: typeof monaco !== 'undefined'
+            });
+            
+            if (editor && window.editorReady) {
+                try {
+                    console.log('✅ Editor ready, inserting at cursor');
+                    const position = editor.getPosition();
+                    editor.executeEdits('ai-insertion', [{
+                        range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+                        text: codeString
+                    }]);
+                    editor.setPosition(position);
+                    editor.focus();
+                    console.log('✅ Code inserted at cursor position');
+                    notifySwift('codeInserted', { code: codeString });
+                    return true;
+                } catch (error) {
+                    console.error('❌ Failed to insert at cursor:', error);
+                    // Fall back to setFullEditorContent
+                    return setFullEditorContent(codeString);
+                }
+            } else {
+                console.warn('⚠️ Editor not ready for cursor insertion, falling back to full content replacement');
+                return setFullEditorContent(codeString);
+            }
+        }
+        
+        // setFullEditorContent function already defined above
+        
+        // Utility functions
+        function showError(message) {
+            const errorDisplay = document.getElementById('errorDisplay');
+            errorDisplay.textContent = message;
+            errorDisplay.style.display = 'block';
+            setTimeout(() => {
+                errorDisplay.style.display = 'none';
+            }, 5000);
+        }
+        
+        function hideError() {
+            document.getElementById('errorDisplay').style.display = 'none';
+        }
+        
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+        
+        function notifySwift(action, data) {
+            if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.playgroundHandler) {
+                window.webkit.messageHandlers.playgroundHandler.postMessage({
+                    action: action,
+                    data: data
+                });
+            }
+        }
+        
+        function notifyCodeChange() {
+            const code = editor ? editor.getValue() : '';
+            notifySwift('codeChanged', { code: code });
+        }
+        
+        // Console management functions already defined above
+        
+        // Example code templates
+        function getNeonCubesCode() {
+            return `const createScene = () => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x050510);
+    scene.fog = new THREE.Fog(0x050510, 10, 50);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 3, 10);
+
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+    scene.add(ambientLight);
+
+    const pointLight = new THREE.PointLight(0xff00ff, 2, 50);
+    pointLight.position.set(5, 5, 5);
+    scene.add(pointLight);
+
+    // Create neon cubes
+    const colors = [0xff0080, 0x00ff80, 0x0080ff, 0xffff00];
+    const cubes = [];
+
+    for (let i = 0; i < 4; i++) {
+        const geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+        const material = new THREE.MeshStandardMaterial({
+            color: colors[i],
+            emissive: colors[i],
+            emissiveIntensity: 0.5,
+            metalness: 0.8,
+            roughness: 0.2
+        });
+
+        const cube = new THREE.Mesh(geometry, material);
+        cube.position.set(
+            (i - 1.5) * 2.5,
+            1,
+            0
+        );
+        scene.add(cube);
+        cubes.push(cube);
+    }
+
+    // Ground
+    const groundGeometry = new THREE.PlaneGeometry(20, 20);
+    const groundMaterial = new THREE.MeshStandardMaterial({
+        color: 0x0f0f20,
+        roughness: 0.8,
+        metalness: 0.2
+    });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+
+    // Animation
+    function animate() {
+        requestAnimationFrame(animate);
+
+        cubes.forEach((cube, i) => {
+            cube.rotation.x += 0.01;
+            cube.rotation.y += 0.01;
+            cube.position.y = 1 + Math.sin(Date.now() * 0.001 + i) * 0.3;
+        });
+
+        controls.update();
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    return { scene, camera };
+};
+
+const { scene, camera } = createScene();`;
+        }
+
+        function getParticleSpiralGalaxyCode() {
+            return `const createScene = () => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000000);
+
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 5, 15);
+
+    // Create particle system
+    const particleCount = 10000;
+    const positions = new Float32Array(particleCount * 3);
+    const colors = new Float32Array(particleCount * 3);
+
+    for (let i = 0; i < particleCount; i++) {
+        // Spiral galaxy formation
+        const radius = Math.random() * 10;
+        const spinAngle = radius * 2;
+        const branchAngle = (i % 3) * ((2 * Math.PI) / 3);
+
+        const randomX = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1);
+        const randomY = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1);
+        const randomZ = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1);
+
+        positions[i * 3] = Math.cos(branchAngle + spinAngle) * radius + randomX;
+        positions[i * 3 + 1] = randomY * 0.5;
+        positions[i * 3 + 2] = Math.sin(branchAngle + spinAngle) * radius + randomZ;
+
+        // Color gradient from center to edge
+        const colorInner = new THREE.Color(0xff6030);
+        const colorOuter = new THREE.Color(0x1b3984);
+        const mixedColor = colorInner.clone().lerp(colorOuter, radius / 10);
+
+        colors[i * 3] = mixedColor.r;
+        colors[i * 3 + 1] = mixedColor.g;
+        colors[i * 3 + 2] = mixedColor.b;
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const material = new THREE.PointsMaterial({
+        size: 0.1,
+        vertexColors: true,
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        depthWrite: false
+    });
+
+    const particles = new THREE.Points(geometry, material);
+    scene.add(particles);
+
+    // Animation
+    function animate() {
+        requestAnimationFrame(animate);
+
+        particles.rotation.y += 0.001;
+
+        controls.update();
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    return { scene, camera };
+};
+
+const { scene, camera } = createScene();`;
+        }
+
+        function getMorphingGeometryCode() {
+            return `const createScene = () => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1a2e);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 2, 8);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    scene.add(ambientLight);
+
+    const pointLight = new THREE.PointLight(0xffffff, 1);
+    pointLight.position.set(5, 5, 5);
+    scene.add(pointLight);
+
+    // Create geometries for morphing
+    const geometry1 = new THREE.BoxGeometry(2, 2, 2, 32, 32, 32);
+    const geometry2 = new THREE.SphereGeometry(1.5, 32, 32);
+    const geometry3 = new THREE.TorusGeometry(1, 0.4, 32, 100);
+
+    // Create morph targets
+    const geometry = geometry1.clone();
+    geometry.morphAttributes.position = [
+        geometry2.attributes.position,
+        geometry3.attributes.position
+    ];
+
+    const material = new THREE.MeshStandardMaterial({
+        color: 0x4ecdc4,
+        emissive: 0x4ecdc4,
+        emissiveIntensity: 0.2,
+        metalness: 0.7,
+        roughness: 0.3,
+        morphTargets: true
+    });
+
+    const mesh = new THREE.Mesh(geometry, material);
+    scene.add(mesh);
+
+    // Animation
+    function animate() {
+        requestAnimationFrame(animate);
+
+        const time = Date.now() * 0.001;
+
+        // Morph between shapes
+        mesh.morphTargetInfluences[0] = Math.sin(time * 0.5) * 0.5 + 0.5;
+        mesh.morphTargetInfluences[1] = Math.cos(time * 0.3) * 0.5 + 0.5;
+
+        mesh.rotation.x = time * 0.2;
+        mesh.rotation.y = time * 0.3;
+
+        controls.update();
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    return { scene, camera };
+};
+
+const { scene, camera } = createScene();`;
+        }
+
+        function getInteractiveColorSpheresCode() {
+            return `const createScene = () => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0a1a);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 0, 10);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
+
+    const pointLight = new THREE.PointLight(0xffffff, 1);
+    pointLight.position.set(10, 10, 10);
+    scene.add(pointLight);
+
+    // Create interactive spheres
+    const spheres = [];
+    const colors = [0xff6b9d, 0x4080ff, 0x4ecdc4, 0xffe66d, 0xa26cf7];
+
+    for (let i = 0; i < 5; i++) {
+        const geometry = new THREE.SphereGeometry(0.8, 32, 32);
+        const material = new THREE.MeshStandardMaterial({
+            color: colors[i],
+            emissive: colors[i],
+            emissiveIntensity: 0.1,
+            metalness: 0.5,
+            roughness: 0.2
+        });
+
+        const sphere = new THREE.Mesh(geometry, material);
+        sphere.position.set((i - 2) * 2.5, 0, 0);
+        sphere.userData = {
+            baseScale: 1,
+            targetScale: 1,
+            colorIndex: i,
+            hovered: false
+        };
+        scene.add(sphere);
+        spheres.push(sphere);
+    }
+
+    // Raycaster for interaction
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    function onMouseMove(event) {
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(spheres);
+
+        spheres.forEach(sphere => {
+            sphere.userData.hovered = false;
+            sphere.userData.targetScale = 1;
+        });
+
+        if (intersects.length > 0) {
+            intersects[0].object.userData.hovered = true;
+            intersects[0].object.userData.targetScale = 1.3;
+        }
+    }
+
+    function onClick(event) {
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(spheres);
+
+        if (intersects.length > 0) {
+            const sphere = intersects[0].object;
+            sphere.userData.colorIndex = (sphere.userData.colorIndex + 1) % colors.length;
+            sphere.material.color.setHex(colors[sphere.userData.colorIndex]);
+            sphere.material.emissive.setHex(colors[sphere.userData.colorIndex]);
+        }
+    }
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('click', onClick);
+
+    // Animation
+    function animate() {
+        requestAnimationFrame(animate);
+
+        spheres.forEach(sphere => {
+            // Smooth scale transition
+            sphere.scale.lerp(
+                new THREE.Vector3(
+                    sphere.userData.targetScale,
+                    sphere.userData.targetScale,
+                    sphere.userData.targetScale
+                ),
+                0.1
+            );
+
+            sphere.rotation.y += 0.01;
+        });
+
+        controls.update();
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    return { scene, camera };
+};
+
+const { scene, camera } = createScene();`;
+        }
+
+        function getGlowingTorusKnotsCode() {
+            return `const createScene = () => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000000);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 0, 15);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+    scene.add(ambientLight);
+
+    // Create three torus knots
+    const knots = [];
+    const colors = [0xff006e, 0x00f5ff, 0xffbe0b];
+
+    for (let i = 0; i < 3; i++) {
+        const geometry = new THREE.TorusKnotGeometry(1.5, 0.5, 100, 16, 2 + i, 3);
+        const material = new THREE.MeshStandardMaterial({
+            color: colors[i],
+            emissive: colors[i],
+            emissiveIntensity: 0.8,
+            metalness: 0.9,
+            roughness: 0.1
+        });
+
+        const knot = new THREE.Mesh(geometry, material);
+        knot.position.set((i - 1) * 5, 0, 0);
+        scene.add(knot);
+        knots.push(knot);
+    }
+
+    // Animation
+    function animate() {
+        requestAnimationFrame(animate);
+
+        const time = Date.now() * 0.001;
+
+        knots.forEach((knot, i) => {
+            knot.rotation.x = time * (0.3 + i * 0.1);
+            knot.rotation.y = time * (0.2 + i * 0.1);
+            knot.position.y = Math.sin(time + i * 2) * 1.5;
+        });
+
+        controls.update();
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    return { scene, camera };
+};
+
+const { scene, camera } = createScene();`;
+        }
+
+        function getLightingDemoCode() {
+            return `const createScene = () => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000000); // Pure black for drama
+
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 5, 15);
+
+    // Dim ambient for mood
+    const ambientLight = new THREE.AmbientLight(0x111122, 0.2);
+    scene.add(ambientLight);
+
+    // Animated colored lights orbiting the scene
+    const light1 = new THREE.PointLight(0xff0040, 3, 20);
+    scene.add(light1);
+
+    const light2 = new THREE.PointLight(0x0080ff, 3, 20);
+    scene.add(light2);
+
+    const light3 = new THREE.PointLight(0x80ff00, 3, 20);
+    scene.add(light3);
+
+    // Light helper spheres (small glowing orbs)
+    const lightSphere1 = new THREE.Mesh(
+        new THREE.SphereGeometry(0.2, 8, 8),
+        new THREE.MeshBasicMaterial({ color: 0xff0040 })
+    );
+    light1.add(lightSphere1);
+
+    const lightSphere2 = new THREE.Mesh(
+        new THREE.SphereGeometry(0.2, 8, 8),
+        new THREE.MeshBasicMaterial({ color: 0x0080ff })
+    );
+    light2.add(lightSphere2);
+
+    const lightSphere3 = new THREE.Mesh(
+        new THREE.SphereGeometry(0.2, 8, 8),
+        new THREE.MeshBasicMaterial({ color: 0x80ff00 })
+    );
+    light3.add(lightSphere3);
+
+    // Center crystal
+    const geometry = new THREE.IcosahedronGeometry(2, 0);
+    const material = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        metalness: 0.9,
+        roughness: 0.1,
+        emissive: 0x222244,
+        emissiveIntensity: 0.2
+    });
+    const crystal = new THREE.Mesh(geometry, material);
+    crystal.position.y = 2;
+    scene.add(crystal);
+
+    // Ground with reflections
+    const groundGeometry = new THREE.PlaneGeometry(30, 30);
+    const groundMaterial = new THREE.MeshStandardMaterial({
+        color: 0x111111,
+        metalness: 0.8,
+        roughness: 0.3
+    });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+
+    // Animation - orbit lights around the crystal
+    let time = 0;
+    function animate() {
+        time += 0.01;
+
+        // Orbit lights in different patterns
+        light1.position.x = Math.cos(time) * 6;
+        light1.position.z = Math.sin(time) * 6;
+        light1.position.y = 3 + Math.sin(time * 2) * 2;
+
+        light2.position.x = Math.cos(time + Math.PI * 2/3) * 6;
+        light2.position.z = Math.sin(time + Math.PI * 2/3) * 6;
+        light2.position.y = 3 + Math.sin(time * 2 + Math.PI * 2/3) * 2;
+
+        light3.position.x = Math.cos(time + Math.PI * 4/3) * 6;
+        light3.position.z = Math.sin(time + Math.PI * 4/3) * 6;
+        light3.position.y = 3 + Math.sin(time * 2 + Math.PI * 4/3) * 2;
+
+        // Slowly rotate crystal
+        crystal.rotation.y += 0.003;
+        crystal.rotation.x += 0.002;
+    }
+
+    scene.userData.animate = animate;
+
+    controls.target.set(0, 2, 0);
+    controls.update();
+
+    return { scene, camera };
+};
+
+const { scene, camera } = createScene();`;
+        }
+        
+        function getMaterialsDemoCode() {
+            return `const createScene = () => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x333333);
+    
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 5, 10);
+    
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+    scene.add(ambientLight);
+    
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(10, 10, 5);
+    scene.add(directionalLight);
+    
+    // Different materials
+    const geometry = new THREE.SphereGeometry(1, 32, 32);
+    
+    // Basic material
+    const basicMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const basicSphere = new THREE.Mesh(geometry, basicMaterial);
+    basicSphere.position.set(-3, 1, 0);
+    scene.add(basicSphere);
+    
+    // Phong material
+    const phongMaterial = new THREE.MeshPhongMaterial({ 
+        color: 0x00ff00,
+        shininess: 100
+    });
+    const phongSphere = new THREE.Mesh(geometry, phongMaterial);
+    phongSphere.position.set(0, 1, 0);
+    scene.add(phongSphere);
+    
+    // Standard material
+    const standardMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x0000ff,
+        metalness: 0.5,
+        roughness: 0.1
+    });
+    const standardSphere = new THREE.Mesh(geometry, standardMaterial);
+    standardSphere.position.set(3, 1, 0);
+    scene.add(standardSphere);
+    
+    const groundGeometry = new THREE.PlaneGeometry(20, 20);
+    const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+    
+    controls.target.set(0, 0, 0);
+    controls.update();
+    
+    return { scene, camera };
+};
+
+const { scene, camera } = createScene();`;
+        }
+
+        function getRainbowCode() {
+            return `const createScene = () => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87CEEB); // Sky blue
+
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 3, 12);
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    directionalLight.position.set(5, 10, 5);
+    scene.add(directionalLight);
+
+    // Rainbow colors
+    const rainbowColors = [
+        0xFF0000, // Red
+        0xFF7F00, // Orange
+        0xFFFF00, // Yellow
+        0x00FF00, // Green
+        0x0000FF, // Blue
+        0x4B0082, // Indigo
+        0x9400D3  // Violet
+    ];
+
+    // Create rainbow arc using spheres
+    const numSpheres = 80;
+    const radius = 6;
+    const arcAngle = Math.PI * 0.6; // 60% of a circle
+
+    for (let i = 0; i < numSpheres; i++) {
+        const colorIndex = Math.floor((i / numSpheres) * rainbowColors.length);
+        const geometry = new THREE.SphereGeometry(0.15, 16, 16);
+        const material = new THREE.MeshStandardMaterial({
+            color: rainbowColors[colorIndex],
+            emissive: rainbowColors[colorIndex],
+            emissiveIntensity: 0.5,
+            metalness: 0.3,
+            roughness: 0.4
+        });
+        const sphere = new THREE.Mesh(geometry, material);
+
+        // Position spheres in an arc
+        const angle = (i / numSpheres) * arcAngle - arcAngle / 2;
+        sphere.position.x = radius * Math.cos(angle);
+        sphere.position.y = 2 + radius * Math.sin(angle) - 2;
+        sphere.position.z = 0;
+
+        scene.add(sphere);
+    }
+
+    // Add some clouds
+    for (let i = 0; i < 5; i++) {
+        const cloudGeometry = new THREE.SphereGeometry(0.8, 8, 8);
+        const cloudMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.7
+        });
+        const cloud = new THREE.Mesh(cloudGeometry, cloudMaterial);
+        cloud.position.set(
+            (Math.random() - 0.5) * 10,
+            Math.random() * 2 + 1,
+            (Math.random() - 0.5) * 5
+        );
+        cloud.scale.set(1 + Math.random(), 0.5 + Math.random() * 0.3, 1 + Math.random());
+        scene.add(cloud);
+    }
+
+    // Ground
+    const groundGeometry = new THREE.PlaneGeometry(30, 30);
+    const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x228B22 }); // Forest green
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -1;
+    scene.add(ground);
+
+    controls.target.set(0, 2, 0);
+    controls.update();
+
+    return { scene, camera };
+};
+
+const { scene, camera } = createScene();`;
+        }
+
+        function getPostprocessingCode() {
+            return `// Three.js r160 Postprocessing Example - Bloom Effect
+// This demonstrates the UnrealBloomPass for glowing effects
+
+const createScene = () => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000011); // Dark space background
+
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 5, 15);
+
+    // Basic lighting
+    const ambientLight = new THREE.AmbientLight(0x222244, 0.3);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    directionalLight.position.set(10, 10, 5);
+    scene.add(directionalLight);
+
+    // Create glowing spheres
+    const colors = [0xff0055, 0x0055ff, 0x00ff55, 0xff5500, 0x5500ff];
+    const spheres = [];
+
+    for (let i = 0; i < 5; i++) {
+        const geometry = new THREE.SphereGeometry(0.8, 32, 32);
+        const material = new THREE.MeshStandardMaterial({
+            color: colors[i],
+            emissive: colors[i],
+            emissiveIntensity: 1.0,
+            metalness: 0.5,
+            roughness: 0.2
+        });
+
+        const sphere = new THREE.Mesh(geometry, material);
+        sphere.position.x = (i - 2) * 3;
+        sphere.position.y = 2;
+
+        // Store animation data
+        sphere.userData.speed = 0.02 + Math.random() * 0.02;
+        sphere.userData.offset = i * Math.PI * 0.4;
+
+        scene.add(sphere);
+        spheres.push(sphere);
+    }
+
+    // Ground plane
+    const groundGeometry = new THREE.PlaneGeometry(30, 30);
+    const groundMaterial = new THREE.MeshStandardMaterial({
+        color: 0x111122,
+        metalness: 0.8,
+        roughness: 0.2
+    });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+
+    // Set up postprocessing
+    const composer = new EffectComposer(renderer);
+
+    // Add render pass
+    const renderPass = new RenderPass(scene, camera);
+    composer.addPass(renderPass);
+
+    // Add bloom pass
+    const bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight),
+        1.5,  // strength
+        0.4,  // radius
+        0.85  // threshold
+    );
+    composer.addPass(bloomPass);
+
+    // Add output pass
+    const outputPass = new OutputPass();
+    composer.addPass(outputPass);
+
+    // Animation function (will be called by main render loop)
+    let time = 0;
+    function animate() {
+        time += 0.01;
+
+        spheres.forEach((sphere, i) => {
+            // Floating animation
+            sphere.position.y = 2 + Math.sin(time + sphere.userData.offset) * 0.5;
+            // Rotation
+            sphere.rotation.y += sphere.userData.speed;
+            sphere.rotation.x += sphere.userData.speed * 0.5;
+        });
+    }
+
+    // Store animation and composer so main render loop can use them
+    scene.userData.animate = animate;
+    scene.userData.composer = composer;
+
+    controls.target.set(0, 2, 0);
+    controls.update();
+
+    console.log("✨ Postprocessing scene created with bloom effect!");
+
+    return { scene, camera };
+};
+
+const { scene, camera } = createScene();
+
+console.log("✅ Bloom postprocessing enabled - scene will render with glow effect!");`;
+        }
+
+        function getEnhancedBloomCode() {
+            return `// Enhanced Unreal Bloom Pass Demo
+// Based on Three.js official webgl_postprocessing_unreal_bloom example
+// Features: Dynamic bloom parameters, glowing objects, pulsing lights
+
+const createScene = () => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000000);
+
+    const camera = new THREE.PerspectiveCamera(60, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+    camera.position.set(0, 5, 25);
+
+    // Ambient light for base illumination
+    const ambientLight = new THREE.AmbientLight(0x222222, 0.3);
+    scene.add(ambientLight);
+
+    // Directional light for depth
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    directionalLight.position.set(10, 10, 5);
+    scene.add(directionalLight);
+
+    // Central glowing icosahedron (main focal point)
+    const icoGeometry = new THREE.IcosahedronGeometry(3, 1);
+    const icoMaterial = new THREE.MeshStandardMaterial({
+        color: 0x00ffff,
+        emissive: 0x00ffff,
+        emissiveIntensity: 2.0,
+        metalness: 0.8,
+        roughness: 0.2
+    });
+    const icosahedron = new THREE.Mesh(icoGeometry, icoMaterial);
+    icosahedron.position.y = 5;
+    scene.add(icosahedron);
+
+    // Orbiting torus knots (highly emissive for bloom)
+    const torusKnots = [];
+    const colors = [0xff0080, 0x0080ff, 0x80ff00, 0xff8000];
+
+    for (let i = 0; i < 4; i++) {
+        const geometry = new THREE.TorusKnotGeometry(0.8, 0.3, 100, 16);
+        const material = new THREE.MeshStandardMaterial({
+            color: colors[i],
+            emissive: colors[i],
+            emissiveIntensity: 2.5,
+            metalness: 0.9,
+            roughness: 0.1
+        });
+
+        const knot = new THREE.Mesh(geometry, material);
+        const angle = (i / 4) * Math.PI * 2;
+        knot.position.set(
+            Math.cos(angle) * 8,
+            5,
+            Math.sin(angle) * 8
+        );
+        knot.userData.angle = angle;
+        knot.userData.orbitSpeed = 0.3 + i * 0.1;
+
+        scene.add(knot);
+        torusKnots.push(knot);
+    }
+
+    // Add pulsing point lights around the scene
+    const pulseLights = [];
+    const lightColors = [0xff0040, 0x00ff80, 0x4000ff, 0xffff00];
+
+    for (let i = 0; i < 4; i++) {
+        const light = new THREE.PointLight(lightColors[i], 0, 30);
+        const angle = (i / 4) * Math.PI * 2;
+        light.position.set(
+            Math.cos(angle) * 12,
+            3,
+            Math.sin(angle) * 12
+        );
+        light.userData.baseIntensity = 3;
+        light.userData.pulseSpeed = 1.5 + i * 0.5;
+        light.userData.pulseOffset = i * Math.PI * 0.5;
+        scene.add(light);
+        pulseLights.push(light);
+
+        // Add sphere to visualize the light
+        const sphereGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+        const sphereMaterial = new THREE.MeshStandardMaterial({
+            color: lightColors[i],
+            emissive: lightColors[i],
+            emissiveIntensity: 3.0
+        });
+        const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+        sphere.position.copy(light.position);
+        scene.add(sphere);
+        light.userData.sphere = sphere;
+    }
+
+    // Dark ground plane for contrast
+    const groundGeometry = new THREE.PlaneGeometry(40, 40);
+    const groundMaterial = new THREE.MeshStandardMaterial({
+        color: 0x0a0a0a,
+        metalness: 0.5,
+        roughness: 0.8
+    });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+
+    // Set up UnrealBloomPass postprocessing
+    const composer = new EffectComposer(renderer);
+
+    // Add render pass
+    const renderPass = new RenderPass(scene, camera);
+    composer.addPass(renderPass);
+
+    // Add UnrealBloomPass with aggressive settings for dramatic glow
+    const bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight),
+        2.0,  // strength - intense glow
+        0.8,  // radius - large bloom spread
+        0.2   // threshold - low threshold blooms more objects
+    );
+    composer.addPass(bloomPass);
+
+    // Add output pass
+    const outputPass = new OutputPass();
+    composer.addPass(outputPass);
+
+    // Animation function with dynamic bloom parameters
+    let time = 0;
+    function animate() {
+        time += 0.01;
+
+        // Rotate central icosahedron
+        icosahedron.rotation.x = time * 0.3;
+        icosahedron.rotation.y = time * 0.5;
+
+        // Pulse the icosahedron's emissive intensity
+        const pulse = Math.sin(time * 2) * 0.8 + 1.5;
+        icosahedron.material.emissiveIntensity = pulse;
+
+        // Orbit and rotate torus knots
+        torusKnots.forEach((knot, i) => {
+            const orbitAngle = knot.userData.angle + time * knot.userData.orbitSpeed;
+            knot.position.x = Math.cos(orbitAngle) * 8;
+            knot.position.z = Math.sin(orbitAngle) * 8;
+            knot.position.y = 5 + Math.sin(time * 2 + i) * 1.5;
+
+            knot.rotation.x = time * (1 + i * 0.2);
+            knot.rotation.y = time * (0.8 + i * 0.15);
+        });
+
+        // Pulse the point lights
+        pulseLights.forEach((light) => {
+            const intensity = light.userData.baseIntensity +
+                            Math.sin(time * light.userData.pulseSpeed + light.userData.pulseOffset) * 2;
+            light.intensity = Math.max(0, intensity);
+
+            // Pulse the light sphere emissive
+            if (light.userData.sphere) {
+                light.userData.sphere.material.emissiveIntensity = 2 + Math.sin(time * 2) * 1.5;
+            }
+        });
+
+        // Dynamically adjust bloom parameters over time
+        bloomPass.strength = 2.0 + Math.sin(time * 0.5) * 0.8;
+        bloomPass.radius = 0.8 + Math.sin(time * 0.3) * 0.3;
+        bloomPass.threshold = 0.2 + Math.sin(time * 0.4) * 0.15;
+
+        // Adjust tone mapping exposure for bloom intensity
+        renderer.toneMappingExposure = 1.0 + Math.sin(time * 0.3) * 0.3;
+    }
+
+    // Store animation and composer
+    scene.userData.animate = animate;
+    scene.userData.composer = composer;
+
+    controls.target.set(0, 5, 0);
+    controls.update();
+
+    console.log("💎 Enhanced Unreal Bloom scene created!");
+    console.log("📊 Bloom Parameters (dynamic):");
+    console.log("  - Strength: 2.0 ± 0.8");
+    console.log("  - Radius: 0.8 ± 0.3");
+    console.log("  - Threshold: 0.2 ± 0.15");
+    console.log("  - Exposure: 1.0 ± 0.3");
+
+    return { scene, camera };
+};
+
+const { scene, camera } = createScene();
+
+console.log("✅ Enhanced Unreal Bloom Pass enabled - real postprocessing with dynamic parameters!");`;
+        }
+
+        function getGlitchEffectCode() {
+            return `// Cyberpunk Neon Glitch Scene
+// Vibrant synthwave aesthetics with intense bloom
+// Featuring floating geometric shapes and particle effects
+
+const createScene = () => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0015);
+    scene.fog = new THREE.Fog(0x0a0015, 10, 500);
+
+    const camera = new THREE.PerspectiveCamera(70, canvas.clientWidth / canvas.clientHeight, 1, 1000);
+    camera.position.set(0, 50, 200);
+
+    // Vibrant neon lighting
+    const ambientLight = new THREE.AmbientLight(0x220033, 0.5);
+    scene.add(ambientLight);
+
+    // Cyan neon light
+    const cyanLight = new THREE.PointLight(0x00ffff, 2, 300);
+    cyanLight.position.set(100, 100, 0);
+    scene.add(cyanLight);
+
+    // Magenta neon light
+    const magentaLight = new THREE.PointLight(0xff00ff, 2, 300);
+    magentaLight.position.set(-100, 100, 0);
+    scene.add(magentaLight);
+
+    // Yellow neon light
+    const yellowLight = new THREE.PointLight(0xffff00, 1.5, 300);
+    yellowLight.position.set(0, -50, 100);
+    scene.add(yellowLight);
+
+    // Cyberpunk grid floor
+    const gridHelper = new THREE.GridHelper(400, 40, 0xff00ff, 0x00ffff);
+    gridHelper.position.y = -50;
+    scene.add(gridHelper);
+
+    // Create floating neon geometric shapes
+    const shapes = [];
+    const geometries = [
+        new THREE.IcosahedronGeometry(1, 0),
+        new THREE.OctahedronGeometry(1),
+        new THREE.TetrahedronGeometry(1),
+        new THREE.DodecahedronGeometry(1),
+        new THREE.TorusGeometry(1, 0.4, 16, 32),
+        new THREE.TorusKnotGeometry(0.8, 0.3, 64, 8)
+    ];
+
+    const neonColors = [
+        0xff00ff, 0x00ffff, 0xffff00, 0xff0080,
+        0x00ff80, 0x8000ff, 0xff8000, 0x0080ff
+    ];
+
+    for (let i = 0; i < 60; i++) {
+        const geomIndex = Math.floor(Math.random() * geometries.length);
+        const color = neonColors[Math.floor(Math.random() * neonColors.length)];
+
+        const material = new THREE.MeshStandardMaterial({
+            color: color,
+            emissive: color,
+            emissiveIntensity: 0.8,
+            metalness: 0.9,
+            roughness: 0.1,
+            wireframe: Math.random() > 0.7
+        });
+
+        const mesh = new THREE.Mesh(geometries[geomIndex].clone(), material);
+        mesh.position.x = (Math.random() - 0.5) * 300;
+        mesh.position.y = Math.random() * 150 - 25;
+        mesh.position.z = (Math.random() - 0.5) * 300;
+        mesh.scale.setScalar(Math.random() * 4 + 2);
+
+        mesh.userData.rotationSpeed = {
+            x: (Math.random() - 0.5) * 0.02,
+            y: (Math.random() - 0.5) * 0.02,
+            z: (Math.random() - 0.5) * 0.02
+        };
+        mesh.userData.floatSpeed = Math.random() * 0.5 + 0.5;
+        mesh.userData.floatOffset = Math.random() * Math.PI * 2;
+
+        scene.add(mesh);
+        shapes.push(mesh);
+    }
+
+    // Glowing particles
+    const particleGeometry = new THREE.BufferGeometry();
+    const particleCount = 500;
+    const positions = new Float32Array(particleCount * 3);
+    const colors = new Float32Array(particleCount * 3);
+
+    for (let i = 0; i < particleCount; i++) {
+        positions[i * 3] = (Math.random() - 0.5) * 400;
+        positions[i * 3 + 1] = Math.random() * 200 - 50;
+        positions[i * 3 + 2] = (Math.random() - 0.5) * 400;
+
+        const color = new THREE.Color(neonColors[Math.floor(Math.random() * neonColors.length)]);
+        colors[i * 3] = color.r;
+        colors[i * 3 + 1] = color.g;
+        colors[i * 3 + 2] = color.b;
+    }
+
+    particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const particleMaterial = new THREE.PointsMaterial({
+        size: 2,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending
+    });
+
+    const particles = new THREE.Points(particleGeometry, particleMaterial);
+    scene.add(particles);
+
+    // Postprocessing with intense bloom
+    const composer = new EffectComposer(renderer);
+    const renderPass = new RenderPass(scene, camera);
+    composer.addPass(renderPass);
+
+    const bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight),
+        2.5, 1.0, 0.1
+    );
+    composer.addPass(bloomPass);
+
+    const outputPass = new OutputPass();
+    composer.addPass(outputPass);
+
+    // Animation
+    let time = 0;
+    function animate() {
+        time += 0.01;
+
+        shapes.forEach((shape, i) => {
+            shape.rotation.x += shape.userData.rotationSpeed.x;
+            shape.rotation.y += shape.userData.rotationSpeed.y;
+            shape.rotation.z += shape.userData.rotationSpeed.z;
+
+            shape.position.y += Math.sin(time * shape.userData.floatSpeed + shape.userData.floatOffset) * 0.3;
+
+            const pulse = Math.sin(time * 2 + i * 0.1) * 0.3 + 0.8;
+            shape.material.emissiveIntensity = pulse;
+        });
+
+        particles.rotation.y = time * 0.1;
+
+        cyanLight.position.x = Math.sin(time * 0.5) * 150;
+        cyanLight.position.z = Math.cos(time * 0.5) * 150;
+        cyanLight.intensity = 1.5 + Math.sin(time * 3) * 0.5;
+
+        magentaLight.position.x = Math.cos(time * 0.7) * 150;
+        magentaLight.position.z = Math.sin(time * 0.7) * 150;
+        magentaLight.intensity = 1.5 + Math.cos(time * 3) * 0.5;
+
+        camera.position.x = Math.sin(time * 0.2) * 180;
+        camera.position.z = Math.cos(time * 0.2) * 180;
+        camera.position.y = 50 + Math.sin(time * 0.3) * 30;
+        camera.lookAt(0, 0, 0);
+
+        bloomPass.strength = 2.5 + Math.sin(time) * 0.5;
+        gridHelper.rotation.y = time * 0.1;
+    }
+
+    scene.userData.animate = animate;
+    scene.userData.composer = composer;
+
+    controls.enabled = false;
+
+    console.log("🌆 Cyberpunk scene: 60 shapes, 500 particles, 3 lights!");
+
+    return { scene, camera };
+};
+
+const { scene, camera } = createScene();
+
+console.log("✅ Neon cyberpunk scene ready!");`;
+        }
+
+        function getRGBShiftCode() {
+            return `// Rainbow Vortex with Bloom
+// Colorful spiraling spheres with intense glow
+// Demonstrates vibrant color palettes and dynamic motion
+
+const createScene = () => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000510);
+
+    const camera = new THREE.PerspectiveCamera(70, canvas.clientWidth / canvas.clientHeight, 1, 1000);
+    camera.position.set(0, 30, 150);
+
+    // Multi-colored lighting setup
+    const ambientLight = new THREE.AmbientLight(0x303030, 0.4);
+    scene.add(ambientLight);
+
+    // Rainbow colored lights
+    const lights = [];
+    const lightColors = [0xff0000, 0xff8800, 0xffff00, 0x00ff00, 0x0088ff, 0x0000ff, 0x8800ff];
+
+    for (let i = 0; i < lightColors.length; i++) {
+        const light = new THREE.PointLight(lightColors[i], 1, 200);
+        const angle = (i / lightColors.length) * Math.PI * 2;
+        light.position.set(Math.cos(angle) * 80, 0, Math.sin(angle) * 80);
+        light.userData.angle = angle;
+        scene.add(light);
+        lights.push(light);
+    }
+
+    // Create rainbow spiral of spheres
+    const spheres = [];
+    const geometries = [
+        new THREE.SphereGeometry(1, 32, 32),
+        new THREE.IcosahedronGeometry(1, 1),
+        new THREE.DodecahedronGeometry(1),
+        new THREE.OctahedronGeometry(1)
+    ];
+
+    const rainbowColors = [
+        0xff0055, 0xff3388, 0xff00ff, 0x8800ff, 0x0088ff,
+        0x00ffff, 0x00ff88, 0x88ff00, 0xffff00, 0xff8800
+    ];
+
+    for (let i = 0; i < 100; i++) {
+        const t = i / 100;
+        const angle = t * Math.PI * 8;
+        const radius = t * 80;
+        const height = Math.sin(t * Math.PI * 4) * 40;
+
+        const color = rainbowColors[Math.floor(Math.random() * rainbowColors.length)];
+        const geom = geometries[Math.floor(Math.random() * geometries.length)];
+
+        const material = new THREE.MeshStandardMaterial({
+            color: color,
+            emissive: color,
+            emissiveIntensity: 0.6,
+            metalness: 0.8,
+            roughness: 0.2
+        });
+
+        const sphere = new THREE.Mesh(geom.clone(), material);
+        sphere.position.set(
+            Math.cos(angle) * radius,
+            height,
+            Math.sin(angle) * radius
+        );
+        sphere.scale.setScalar(1 + Math.random() * 2);
+        sphere.userData.spiralIndex = i;
+
+        scene.add(sphere);
+        spheres.push(sphere);
+    }
+
+    // Add glowing particles in spiral pattern
+    const particleGeometry = new THREE.BufferGeometry();
+    const particleCount = 1000;
+    const positions = new Float32Array(particleCount * 3);
+    const colors = new Float32Array(particleCount * 3);
+
+    for (let i = 0; i < particleCount; i++) {
+        const t = i / particleCount;
+        const angle = t * Math.PI * 16;
+        const radius = t * 100;
+
+        positions[i * 3] = Math.cos(angle) * radius + (Math.random() - 0.5) * 10;
+        positions[i * 3 + 1] = (Math.random() - 0.5) * 100;
+        positions[i * 3 + 2] = Math.sin(angle) * radius + (Math.random() - 0.5) * 10;
+
+        const color = new THREE.Color(rainbowColors[Math.floor(Math.random() * rainbowColors.length)]);
+        colors[i * 3] = color.r;
+        colors[i * 3 + 1] = color.g;
+        colors[i * 3 + 2] = color.b;
+    }
+
+    particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const particleMaterial = new THREE.PointsMaterial({
+        size: 1.5,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.7,
+        blending: THREE.AdditiveBlending
+    });
+
+    const particles = new THREE.Points(particleGeometry, particleMaterial);
+    scene.add(particles);
+
+    // Intense bloom postprocessing
+    const composer = new EffectComposer(renderer);
+    const renderPass = new RenderPass(scene, camera);
+    composer.addPass(renderPass);
+
+    const bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight),
+        3.0, 1.2, 0.1
+    );
+    composer.addPass(bloomPass);
+
+    const outputPass = new OutputPass();
+    composer.addPass(outputPass);
+
+    // Animation
+    let time = 0;
+    function animate() {
+        time += 0.01;
+
+        // Rotate entire spiral
+        spheres.forEach((sphere, i) => {
+            sphere.rotation.x += 0.02;
+            sphere.rotation.y += 0.01;
+
+            // Pulse emissive
+            const pulse = Math.sin(time * 3 + sphere.userData.spiralIndex * 0.1) * 0.3 + 0.7;
+            sphere.material.emissiveIntensity = pulse;
+
+            // Additional spiral rotation
+            const currentAngle = Math.atan2(sphere.position.z, sphere.position.x);
+            const currentRadius = Math.sqrt(sphere.position.x ** 2 + sphere.position.z ** 2);
+            const newAngle = currentAngle + 0.01;
+
+            sphere.position.x = Math.cos(newAngle) * currentRadius;
+            sphere.position.z = Math.sin(newAngle) * currentRadius;
+        });
+
+        // Rotate particles
+        particles.rotation.y = time * 0.2;
+
+        // Orbit lights
+        lights.forEach((light, i) => {
+            const angle = light.userData.angle + time * 0.5;
+            light.position.x = Math.cos(angle) * 80;
+            light.position.z = Math.sin(angle) * 80;
+            light.position.y = Math.sin(time * 2 + i) * 30;
+            light.intensity = 0.8 + Math.sin(time * 4 + i) * 0.4;
+        });
+
+        // Dynamic camera
+        camera.position.x = Math.sin(time * 0.1) * 100;
+        camera.position.y = 30 + Math.sin(time * 0.15) * 20;
+        camera.position.z = Math.cos(time * 0.1) * 100 + 50;
+        camera.lookAt(0, 0, 0);
+
+        // Pulsing bloom
+        bloomPass.strength = 3.0 + Math.sin(time * 2) * 1.0;
+    }
+
+    scene.userData.animate = animate;
+    scene.userData.composer = composer;
+
+    controls.enabled = false;
+
+    console.log("🌈 Rainbow Vortex: 100 spheres, 1000 particles, 7 lights!");
+
+    return { scene, camera };
+};
+
+const { scene, camera } = createScene();
+
+console.log("✅ Vibrant rainbow spiral ready!");`;
+        }
+
+        function getWireframeDanceCode() {
+            return `const createScene = () => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0a0a);
+
+    const camera = new THREE.PerspectiveCamera(60, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+    camera.position.set(0, 5, 12);
+
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+    scene.add(ambientLight);
+
+    // Create wireframe objects
+    const geometries = [
+        new THREE.IcosahedronGeometry(1.5, 0),
+        new THREE.OctahedronGeometry(1.5),
+        new THREE.TetrahedronGeometry(1.5)
+    ];
+
+    const colors = [0xff00ff, 0x00ffff, 0xffff00];
+
+    for (let i = 0; i < 3; i++) {
+        const material = new THREE.MeshBasicMaterial({
+            color: colors[i],
+            wireframe: true,
+            wireframeLinewidth: 2
+        });
+
+        const mesh = new THREE.Mesh(geometries[i], material);
+        mesh.position.set((i - 1) * 4, 0, 0);
+        scene.add(mesh);
+
+        const innerMaterial = new THREE.MeshStandardMaterial({
+            color: colors[i],
+            emissive: colors[i],
+            emissiveIntensity: 0.3,
+            metalness: 0.8,
+            roughness: 0.2,
+            transparent: true,
+            opacity: 0.3
+        });
+        const innerMesh = new THREE.Mesh(geometries[i].clone(), innerMaterial);
+        innerMesh.scale.set(0.8, 0.8, 0.8);
+        mesh.add(innerMesh);
+    }
+
+    const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
+    scene.add(gridHelper);
+
+    // Animation handled by global animate loop
+    scene.userData.animate = () => {
+        const time = Date.now() * 0.001;
+        const objects = scene.children.filter(child => child.type === 'Mesh' && child.geometry.type !== 'PlaneGeometry');
+
+        objects.forEach((obj, i) => {
+            if (obj.geometry.type === 'IcosahedronGeometry' ||
+                obj.geometry.type === 'OctahedronGeometry' ||
+                obj.geometry.type === 'TetrahedronGeometry') {
+                obj.rotation.x = time * (0.5 + i * 0.1);
+                obj.rotation.y = time * (0.3 + i * 0.08);
+
+                const pulse = Math.sin(time * 2 + i) * 0.3 + 1;
+                obj.scale.set(pulse, pulse, pulse);
+
+                obj.position.y = Math.sin(time + i * 1.5) * 1.5;
+            }
+        });
+    };
+
+    controls.target.set(0, 0, 0);
+    controls.update();
+
+    return { scene, camera };
+};
+
+const sceneResult = createScene();
+if (sceneResult && sceneResult.scene) {
+    window.scene = sceneResult.scene;
+    scene = sceneResult.scene;
+}
+if (sceneResult && sceneResult.camera) {
+    window.camera = sceneResult.camera;
+    camera = sceneResult.camera;
+}`;
+        }
+
+        function getGradientWaveCode() {
+            return `const createScene = () => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000033);
+
+    const camera = new THREE.PerspectiveCamera(60, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+    camera.position.set(0, 8, 15);
+    camera.lookAt(0, 0, 0);
+
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+    scene.add(ambientLight);
+
+    const pointLight = new THREE.PointLight(0xff00ff, 2, 50);
+    pointLight.position.set(0, 5, 0);
+    scene.add(pointLight);
+
+    const geometry = new THREE.PlaneGeometry(20, 20, 50, 50);
+    const material = new THREE.MeshStandardMaterial({
+        color: 0x4080ff,
+        emissive: 0x2040ff,
+        emissiveIntensity: 0.5,
+        metalness: 0.7,
+        roughness: 0.3,
+        wireframe: false,
+        side: THREE.DoubleSide
+    });
+
+    const plane = new THREE.Mesh(geometry, material);
+    plane.rotation.x = -Math.PI / 2;
+    scene.add(plane);
+
+    const positionAttribute = geometry.getAttribute('position');
+    const originalPositions = positionAttribute.array.slice();
+
+    // Animation handled by global animate loop
+    scene.userData.animate = () => {
+        const time = Date.now() * 0.001;
+
+        for (let i = 0; i < positionAttribute.count; i++) {
+            const x = originalPositions[i * 3];
+            const y = originalPositions[i * 3 + 1];
+
+            const distance = Math.sqrt(x * x + y * y);
+            const wave = Math.sin(distance * 0.5 - time * 2) * Math.cos(x * 0.3 + time) * 1.5;
+
+            positionAttribute.setZ(i, wave);
+        }
+
+        positionAttribute.needsUpdate = true;
+        geometry.computeVertexNormals();
+
+        pointLight.position.x = Math.sin(time) * 5;
+        pointLight.position.z = Math.cos(time) * 5;
+    };
+
+    controls.target.set(0, 0, 0);
+    controls.update();
+
+    return { scene, camera };
+};
+
+const sceneResult = createScene();
+if (sceneResult && sceneResult.scene) {
+    window.scene = sceneResult.scene;
+    scene = sceneResult.scene;
+}
+if (sceneResult && sceneResult.camera) {
+    window.camera = sceneResult.camera;
+    camera = sceneResult.camera;
+}`;
+        }
+
+        function getRingPortalCode() {
+            return `const createScene = () => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000000);
+    scene.fog = new THREE.Fog(0x000000, 10, 40);
+
+    const camera = new THREE.PerspectiveCamera(60, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+    camera.position.set(0, 0, 20);
+
+    const ambientLight = new THREE.AmbientLight(0x202020, 0.3);
+    scene.add(ambientLight);
+
+    const ringCount = 15;
+
+    for (let i = 0; i < ringCount; i++) {
+        const radius = 0.5 + i * 0.5;
+        const geometry = new THREE.TorusGeometry(radius, 0.05, 16, 100);
+
+        const hue = i / ringCount;
+        const color = new THREE.Color().setHSL(hue, 1.0, 0.5);
+
+        const material = new THREE.MeshStandardMaterial({
+            color: color,
+            emissive: color,
+            emissiveIntensity: 0.8,
+            metalness: 0.9,
+            roughness: 0.1
+        });
+
+        const ring = new THREE.Mesh(geometry, material);
+        ring.position.z = -i * 1.5;
+        ring.userData.ringIndex = i;
+        scene.add(ring);
+    }
+
+    const centerLight = new THREE.PointLight(0x00ffff, 3, 30);
+    centerLight.position.set(0, 0, -20);
+    scene.add(centerLight);
+
+    // Animation handled by global animate loop
+    scene.userData.animate = () => {
+        const time = Date.now() * 0.001;
+        const rings = scene.children.filter(child => child.type === 'Mesh' && child.geometry.type === 'TorusGeometry');
+
+        rings.forEach((ring, i) => {
+            ring.rotation.z = time * (0.2 + i * 0.05);
+
+            const pulse = Math.sin(time * 2 - i * 0.3) * 0.1 + 1;
+            ring.scale.set(pulse, pulse, 1);
+
+            const zOffset = ((time * 5 + i) % ringCount) * 1.5 - ringCount * 1.5;
+            ring.position.z = zOffset;
+        });
+
+        centerLight.intensity = 2 + Math.sin(time * 4) * 1;
+    };
+
+    controls.target.set(0, 0, 0);
+    controls.update();
+
+    return { scene, camera };
+};
+
+const sceneResult = createScene();
+if (sceneResult && sceneResult.scene) {
+    window.scene = sceneResult.scene;
+    scene = sceneResult.scene;
+}
+if (sceneResult && sceneResult.camera) {
+    window.camera = sceneResult.camera;
+    camera = sceneResult.camera;
+}`;
+        }
+
+        function getBouncingSpheresCode() {
+            return `const createScene = () => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1a2e);
+
+    const camera = new THREE.PerspectiveCamera(60, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+    camera.position.set(0, 8, 15);
+
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(5, 10, 5);
+    scene.add(directionalLight);
+
+    const colors = [0xff6b9d, 0x4080ff, 0x4ecdc4, 0xffe66d, 0xa26cf7];
+
+    for (let i = 0; i < 5; i++) {
+        const geometry = new THREE.SphereGeometry(0.7, 32, 32);
+        const material = new THREE.MeshStandardMaterial({
+            color: colors[i],
+            emissive: colors[i],
+            emissiveIntensity: 0.2,
+            metalness: 0.5,
+            roughness: 0.3
+        });
+
+        const sphere = new THREE.Mesh(geometry, material);
+        sphere.position.set(
+            (Math.random() - 0.5) * 8,
+            5 + Math.random() * 5,
+            (Math.random() - 0.5) * 8
+        );
+
+        sphere.userData.velocity = new THREE.Vector3(
+            (Math.random() - 0.5) * 0.2,
+            0,
+            (Math.random() - 0.5) * 0.2
+        );
+
+        scene.add(sphere);
+    }
+
+    const groundGeometry = new THREE.PlaneGeometry(20, 20);
+    const groundMaterial = new THREE.MeshStandardMaterial({
+        color: 0x16213e,
+        roughness: 0.8,
+        metalness: 0.2
+    });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+
+    const gravity = -0.015;
+    const damping = 0.98;
+    const bounds = 9;
+
+    // Animation handled by global animate loop
+    scene.userData.animate = () => {
+        const spheres = scene.children.filter(child => child.type === 'Mesh' && child.geometry.type === 'SphereGeometry');
+
+        spheres.forEach(sphere => {
+            sphere.userData.velocity.y += gravity;
+            sphere.position.add(sphere.userData.velocity);
+
+            if (sphere.position.y - 0.7 <= 0) {
+                sphere.position.y = 0.7;
+                sphere.userData.velocity.y *= -0.8;
+            }
+
+            if (Math.abs(sphere.position.x) > bounds) {
+                sphere.position.x = Math.sign(sphere.position.x) * bounds;
+                sphere.userData.velocity.x *= -1;
+            }
+
+            if (Math.abs(sphere.position.z) > bounds) {
+                sphere.position.z = Math.sign(sphere.position.z) * bounds;
+                sphere.userData.velocity.z *= -1;
+            }
+
+            sphere.userData.velocity.multiplyScalar(damping);
+
+            sphere.rotation.x += sphere.userData.velocity.length();
+            sphere.rotation.y += sphere.userData.velocity.length();
+        });
+    };
+
+    controls.target.set(0, 0, 0);
+    controls.update();
+
+    return { scene, camera };
+};
+
+const sceneResult = createScene();
+if (sceneResult && sceneResult.scene) {
+    window.scene = sceneResult.scene;
+    scene = sceneResult.scene;
+}
+if (sceneResult && sceneResult.camera) {
+    window.camera = sceneResult.camera;
+    camera = sceneResult.camera;
+}`;
+        }
+    </script>
+</body>
+</html>
