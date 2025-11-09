@@ -9,7 +9,12 @@
       "Bash(./gradlew build:*)",
       "Bash(./gradlew compileDebugKotlin:*)",
       "Bash(timeout 120 ./gradlew compileDebugKotlin:*)",
-      "Bash(timeout 120 ./gradlew:*)"
+      "Bash(timeout 120 ./gradlew:*)",
+      "Bash(git checkout:*)",
+      "Bash(/tmp/babylon-buttons-fix.js)",
+      "Bash(/tmp/babylon-final-check.js)",
+      "Bash(/tmp/babylon-localStorage-fix.js)",
+      "Bash(/tmp/babylon-final-localStorage.js)"
     ],
     "deny": [],
     "ask": []

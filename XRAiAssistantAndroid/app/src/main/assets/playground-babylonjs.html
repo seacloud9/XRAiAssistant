@@ -198,8 +198,8 @@
             min-height: 200px;
             max-width: 90vw;
             max-height: 80vh;
-            /* Enable touch dragging on mobile */
-            touch-action: none;
+            /* Enable pointer events on console window */
+            pointer-events: auto;
         }
 
         .console-window.minimized {
@@ -240,21 +240,34 @@
         .console-controls {
             display: flex;
             gap: 8px;
+            /* Ensure buttons can receive touch events */
+            touch-action: manipulation;
+            pointer-events: auto;
         }
 
         .console-btn {
             background: rgba(255, 255, 255, 0.2);
             border: none;
             color: white;
-            width: 24px;
-            height: 24px;
+            /* ANDROID: Make buttons bigger for easier touching */
+            width: 36px;
+            height: 36px;
+            min-width: 36px;
+            min-height: 36px;
             border-radius: 3px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: background 0.2s;
+            /* Enable touch on Android */
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: rgba(255, 255, 255, 0.3);
+            /* Ensure pointer events work */
+            pointer-events: auto !important;
+            /* Add padding to increase touch target */
+            padding: 8px;
         }
 
         .console-btn:hover {
@@ -337,7 +350,9 @@
             transition: all 0.2s;
             user-select: none;
             -webkit-user-select: none;
-            -webkit-tap-highlight-color: transparent;
+            -webkit-tap-highlight-color: rgba(255, 255, 255, 0.3);
+            /* Enable touch on Android */
+            touch-action: manipulation;
         }
 
         .console-open-btn:hover {
@@ -1352,6 +1367,8 @@ const scene = createScene();`;
         console.log('🪟 [CONSOLE] Initial state - hidden:', false);
 
         function initFloatingConsole() {
+            console.log('🎬 [CONSOLE] Initializing floating console...');
+
             const consoleWindow = document.getElementById('consoleWindow');
             const titleBar = document.getElementById('consoleTitleBar');
             const copyBtn = document.getElementById('consoleCopyBtn');
@@ -1364,27 +1381,47 @@ const scene = createScene();`;
 
             // Safety check - return if elements don't exist yet
             if (!consoleWindow || !titleBar || !copyBtn || !clearBtn || !minimizeBtn || !toggleBtn || !closeBtn || !resizeHandle || !consoleOpenBtn) {
-                console.warn('Console elements not ready yet, skipping initialization');
+                console.warn('❌ [CONSOLE] Console elements not ready yet, skipping initialization');
                 return;
             }
 
-            // Load saved state from localStorage
-            const saved = localStorage.getItem('babylonjs_console_state');
-            if (saved) {
-                const savedState = JSON.parse(saved);
-                console.log('🪟 [CONSOLE] Loaded saved state:', savedState);
+            console.log('✅ [CONSOLE] All elements found, setting up touch event listeners...');
 
-                // ANDROID FIX: Always show console on Android, ignore hidden state from localStorage
-                consoleState = { ...consoleState, ...savedState, hidden: false };
-                console.log('🪟 [CONSOLE] Applied state (forced visible):', consoleState);
+            // Add general touch/click logging to debug event handling
+            consoleWindow.addEventListener('touchstart', (e) => {
+                console.log('👆 [CONSOLE DEBUG] Touch start on console window:', e.target.id || e.target.className);
+            }, { passive: true });
 
-                applyConsoleState();
-            } else {
-                console.log('🪟 [CONSOLE] No saved state, using defaults (visible)');
+            consoleWindow.addEventListener('click', (e) => {
+                console.log('🖱️ [CONSOLE DEBUG] Click on console window:', e.target.id || e.target.className);
+            });
+
+            // Load saved state from localStorage (with error handling for Android WebView)
+            try {
+                const saved = localStorage.getItem('babylonjs_console_state');
+                if (saved) {
+                    const savedState = JSON.parse(saved);
+                    console.log('🪟 [CONSOLE] Loaded saved state:', savedState);
+
+                    // ANDROID FIX: Always show console on Android, ignore hidden state from localStorage
+                    consoleState = { ...consoleState, ...savedState, hidden: false };
+                    console.log('🪟 [CONSOLE] Applied state (forced visible):', consoleState);
+
+                    applyConsoleState();
+                } else {
+                    console.log('🪟 [CONSOLE] No saved state, using defaults (visible)');
+                }
+            } catch (e) {
+                console.warn('⚠️ [CONSOLE] localStorage not available (Android WebView restriction), using defaults:', e.message);
             }
 
             // Copy button
             copyBtn.addEventListener('click', () => {
+                copyConsoleToClipboard();
+            });
+            copyBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 copyConsoleToClipboard();
             });
 
@@ -1392,9 +1429,27 @@ const scene = createScene();`;
             clearBtn.addEventListener('click', () => {
                 clearConsole();
             });
+            clearBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                clearConsole();
+            });
 
             // Minimize button
             minimizeBtn.addEventListener('click', () => {
+                console.log('🖱️ [CONSOLE] Minimize button CLICKED!');
+                consoleState.minimized = !consoleState.minimized;
+                consoleWindow.classList.toggle('minimized', consoleState.minimized);
+                minimizeBtn.textContent = consoleState.minimized ? '+' : '−';
+                saveConsoleState();
+            });
+            minimizeBtn.addEventListener('touchstart', (e) => {
+                console.log('👇 [CONSOLE] Minimize button TOUCH START!');
+            }, { passive: true });
+            minimizeBtn.addEventListener('touchend', (e) => {
+                console.log('👆 [CONSOLE] Minimize button TOUCH END!');
+                e.preventDefault();
+                e.stopPropagation(); // Prevent drag handler from interfering
                 consoleState.minimized = !consoleState.minimized;
                 consoleWindow.classList.toggle('minimized', consoleState.minimized);
                 minimizeBtn.textContent = consoleState.minimized ? '+' : '−';
@@ -1410,9 +1465,32 @@ const scene = createScene();`;
                 }
                 saveConsoleState();
             });
+            toggleBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (consoleState.minimized) {
+                    consoleState.minimized = false;
+                    consoleWindow.classList.remove('minimized');
+                    minimizeBtn.textContent = '−';
+                }
+                saveConsoleState();
+            });
 
             // Close button
             closeBtn.addEventListener('click', () => {
+                console.log('🖱️ [CONSOLE] Close button CLICKED!');
+                consoleState.hidden = true;
+                consoleWindow.classList.add('hidden');
+                saveConsoleState();
+                updateConsoleOpenButtonVisibility();
+            });
+            closeBtn.addEventListener('touchstart', (e) => {
+                console.log('👇 [CONSOLE] Close button TOUCH START!');
+            }, { passive: true });
+            closeBtn.addEventListener('touchend', (e) => {
+                console.log('👆 [CONSOLE] Close button TOUCH END!');
+                e.preventDefault();
+                e.stopPropagation();
                 consoleState.hidden = true;
                 consoleWindow.classList.add('hidden');
                 saveConsoleState();
@@ -1427,7 +1505,12 @@ const scene = createScene();`;
             titleBar.addEventListener('touchstart', startDrag, { passive: false });
 
             function startDrag(e) {
-                if (e.target.closest('.console-btn')) return;
+                console.log('👆 [CONSOLE] Title bar touched, event type:', e.type);
+                if (e.target.closest('.console-btn')) {
+                    console.log('⏩ [CONSOLE] Touch on button, ignoring for drag');
+                    return;
+                }
+                console.log('🎯 [CONSOLE] Starting drag...');
                 isDragging = true;
 
                 const rect = consoleWindow.getBoundingClientRect();
@@ -1536,9 +1619,23 @@ const scene = createScene();`;
                 saveConsoleState();
                 updateConsoleOpenButtonVisibility();
             });
+            consoleOpenBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                consoleState.hidden = false;
+                consoleState.minimized = false;
+                consoleWindow.classList.remove('hidden');
+                consoleWindow.classList.remove('minimized');
+                minimizeBtn.textContent = '−';
+                saveConsoleState();
+                updateConsoleOpenButtonVisibility();
+            });
 
             // Update button visibility based on console state
             updateConsoleOpenButtonVisibility();
+
+            // Mark as initialized to prevent duplicate initialization
+            consoleWindow.dataset.initialized = 'true';
+            console.log('🎉 [CONSOLE] Initialization complete!');
         }
 
         function updateConsoleOpenButtonVisibility() {
@@ -1575,7 +1672,12 @@ const scene = createScene();`;
         }
 
         function saveConsoleState() {
-            localStorage.setItem('babylonjs_console_state', JSON.stringify(consoleState));
+            try {
+                localStorage.setItem('babylonjs_console_state', JSON.stringify(consoleState));
+            } catch (e) {
+                // Silently fail on Android WebView where localStorage might be restricted
+                console.warn('⚠️ [CONSOLE] Could not save state to localStorage:', e.message);
+            }
         }
 
         function toggleConsole() {
@@ -1589,7 +1691,30 @@ const scene = createScene();`;
         }
 
         // Initialize console on page load
-        window.addEventListener('DOMContentLoaded', initFloatingConsole);
+        console.log('📦 [CONSOLE] Script loaded, setting up initialization...');
+
+        // Try multiple initialization methods to handle race conditions
+        if (document.readyState === 'loading') {
+            console.log('🔄 [CONSOLE] Document still loading, waiting for DOMContentLoaded...');
+            window.addEventListener('DOMContentLoaded', initFloatingConsole);
+        } else {
+            console.log('✅ [CONSOLE] Document already loaded, initializing immediately...');
+            initFloatingConsole();
+        }
+
+        // Backup: Try again after a delay if DOMContentLoaded missed
+        setTimeout(() => {
+            console.log('⏰ [CONSOLE] Backup initialization check...');
+            const consoleWindow = document.getElementById('consoleWindow');
+            if (consoleWindow && !consoleWindow.dataset.initialized) {
+                console.log('🔧 [CONSOLE] Console not initialized yet, running backup init...');
+                initFloatingConsole();
+            } else if (consoleWindow) {
+                console.log('✅ [CONSOLE] Console already initialized');
+            } else {
+                console.error('❌ [CONSOLE] Console window element not found!');
+            }
+        }, 1000);
 
         // Camera switching functionality
         function switchCamera(cameraType) {
