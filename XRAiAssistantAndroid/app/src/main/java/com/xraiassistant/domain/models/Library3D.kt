@@ -1310,34 +1310,7 @@ code here
         - Use object.position.set(x, y, z) for positioning
         - Use object.rotation.set(x, y, z) for rotation
 
-        POSTPROCESSING EFFECTS (AVAILABLE):
-        Three.js r160 includes powerful postprocessing capabilities loaded from local files.
-        Available globally: EffectComposer, RenderPass, UnrealBloomPass, ShaderPass, OutputPass
-
-        Example: Adding bloom effect to your scene
-        const composer = new EffectComposer(renderer);
-        const renderPass = new RenderPass(scene, camera);
-        composer.addPass(renderPass);
-
-        const bloomPass = new UnrealBloomPass(
-            new THREE.Vector2(window.innerWidth, window.innerHeight),
-            1.5,  // strength
-            0.4,  // radius
-            0.85  // threshold
-        );
-        composer.addPass(bloomPass);
-
-        const outputPass = new OutputPass();
-        composer.addPass(outputPass);
-
-        // IMPORTANT: Replace the default render loop with composer
-        function animate() {
-            requestAnimationFrame(animate);
-            composer.render(); // Use composer instead of renderer.render()
-        }
-        animate();
-
-        VISUAL EFFECTS (Without Post-Processing):
+        VISUAL EFFECTS:
         Create stunning visual effects using emissive materials and creative lighting:
 
         // Glowing effect with emissive materials
@@ -1350,7 +1323,6 @@ code here
         });
 
         Tips for Beautiful Scenes:
-        - Use postprocessing for bloom, depth of field, and other effects
         - Use emissive + emissiveIntensity for self-illuminated objects
         - Combine ambient + directional lights for depth
         - Dark backgrounds (0x000011) make emissive materials pop
