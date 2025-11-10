@@ -19,7 +19,8 @@
       "Bash(node /tmp/test_example1.js:*)",
       "Bash(node /tmp/test_fixed_cleaning.js:*)",
       "Bash(node /tmp/test_regex_match.js:*)",
-      "Bash(node /tmp/verify_fix.js:*)"
+      "Bash(node /tmp/verify_fix.js:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

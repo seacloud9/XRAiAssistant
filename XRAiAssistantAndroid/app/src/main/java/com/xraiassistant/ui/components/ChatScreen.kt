@@ -28,7 +28,7 @@ import com.xraiassistant.ui.viewmodels.ChatViewModel
 
 /**
  * Chat Screen
- * 
+ *
  * Displays AI conversation interface
  * Equivalent to chat section in iOS ContentView.swift
  */
@@ -36,6 +36,7 @@ import com.xraiassistant.ui.viewmodels.ChatViewModel
 @Composable
 fun ChatScreen(
     chatViewModel: ChatViewModel,
+    onNavigateToScene: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val messages by chatViewModel.messages.collectAsStateWithLifecycle()
@@ -78,6 +79,12 @@ fun ChatScreen(
             items(messages) { message ->
                 ChatMessageCard(
                     message = message,
+                    onRunScene = { code, libraryId ->
+                        // Run the code from this message
+                        chatViewModel.runCodeFromMessage(code, libraryId)
+                        // Navigate to Scene tab to show the result
+                        onNavigateToScene()
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
             }

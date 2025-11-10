@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -20,15 +21,20 @@ import java.util.*
 
 /**
  * Chat Message Card
- * 
+ *
  * Displays individual chat messages with different styling for user vs AI
- * Equivalent to ChatMessageView in iOS ContentView.swift
+ * NOW WITH: Code extraction and "Run Scene" button for AI messages
+ * Equivalent to ThreadedMessageView in iOS
  */
 @Composable
 fun ChatMessageCard(
     message: ChatMessage,
+    onRunScene: ((code: String, libraryId: String?) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    // Extract code from message if it contains code blocks
+    val extractedCode = extractCodeFromMessage(message.content)
+    val hasCode = extractedCode != null && !message.isUser
     Row(
         modifier = modifier,
         horizontalArrangement = if (message.isUser) {
@@ -109,21 +115,94 @@ fun ChatMessageCard(
                     )
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(4.dp))
-            
-            Text(
-                text = formatTime(message.timestamp),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                fontWeight = FontWeight.Light
-            )
+
+            // Row for timestamp and Run Scene button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = if (message.isUser) Arrangement.End else Arrangement.Start
+            ) {
+                Text(
+                    text = formatTime(message.timestamp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    fontWeight = FontWeight.Light
+                )
+
+                // NEW: Run Scene button for AI messages with code
+                if (hasCode && extractedCode != null && onRunScene != null) {
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Button(
+                        onClick = { onRunScene(extractedCode, message.libraryId) },
+                        modifier = Modifier.height(28.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF4CAF50),
+                            contentColor = Color.White
+                        ),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = "Run",
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Run Scene",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
         }
-        
+
         if (!message.isUser) {
             Spacer(modifier = Modifier.weight(0.2f))
         }
     }
+}
+
+/**
+ * Extract code from message content
+ * Looks for code between ```javascript (or similar) and ```
+ * Returns null if no valid code block found
+ */
+private fun extractCodeFromMessage(content: String): String? {
+    // Look for code between triple backticks
+    val possibleStarts = listOf("```javascript", "```typescript", "```js", "```ts", "```jsx", "```html", "```")
+
+    for (marker in possibleStarts) {
+        val startIndex = content.indexOf(marker)
+        if (startIndex != -1) {
+            // Find the closing triple backticks
+            val codeStart = startIndex + marker.length
+            val endIndex = content.indexOf("```", codeStart)
+
+            if (endIndex != -1) {
+                // Extract code between markers
+                var code = content.substring(codeStart, endIndex).trim()
+
+                // Remove any trailing artifacts
+                val artifacts = listOf("[/INSERT_CODE]", "[RUN_SCENE]", "```")
+                for (artifact in artifacts) {
+                    if (code.endsWith(artifact)) {
+                        code = code.substring(0, code.length - artifact.length).trim()
+                    }
+                }
+
+                // Sanity check: ignore if too short
+                if (code.length >= 10) {
+                    return code
+                }
+            }
+        }
+    }
+
+    return null
 }
 
 private fun formatTime(date: Date): String {

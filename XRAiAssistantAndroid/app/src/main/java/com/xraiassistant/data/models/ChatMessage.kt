@@ -12,7 +12,8 @@ data class ChatMessage(
     val content: String,
     val isUser: Boolean,
     val timestamp: Date = Date(),
-    val model: String? = null
+    val model: String? = null,
+    val libraryId: String? = null  // NEW: Track which 3D library this message is for
 ) {
     companion object {
         fun userMessage(content: String): ChatMessage {
@@ -22,11 +23,12 @@ data class ChatMessage(
             )
         }
         
-        fun aiMessage(content: String, model: String? = null): ChatMessage {
+        fun aiMessage(content: String, model: String? = null, libraryId: String? = null): ChatMessage {
             return ChatMessage(
                 content = content,
                 isUser = false,
-                model = model
+                model = model,
+                libraryId = libraryId
             )
         }
     }

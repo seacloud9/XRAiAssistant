@@ -89,6 +89,9 @@ class ChatViewModel @Inject constructor(
     private val _lastGeneratedCode = MutableStateFlow("")
     val lastGeneratedCode: StateFlow<String> = _lastGeneratedCode.asStateFlow()
 
+    // Track if first AI response has been shown (for loading random demo)
+    private var hasShownFirstResponse = false
+
     // MARK: - Callbacks (equivalent to iOS closures)
     var onInsertCode: ((String) -> Unit)? = null
     var onRunScene: (() -> Unit)? = null
@@ -177,7 +180,8 @@ class ChatViewModel @Inject constructor(
                 // Create placeholder AI message that will be updated with streaming chunks
                 val placeholderMessage = ChatMessage.aiMessage(
                     content = "",
-                    model = getModelDisplayName(_selectedModel.value)
+                    model = getModelDisplayName(_selectedModel.value),
+                    libraryId = _currentLibrary.value?.id  // Track which library this message is for
                 )
                 _messages.value = _messages.value + placeholderMessage
                 val messageIndex = _messages.value.lastIndex
@@ -199,7 +203,8 @@ class ChatViewModel @Inject constructor(
                     val updatedMessages = _messages.value.toMutableList()
                     updatedMessages[messageIndex] = ChatMessage.aiMessage(
                         content = fullResponse.toString(),
-                        model = getModelDisplayName(_selectedModel.value)
+                        model = getModelDisplayName(_selectedModel.value),
+                        libraryId = _currentLibrary.value?.id
                     )
                     _messages.value = updatedMessages
                 }
@@ -255,9 +260,16 @@ class ChatViewModel @Inject constructor(
                 // Add AI response
                 val aiMessage = ChatMessage.aiMessage(
                     content = response,
-                    model = getModelDisplayName(_selectedModel.value)
+                    model = getModelDisplayName(_selectedModel.value),
+                    libraryId = _currentLibrary.value?.id
                 )
                 _messages.value = _messages.value + aiMessage
+
+                // Load random demo on first AI response (like iOS)
+                if (!hasShownFirstResponse) {
+                    hasShownFirstResponse = true
+                    loadRandomDemoExample()
+                }
 
                 // Process response for code extraction
                 processAIResponse(response, library)
@@ -382,6 +394,60 @@ class ChatViewModel @Inject constructor(
         if (_lastGeneratedCode.value.contains("[RUN_SCENE]")) {
             println("✅ Found [RUN_SCENE] command")
             onRunScene?.invoke()
+        }
+    }
+
+    /**
+     * Run code from a chat message
+     * Public method for "Run Scene" button functionality
+     * Equivalent to iOS onRun callback in ThreadedMessageView
+     */
+    fun runCodeFromMessage(code: String, libraryId: String?) {
+        println("🎯 Running code from message (${code.length} chars) with library: ${libraryId ?: "current"}")
+
+        // If libraryId is specified, switch to that library first
+        val targetLibrary = if (libraryId != null) {
+            val library = library3DRepository.getLibraryById(libraryId)
+            if (library != null && library.id != _currentLibrary.value?.id) {
+                // Switch to the target library
+                println("🔄 Switching from ${_currentLibrary.value?.displayName} to ${library.displayName}")
+                _currentLibrary.value = library
+            }
+            library
+        } else {
+            _currentLibrary.value
+        }
+
+        // Inject the code
+        injectCode(code, targetLibrary)
+
+        // Automatically trigger run scene
+        println("✅ Code injected, triggering scene run")
+        onRunScene?.invoke()
+    }
+
+    /**
+     * Load a random demo example on first AI response
+     * Equivalent to iOS welcome message with demo code
+     */
+    private fun loadRandomDemoExample() {
+        val currentLib = _currentLibrary.value ?: return
+        println("🎲 Loading random demo for library: ${currentLib.displayName}")
+
+        // Get a random example from the current library
+        val examples = currentLib.examples
+        if (examples.isNotEmpty()) {
+            val randomExample = examples.random()
+            println("✨ Selected random example: ${randomExample.title}")
+
+            // Inject the example code
+            injectCode(randomExample.code, currentLib)
+
+            // Auto-run the scene to show the demo
+            println("▶️ Auto-running random demo example")
+            onRunScene?.invoke()
+        } else {
+            println("⚠️ No examples available for ${currentLib.displayName}")
         }
     }
 

@@ -102,6 +102,10 @@ fun MainScreen(
             AppView.CHAT -> {
                 ChatScreen(
                     chatViewModel = chatViewModel,
+                    onNavigateToScene = {
+                        // Switch to Scene tab when "Run Scene" button is clicked
+                        chatViewModel.updateCurrentView(AppView.SCENE)
+                    },
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues)
