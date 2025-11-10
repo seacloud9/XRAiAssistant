@@ -51,8 +51,35 @@
             position: relative;
             z-index: 10001;  /* CRITICAL: Above all content */
             pointer-events: auto;  /* CRITICAL: Ensure header receives clicks */
+            /* SMALL SCREEN FIX: Enable horizontal scrolling for toolbar on small screens */
+            overflow-x: auto;
+            overflow-y: hidden;
+            flex-wrap: nowrap;
+            /* Smooth scrolling on mobile */
+            -webkit-overflow-scrolling: touch;
+            /* Custom scrollbar styling */
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
         }
-        
+
+        /* Custom scrollbar for webkit browsers (Chrome, Safari, Edge) */
+        .header::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .header::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .header::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        .header::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
         .menu-btn {
             background: #0e639c;
             color: white;
@@ -64,6 +91,9 @@
             transition: background-color 0.2s;
             pointer-events: auto;  /* CRITICAL: Ensure buttons receive clicks */
             touch-action: manipulation;  /* CRITICAL: Prevent zoom on double-tap */
+            /* SMALL SCREEN FIX: Prevent buttons from shrinking */
+            flex-shrink: 0;
+            white-space: nowrap;
         }
         
         .menu-btn:hover {
