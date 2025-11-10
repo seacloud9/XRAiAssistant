@@ -13,7 +13,8 @@ data class ChatMessage(
     val isUser: Boolean,
     val timestamp: Date = Date(),
     val model: String? = null,
-    val libraryId: String? = null  // NEW: Track which 3D library this message is for
+    val libraryId: String? = null,  // Track which 3D library this message is for
+    val isWelcomeMessage: Boolean = false  // NEW: Mark as welcome message to show "Run Demo" button
 ) {
     companion object {
         fun userMessage(content: String): ChatMessage {

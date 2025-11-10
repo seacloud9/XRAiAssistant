@@ -41,8 +41,6 @@ interface Library3D {
 
             Try this example: ${randomExample.title}
             ${randomExample.description}
-
-            [Run the Scene]
         """.trimIndent()
     }
 }

@@ -135,8 +135,11 @@ class ChatViewModel @Inject constructor(
             id = java.util.UUID.randomUUID().toString(),
             content = welcomeContent,
             isUser = false,
-            timestamp = java.util.Date()
+            timestamp = java.util.Date(),
+            libraryId = defaultLibrary.id,  // Track which library this welcome message is for
+            isWelcomeMessage = true  // Mark as welcome message to show "Run Demo" button
         )
+        println("📨 Created welcome message: isWelcomeMessage=${welcomeMessage.isWelcomeMessage}, libraryId=${welcomeMessage.libraryId}")
         _messages.value = listOf(welcomeMessage)
     }
 
@@ -427,27 +430,41 @@ class ChatViewModel @Inject constructor(
     }
 
     /**
-     * Load a random demo example on first AI response
+     * Load a random demo example
+     * Public method for "Run Demo" button functionality
      * Equivalent to iOS welcome message with demo code
      */
-    private fun loadRandomDemoExample() {
-        val currentLib = _currentLibrary.value ?: return
-        println("🎲 Loading random demo for library: ${currentLib.displayName}")
+    fun loadRandomDemoExample(libraryId: String? = null) {
+        // If libraryId is specified, switch to that library first
+        val targetLibrary = if (libraryId != null) {
+            val library = library3DRepository.getLibraryById(libraryId)
+            if (library != null && library.id != _currentLibrary.value?.id) {
+                // Switch to the target library
+                println("🔄 Switching to ${library.displayName} for demo")
+                _currentLibrary.value = library
+            }
+            library
+        } else {
+            _currentLibrary.value
+        }
+
+        if (targetLibrary == null) return
+        println("🎲 Loading random demo for library: ${targetLibrary.displayName}")
 
         // Get a random example from the current library
-        val examples = currentLib.examples
+        val examples = targetLibrary.examples
         if (examples.isNotEmpty()) {
             val randomExample = examples.random()
             println("✨ Selected random example: ${randomExample.title}")
 
             // Inject the example code
-            injectCode(randomExample.code, currentLib)
+            injectCode(randomExample.code, targetLibrary)
 
             // Auto-run the scene to show the demo
             println("▶️ Auto-running random demo example")
             onRunScene?.invoke()
         } else {
-            println("⚠️ No examples available for ${currentLib.displayName}")
+            println("⚠️ No examples available for ${targetLibrary.displayName}")
         }
     }
 
@@ -510,9 +527,12 @@ class ChatViewModel @Inject constructor(
                         id = updatedMessages[0].id,
                         content = it.getWelcomeMessage(),
                         isUser = false,
-                        timestamp = updatedMessages[0].timestamp
+                        timestamp = updatedMessages[0].timestamp,
+                        libraryId = it.id,  // FIXED: Preserve library ID
+                        isWelcomeMessage = true  // FIXED: Mark as welcome message
                     )
                     _messages.value = updatedMessages
+                    println("📨 Updated welcome message: isWelcomeMessage=true, libraryId=${it.id}")
                 }
 
                 println("🎯 Switched to ${it.displayName}")

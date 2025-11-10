@@ -30,11 +30,13 @@ import java.util.*
 fun ChatMessageCard(
     message: ChatMessage,
     onRunScene: ((code: String, libraryId: String?) -> Unit)? = null,
+    onRunDemo: ((libraryId: String?) -> Unit)? = null,  // NEW: Run random demo callback
     modifier: Modifier = Modifier
 ) {
     // Extract code from message if it contains code blocks
     val extractedCode = extractCodeFromMessage(message.content)
     val hasCode = extractedCode != null && !message.isUser
+
     Row(
         modifier = modifier,
         horizontalArrangement = if (message.isUser) {
@@ -118,9 +120,11 @@ fun ChatMessageCard(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Row for timestamp and Run Scene button
+            // Row for timestamp and Run Demo/Scene buttons
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(end = 8.dp),  // Add padding to prevent cutoff
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = if (message.isUser) Arrangement.End else Arrangement.Start
             ) {
@@ -131,15 +135,41 @@ fun ChatMessageCard(
                     fontWeight = FontWeight.Light
                 )
 
-                // NEW: Run Scene button for AI messages with code
-                if (hasCode && extractedCode != null && onRunScene != null) {
+                // Run Demo button for welcome messages OR Run Scene for AI messages with code
+                if (message.isWelcomeMessage && onRunDemo != null) {
+                    // Show "Run Demo" button for welcome messages
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Button(
+                        onClick = { onRunDemo(message.libraryId) },
+                        modifier = Modifier.height(28.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF9C27B0),  // Purple for demo
+                            contentColor = Color.White
+                        ),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = "Run Demo",
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Run Demo",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                } else if (hasCode && extractedCode != null && onRunScene != null) {
+                    // Show "Run Scene" button for AI messages with code
                     Spacer(modifier = Modifier.width(12.dp))
 
                     Button(
                         onClick = { onRunScene(extractedCode, message.libraryId) },
                         modifier = Modifier.height(28.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF4CAF50),
+                            containerColor = Color(0xFF4CAF50),  // Green for scene
                             contentColor = Color.White
                         ),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)

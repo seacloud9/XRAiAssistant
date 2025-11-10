@@ -85,6 +85,12 @@ fun ChatScreen(
                         // Navigate to Scene tab to show the result
                         onNavigateToScene()
                     },
+                    onRunDemo = { libraryId ->
+                        // Run a random demo from the specified library
+                        chatViewModel.loadRandomDemoExample(libraryId)
+                        // Navigate to Scene tab to show the demo
+                        onNavigateToScene()
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
