@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Code
@@ -19,6 +20,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.xraiassistant.R
 import com.xraiassistant.ui.components.ChatScreen
 import com.xraiassistant.ui.components.SceneScreen
+import com.xraiassistant.presentation.screens.ConversationHistoryScreen
 import com.xraiassistant.presentation.screens.SettingsScreen
 import com.xraiassistant.ui.viewmodels.ChatViewModel
 
@@ -135,19 +137,21 @@ fun MainScreen(
                 }
             }
             AppView.HISTORY -> {
-                // Placeholder for History screen
-                Box(
+                ConversationHistoryScreen(
+                    onConversationSelected = { conversationId ->
+                        // Load the selected conversation
+                        chatViewModel.loadConversation(conversationId)
+                        // Switch back to Chat view to show the conversation
+                        chatViewModel.updateCurrentView(AppView.CHAT)
+                    },
+                    onNavigateBack = {
+                        // Go back to previous view (Chat)
+                        chatViewModel.updateCurrentView(AppView.CHAT)
+                    },
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(paddingValues),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "History Screen\n(Coming Soon)",
-                        style = MaterialTheme.typography.headlineMedium,
-                        textAlign = TextAlign.Center
-                    )
-                }
+                        .padding(paddingValues)
+                )
             }
             AppView.SETTINGS -> {
                 // Settings is handled as a modal, not a screen
@@ -201,13 +205,13 @@ private fun MainBottomNavigation(
         
         // Run Scene Tab
         NavigationBarItem(
-            icon = { 
+            icon = {
                 Box {
                     Icon(
-                        Icons.Filled.PlayArrow, 
+                        Icons.Filled.PlayArrow,
                         contentDescription = stringResource(R.string.nav_scene)
                     )
-                    
+
                     // Notification dot for generated code
                     if (hasGeneratedCode && currentView != AppView.SCENE) {
                         Box(
@@ -226,7 +230,20 @@ private fun MainBottomNavigation(
             selected = currentView == AppView.SCENE,
             onClick = { onViewChange(AppView.SCENE) }
         )
-        
+
+        // History Tab
+        NavigationBarItem(
+            icon = {
+                Icon(
+                    Icons.Filled.History,
+                    contentDescription = "History"
+                )
+            },
+            label = { Text("History") },
+            selected = currentView == AppView.HISTORY,
+            onClick = { onViewChange(AppView.HISTORY) }
+        )
+
         // Settings Tab
         NavigationBarItem(
             icon = { 

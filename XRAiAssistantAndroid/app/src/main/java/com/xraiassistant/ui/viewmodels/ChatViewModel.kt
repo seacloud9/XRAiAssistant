@@ -6,6 +6,7 @@ import com.xraiassistant.data.models.AIModel
 import com.xraiassistant.data.models.AIModels
 import com.xraiassistant.data.models.ChatMessage
 import com.xraiassistant.data.repositories.AIProviderRepository
+import com.xraiassistant.data.repositories.ConversationRepository
 import com.xraiassistant.data.repositories.Library3DRepository
 import com.xraiassistant.data.repositories.SettingsRepository
 import com.xraiassistant.domain.models.Library3D
@@ -38,7 +39,8 @@ data class ChatUiState(
 class ChatViewModel @Inject constructor(
     private val aiProviderRepository: AIProviderRepository,
     private val library3DRepository: Library3DRepository,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val conversationRepository: ConversationRepository  // NEW: For chat history
 ) : ViewModel() {
 
     // MARK: - UI State
@@ -91,6 +93,10 @@ class ChatViewModel @Inject constructor(
 
     // Track if first AI response has been shown (for loading random demo)
     private var hasShownFirstResponse = false
+
+    // MARK: - Chat History / Conversation Tracking
+    // Track current conversation ID (null for new unsaved conversation)
+    private var currentConversationId: String? = null
 
     // MARK: - Callbacks (equivalent to iOS closures)
     var onInsertCode: ((String) -> Unit)? = null
@@ -215,6 +221,9 @@ class ChatViewModel @Inject constructor(
                 // Process complete response for code extraction
                 processAIResponse(fullResponse.toString(), library)
 
+                // Auto-save conversation after AI response (matching iOS)
+                autoSaveConversation()
+
             } catch (e: Exception) {
                 // User-friendly error messages matching iOS
                 val errorMsg = when {
@@ -276,6 +285,9 @@ class ChatViewModel @Inject constructor(
 
                 // Process response for code extraction
                 processAIResponse(response, library)
+
+                // Auto-save conversation after AI response (matching iOS)
+                autoSaveConversation()
 
             } catch (e: Exception) {
                 val errorMsg = when {
@@ -630,6 +642,129 @@ class ChatViewModel @Inject constructor(
      */
     fun getAPIKey(provider: String): String {
         return aiProviderRepository.getAPIKey(provider)
+    }
+
+    // MARK: - Chat History Management
+
+    /**
+     * Auto-save conversation after AI response
+     * Equivalent to iOS autoSaveConversation() in EnhancedChatView.swift
+     */
+    private fun autoSaveConversation() {
+        // Only save if we have messages
+        if (_messages.value.isEmpty()) return
+
+        viewModelScope.launch {
+            try {
+                val messages = _messages.value
+                val libraryId = _currentLibrary.value?.id
+                val modelUsed = getModelDisplayName(_selectedModel.value)
+
+                if (currentConversationId == null) {
+                    // New conversation - create it
+                    val conversationId = conversationRepository.saveConversation(
+                        messages = messages,
+                        libraryId = libraryId,
+                        modelUsed = modelUsed
+                    )
+                    currentConversationId = conversationId
+                    println("💾 Auto-saved new conversation: $conversationId")
+                } else {
+                    // Update existing conversation
+                    conversationRepository.updateConversation(
+                        conversationId = currentConversationId!!,
+                        messages = messages,
+                        libraryId = libraryId,
+                        modelUsed = modelUsed
+                    )
+                    println("💾 Auto-updated conversation: $currentConversationId")
+                }
+            } catch (e: Exception) {
+                println("⚠️ Failed to auto-save conversation: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Load conversation from history
+     * Equivalent to iOS loadConversation() in EnhancedChatView.swift
+     */
+    fun loadConversation(conversationId: String) {
+        viewModelScope.launch {
+            try {
+                val (conversation, messageEntities) = conversationRepository.getConversationWithMessages(conversationId)
+
+                if (conversation != null && messageEntities.isNotEmpty()) {
+                    // Convert entities to ChatMessage
+                    val messages = messageEntities.map { entity ->
+                        ChatMessage(
+                            id = entity.id,
+                            content = entity.content,
+                            isUser = entity.isUser,
+                            timestamp = java.util.Date(entity.timestamp),
+                            model = entity.model,
+                            libraryId = entity.libraryId,
+                            isWelcomeMessage = false
+                        )
+                    }
+
+                    // Update current state
+                    _messages.value = messages
+                    currentConversationId = conversationId
+
+                    // Switch to the library used in conversation if different
+                    conversation.library3DID?.let { libraryId ->
+                        if (libraryId != _currentLibrary.value?.id) {
+                            selectLibrary(libraryId)
+                        }
+                    }
+
+                    println("📂 Loaded conversation: ${conversation.title}")
+                }
+            } catch (e: Exception) {
+                println("⚠️ Failed to load conversation: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Start new conversation
+     * Saves current conversation and clears state
+     * Equivalent to iOS "New Conversation" in EnhancedChatView.swift
+     */
+    fun newConversation() {
+        viewModelScope.launch {
+            // Save current conversation if it has messages
+            if (_messages.value.isNotEmpty()) {
+                autoSaveConversation()
+            }
+
+            // Clear state
+            _messages.value = emptyList()
+            currentConversationId = null
+            hasShownFirstResponse = false
+            _lastGeneratedCode.value = ""
+
+            // Show welcome message for current library
+            setupInitialMessage()
+
+            println("🆕 Started new conversation")
+        }
+    }
+
+    /**
+     * Clear all saved conversations
+     * Equivalent to iOS "Clear All History" in Settings
+     */
+    fun clearAllConversations() {
+        viewModelScope.launch {
+            try {
+                conversationRepository.deleteAllConversations()
+                println("🗑️ Cleared all conversations from Settings")
+            } catch (e: Exception) {
+                println("⚠️ Failed to clear all conversations: ${e.message}")
+            }
+        }
     }
 
     // MARK: - Helper Functions

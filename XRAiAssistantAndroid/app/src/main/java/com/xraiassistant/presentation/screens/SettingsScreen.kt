@@ -64,6 +64,9 @@ fun SettingsScreen(
     var topP by remember { mutableFloatStateOf(0.9f) }
     var systemPrompt by remember { mutableStateOf("") }
     var useSandpackForR3F by remember { mutableStateOf(true) }
+    var showClearAllDialog by remember { mutableStateOf(false) }
+    var historyCleared by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
     
     // Initialize local state with current values
     LaunchedEffect(Unit) {
@@ -183,12 +186,36 @@ fun SettingsScreen(
                 systemPrompt = systemPrompt,
                 onSystemPromptChange = { systemPrompt = it }
             )
-            
+
+            // Data & Privacy Section
+            DataPrivacySection(
+                onClearHistoryClick = { showClearAllDialog = true },
+                historyCleared = historyCleared
+            )
+
             // Save Settings Section
             SaveSettingsSection(
                 settingsSaved = settingsSaved
             )
         }
+    }
+
+    // Clear all history confirmation dialog
+    if (showClearAllDialog) {
+        ClearAllHistoryDialog(
+            onConfirm = {
+                coroutineScope.launch {
+                    viewModel.clearAllConversations()
+                    historyCleared = true
+                    showClearAllDialog = false
+
+                    // Reset the success message after 3 seconds
+                    delay(3000L)
+                    historyCleared = false
+                }
+            },
+            onDismiss = { showClearAllDialog = false }
+        )
     }
 }
 
@@ -1093,6 +1120,150 @@ private fun SaveSettingsSection(
             }
         }
     }
+}
+
+@Composable
+private fun DataPrivacySection(
+    onClearHistoryClick: () -> Unit,
+    historyCleared: Boolean
+) {
+    SettingsSection(
+        title = "Data & Privacy",
+        icon = Icons.Default.Security
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            // Clear Chat History Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFFF44336).copy(alpha = 0.05f) // Red
+                ),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.History,
+                            contentDescription = "Chat History",
+                            tint = Color(0xFFF44336),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "Chat History",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Text(
+                        "Clear all saved conversations and messages. This action cannot be undone.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Button(
+                        onClick = onClearHistoryClick,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFF44336)
+                        )
+                    ) {
+                        Icon(
+                            Icons.Default.DeleteForever,
+                            contentDescription = "Clear All",
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Clear All Chat History")
+                    }
+
+                    // Success message
+                    if (historyCleared) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = "Cleared",
+                                tint = Color(0xFF4CAF50),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                "All chat history cleared successfully",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF4CAF50)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Clear All History Confirmation Dialog
+ */
+@Composable
+private fun ClearAllHistoryDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                Icons.Default.Warning,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(48.dp)
+            )
+        },
+        title = {
+            Text(
+                "Clear All Chat History?",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "This will permanently delete all saved conversations and messages.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    "This action cannot be undone.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text("Clear All")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 @Composable
