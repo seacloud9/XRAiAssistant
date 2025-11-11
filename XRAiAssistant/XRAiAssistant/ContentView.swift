@@ -635,10 +635,11 @@ struct ContentView: View {
             } else {
                 sceneView
             }
-            
-            // Bottom tab bar
+
+            // Bottom tab bar - always visible at bottom
             bottomTabBar
         }
+        .ignoresSafeArea(.keyboard, edges: .bottom) // Let keyboard overlay instead of pushing
         .alert("Error", isPresented: $showingError) {
             Button("OK", role: .cancel) { }
         } message: {
@@ -931,6 +932,7 @@ struct ContentView: View {
         HStack {
                             TextField("Ask me to create a 3D scene...", text: $chatInput)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .submitLabel(.send) // Shows "Send" button on keyboard
                                 .onSubmit {
                                     sendMessage()
                                 }
@@ -938,7 +940,7 @@ struct ContentView: View {
                                 .keyboardType(.default)
                                 .autocapitalization(.none)
                                 .textInputAutocapitalization(.never)
-                            
+
                             Button(action: sendMessage) {
                                 Image(systemName: "paperplane.fill")
                                     .foregroundColor(.white)
@@ -1211,9 +1213,6 @@ struct ContentView: View {
             // Dismiss keyboard when tapping outside text fields
             UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         }
-        .padding(.bottom, keyboardObserver.isKeyboardVisible ? max(0, keyboardObserver.keyboardHeight - 34) : 0)
-        .animation(.easeInOut(duration: 0.3), value: keyboardObserver.keyboardHeight)
-        .ignoresSafeArea(.keyboard, edges: .bottom)
     }
     
     private func setupChatCallbacks() {
@@ -1263,8 +1262,12 @@ struct ContentView: View {
     private func sendMessage() {
         let message = chatInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !message.isEmpty else { return }
-        
+
         chatInput = ""
+
+        // Dismiss keyboard immediately after sending
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+
         chatViewModel.sendMessage(message, currentCode: currentCode)
     }
     

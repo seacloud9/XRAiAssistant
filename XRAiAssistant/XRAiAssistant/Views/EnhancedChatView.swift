@@ -558,19 +558,13 @@ struct EnhancedChatView: View {
 
     private var inputAreaView: some View {
         HStack(spacing: 12) {
-            if #available(iOS 16.0, *) {
-                TextField("Type a message...", text: $inputText, axis: .vertical)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .lineLimit(1...5)
-                    .onSubmit {
-                        sendMessage()
-                    }
-            } else {
-                TextField("Type a message...", text: $inputText, onCommit: {
+            // Use single-line TextField so Enter/Return submits instead of creating new line
+            TextField("Type a message...", text: $inputText)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .submitLabel(.send) // Shows "Send" button on keyboard
+                .onSubmit {
                     sendMessage()
-                })
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-            }
+                }
 
             Button(action: sendMessage) {
                 Image(systemName: "paperplane.fill")
@@ -582,7 +576,9 @@ struct EnhancedChatView: View {
             }
             .disabled(inputText.isEmpty || viewModel.isLoading)
         }
-        .padding()
+        .padding(.horizontal)
+        .padding(.vertical, 12)
+        .padding(.bottom, 0) // Remove extra bottom padding - let safe area handle it
         .background(Color(.systemBackground))
         .overlay(
             Rectangle()
@@ -607,6 +603,9 @@ struct EnhancedChatView: View {
 
         let messageContent = inputText
         inputText = ""
+
+        // Dismiss keyboard immediately after sending
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
 
         if let conversation = currentConversation {
             // Add message as threaded reply

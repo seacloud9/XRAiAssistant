@@ -20,7 +20,8 @@
       "Bash(node /tmp/test_fixed_cleaning.js:*)",
       "Bash(node /tmp/test_regex_match.js:*)",
       "Bash(node /tmp/verify_fix.js:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(xcodebuild:*)"
     ],
     "deny": [],
     "ask": []
