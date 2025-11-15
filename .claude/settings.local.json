@@ -26,7 +26,11 @@
       "Bash(export JAVA_HOME=\"/mnt/c/Program Files/Android/Android Studio/jbr\")",
       "Bash(export JAVA_HOME=\"/mnt/c/Program\\ Files/Android/Android\\ Studio/jbr\")",
       "Bash(JAVA_HOME='C:\\Program Files\\Android\\Android Studio\\jbr' timeout 120 ./gradlew compileDebugKotlin:*)",
-      "Bash(JAVA_HOME='/mnt/c/Program Files/Android/Android Studio/jbr' timeout 120 ./gradlew compileDebugKotlin:*)"
+      "Bash(JAVA_HOME='/mnt/c/Program Files/Android/Android Studio/jbr' timeout 120 ./gradlew compileDebugKotlin:*)",
+      "Bash(cat:*)",
+      "Bash(git rm:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
