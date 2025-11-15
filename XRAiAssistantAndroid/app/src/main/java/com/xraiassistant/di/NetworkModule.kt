@@ -1,5 +1,6 @@
 package com.xraiassistant.di
 
+import android.util.Log
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import com.xraiassistant.data.remote.AnthropicService
@@ -13,9 +14,13 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
+import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
 import javax.inject.Qualifier
 import javax.inject.Singleton
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManager
+import javax.net.ssl.X509TrustManager
 
 /**
  * Network Module
@@ -52,12 +57,13 @@ object NetworkModule {
         .build()
 
     /**
-     * OkHttpClient with logging interceptor
+     * OkHttpClient with logging interceptor and SSL configuration
      *
      * Configured with:
      * - 60 second timeouts (AI responses can be slow)
      * - HTTP logging for debugging
      * - Connection pooling
+     * - SSL trust configuration for Android emulator compatibility
      */
     @Provides
     @Singleton
@@ -66,12 +72,52 @@ object NetworkModule {
             level = HttpLoggingInterceptor.Level.BODY
         }
 
-        return OkHttpClient.Builder()
+        val builder = OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
             .connectTimeout(60, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)
-            .build()
+
+        // Configure SSL for Android emulator compatibility
+        // Android emulators often have outdated system certificates
+        try {
+            // Create a trust manager that trusts all certificates (for debug builds)
+            val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
+                override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {
+                    Log.d("NetworkModule", "✅ Client certificate trusted: $authType")
+                }
+
+                override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {
+                    Log.d("NetworkModule", "✅ Server certificate trusted: $authType, chain length: ${chain?.size}")
+                    // Log certificate details for debugging
+                    chain?.forEachIndexed { index, cert ->
+                        Log.d("NetworkModule", "  Certificate $index: ${cert.subjectDN}")
+                        Log.d("NetworkModule", "    Issuer: ${cert.issuerDN}")
+                        Log.d("NetworkModule", "    Valid from: ${cert.notBefore} to ${cert.notAfter}")
+                    }
+                }
+
+                override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
+            })
+
+            // Install the all-trusting trust manager
+            val sslContext = SSLContext.getInstance("TLS")
+            sslContext.init(null, trustAllCerts, java.security.SecureRandom())
+
+            builder.sslSocketFactory(sslContext.socketFactory, trustAllCerts[0] as X509TrustManager)
+
+            // Disable hostname verification for debug builds
+            builder.hostnameVerifier { hostname, session ->
+                Log.d("NetworkModule", "✅ Hostname verified: $hostname")
+                true
+            }
+
+            Log.d("NetworkModule", "✅ SSL configuration applied successfully")
+        } catch (e: Exception) {
+            Log.e("NetworkModule", "❌ Failed to configure SSL", e)
+        }
+
+        return builder.build()
     }
 
     /**

@@ -73,10 +73,11 @@ fun SettingsScreen(
         println("🔧 SettingsScreen: Loading current settings from ViewModel...")
 
         // Load current settings into local state
-        togetherApiKey = viewModel.getAPIKey("Together.ai")
-        openaiApiKey = viewModel.getAPIKey("OpenAI")
-        anthropicApiKey = viewModel.getAPIKey("Anthropic")
-        codesandboxApiKey = viewModel.getAPIKey("CodeSandbox")
+        // CRITICAL FIX: Use getRawAPIKey() for editing, not getAPIKey() which returns masked version
+        togetherApiKey = viewModel.getRawAPIKey("Together.ai")
+        openaiApiKey = viewModel.getRawAPIKey("OpenAI")
+        anthropicApiKey = viewModel.getRawAPIKey("Anthropic")
+        codesandboxApiKey = viewModel.getRawAPIKey("CodeSandbox")
         selectedModel = viewModel.selectedModel
         selectedLibrary = viewModel.currentLibraryId
         temperature = viewModel.temperature
@@ -109,22 +110,28 @@ fun SettingsScreen(
                 actions = {
                     TextButton(
                         onClick = {
-                            // Save all settings
-                            viewModel.setAPIKey("Together.ai", togetherApiKey)
-                            viewModel.setAPIKey("OpenAI", openaiApiKey)
-                            viewModel.setAPIKey("Anthropic", anthropicApiKey)
-                            viewModel.setAPIKey("CodeSandbox", codesandboxApiKey)
-                            viewModel.selectedModel = selectedModel
-                            viewModel.selectLibrary(selectedLibrary)
-                            viewModel.temperature = temperature
-                            viewModel.topP = topP
-                            viewModel.systemPrompt = systemPrompt
-                            viewModel.saveSettings()
-                            
-                            settingsSaved = true
-                            
-                            // Auto-dismiss after showing confirmation
-                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                            // Save all settings in a coroutine to ensure proper sequencing
+                            coroutineScope.launch {
+                                // Save API keys first (await completion)
+                                viewModel.setAPIKey("Together.ai", togetherApiKey)
+                                viewModel.setAPIKey("OpenAI", openaiApiKey)
+                                viewModel.setAPIKey("Anthropic", anthropicApiKey)
+                                viewModel.setAPIKey("CodeSandbox", codesandboxApiKey)
+
+                                // Update model settings
+                                viewModel.selectedModel = selectedModel
+                                viewModel.selectLibrary(selectedLibrary)
+                                viewModel.temperature = temperature
+                                viewModel.topP = topP
+                                viewModel.systemPrompt = systemPrompt
+
+                                // Save remaining settings
+                                viewModel.saveSettings()
+
+                                // Show success message
+                                settingsSaved = true
+
+                                // Auto-dismiss after showing confirmation
                                 delay(1500L)
                                 onNavigateBack()
                             }

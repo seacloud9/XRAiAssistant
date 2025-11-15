@@ -21,7 +21,12 @@
       "Bash(node /tmp/test_regex_match.js:*)",
       "Bash(node /tmp/verify_fix.js:*)",
       "Bash(find:*)",
-      "Bash(xcodebuild:*)"
+      "Bash(xcodebuild:*)",
+      "Bash(java:*)",
+      "Bash(export JAVA_HOME=\"/mnt/c/Program Files/Android/Android Studio/jbr\")",
+      "Bash(export JAVA_HOME=\"/mnt/c/Program\\ Files/Android/Android\\ Studio/jbr\")",
+      "Bash(JAVA_HOME='C:\\Program Files\\Android\\Android Studio\\jbr' timeout 120 ./gradlew compileDebugKotlin:*)",
+      "Bash(JAVA_HOME='/mnt/c/Program Files/Android/Android Studio/jbr' timeout 120 ./gradlew compileDebugKotlin:*)"
     ],
     "deny": [],
     "ask": []

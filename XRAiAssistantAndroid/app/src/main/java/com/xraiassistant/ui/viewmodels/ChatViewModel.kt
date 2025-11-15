@@ -59,6 +59,10 @@ class ChatViewModel @Inject constructor(
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
+    // MARK: - Status Message (for retry attempts, progress, etc.)
+    private val _statusMessage = MutableStateFlow<String?>(null)
+    val statusMessage: StateFlow<String?> = _statusMessage.asStateFlow()
+
     // MARK: - AI Configuration
     private val _selectedModel = MutableStateFlow(AIModels.DEEPSEEK_R1_70B.id)
     var selectedModel: String
@@ -225,16 +229,35 @@ class ChatViewModel @Inject constructor(
                 autoSaveConversation()
 
             } catch (e: Exception) {
+                println("❌ ChatViewModel: Error in sendMessage")
+                println("   Error type: ${e.javaClass.simpleName}")
+                println("   Error message: ${e.message}")
+                e.printStackTrace()
+
                 // User-friendly error messages matching iOS
                 val errorMsg = when {
+                    e.message?.contains("SSL") == true ->
+                        "⚠️ SSL Connection Error: ${e.message}\n\nPlease try again. If issue persists, check your internet connection."
                     e.message?.contains("401") == true ->
                         "⚠️ Invalid API Key: Please verify your API key in Settings"
                     e.message?.contains("API key not configured") == true ->
                         "⚠️ API Key Required: Please configure your API key in Settings"
+                    e.message?.contains("Cannot reach") == true ->
+                        "⚠️ Network Error: ${e.message}"
+                    e.message?.contains("timed out") == true ->
+                        "⚠️ Timeout Error: ${e.message}"
                     else ->
                         "Failed to get response: ${e.message ?: "Unknown error"}"
                 }
                 _errorMessage.value = errorMsg
+
+                // Also add error message to chat for visibility
+                val errorChatMessage = ChatMessage.aiMessage(
+                    content = errorMsg,
+                    model = "Error",
+                    libraryId = _currentLibrary.value?.id
+                )
+                _messages.value = _messages.value + errorChatMessage
             } finally {
                 _isLoading.value = false
             }
@@ -630,11 +653,10 @@ class ChatViewModel @Inject constructor(
 
     /**
      * Set API key for provider
+     * Made suspend to ensure caller can await completion
      */
-    fun setAPIKey(provider: String, key: String) {
-        viewModelScope.launch {
-            aiProviderRepository.setAPIKey(provider, key)
-        }
+    suspend fun setAPIKey(provider: String, key: String) {
+        aiProviderRepository.setAPIKey(provider, key)
     }
 
     /**
@@ -642,6 +664,13 @@ class ChatViewModel @Inject constructor(
      */
     fun getAPIKey(provider: String): String {
         return aiProviderRepository.getAPIKey(provider)
+    }
+
+    /**
+     * Get raw API key for provider (for editing in settings)
+     */
+    fun getRawAPIKey(provider: String): String {
+        return aiProviderRepository.getRawAPIKey(provider)
     }
 
     // MARK: - Chat History Management

@@ -4,6 +4,7 @@ import android.util.Log
 import com.squareup.moshi.Moshi
 import com.xraiassistant.data.models.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -19,7 +20,7 @@ import javax.inject.Singleton
  * Implements actual HTTP calls to Together.ai, OpenAI, and Anthropic APIs
  * with streaming support for real-time responses.
  *
- * Replaces the stub implementation.
+ * Includes retry logic with exponential backoff for transient errors.
  */
 @Singleton
 class RealAIProviderService @Inject constructor(
@@ -31,6 +32,9 @@ class RealAIProviderService @Inject constructor(
 
     companion object {
         private const val TAG = "RealAIProviderService"
+        private const val MAX_RETRIES = 3
+        private const val INITIAL_RETRY_DELAY_MS = 1000L // 1 second
+        private const val MAX_RETRY_DELAY_MS = 30000L // 30 seconds
     }
 
     /**
@@ -78,7 +82,7 @@ class RealAIProviderService @Inject constructor(
     }.flowOn(Dispatchers.IO)
 
     /**
-     * Stream response from Together.ai
+     * Stream response from Together.ai with automatic retry logic
      */
     private suspend fun streamTogetherAI(
         apiKey: String,
@@ -88,8 +92,6 @@ class RealAIProviderService @Inject constructor(
         temperature: Double,
         topP: Double
     ): Flow<String> = flow {
-        Log.d(TAG, "📡 Calling Together.ai API...")
-
         val messages = buildList {
             if (systemPrompt.isNotEmpty()) {
                 add(APIChatMessage(role = "system", content = systemPrompt))
@@ -106,22 +108,113 @@ class RealAIProviderService @Inject constructor(
             maxTokens = 4096
         )
 
-        val response = togetherAIService.chatCompletion(
-            authorization = "Bearer $apiKey",
-            request = request
-        )
+        var lastException: Exception? = null
+        var retryCount = 0
 
-        if (!response.isSuccessful) {
-            val errorBody = response.errorBody()?.string()
-            Log.e(TAG, "❌ Together.ai API error: ${response.code()} - $errorBody")
-            throw Exception("Together.ai API error: ${response.code()} - $errorBody")
+        while (retryCount <= MAX_RETRIES) {
+            try {
+                Log.d(TAG, "📡 Calling Together.ai API... (attempt ${retryCount + 1}/${MAX_RETRIES + 1})")
+
+                val response = togetherAIService.chatCompletion(
+                    authorization = "Bearer $apiKey",
+                    request = request
+                )
+
+                // Handle successful response
+                if (response.isSuccessful) {
+                    Log.d(TAG, "✅ Together.ai API response received, streaming chunks...")
+                    parseServerSentEvents(response.body()!!).collect { chunk ->
+                        emit(chunk)
+                    }
+                    return@flow // Success - exit retry loop
+                }
+
+                // Handle error responses
+                val errorBody = response.errorBody()?.string()
+                val errorCode = response.code()
+
+                Log.e(TAG, "❌ Together.ai API error: $errorCode - $errorBody")
+
+                // Check if this is a retryable error
+                if (isRetryableError(errorCode) && retryCount < MAX_RETRIES) {
+                    val retryAfterSeconds = response.headers()["retry-after"]?.toIntOrNull() ?: 0
+                    val delayMs = calculateRetryDelay(retryCount, retryAfterSeconds)
+
+                    Log.w(TAG, "⏳ Service temporarily unavailable. Retrying in ${delayMs}ms...")
+                    lastException = Exception("Together.ai API error $errorCode: Service temporarily unavailable")
+
+                    delay(delayMs)
+                    retryCount++
+                    continue
+                }
+
+                // Non-retryable error or max retries reached
+                throw Exception("Together.ai API error: $errorCode - $errorBody")
+
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error calling Together.ai API (attempt ${retryCount + 1})", e)
+
+                // Check if this is a network error that should be retried
+                val isRetryableNetworkError = when (e) {
+                    is java.net.SocketTimeoutException,
+                    is java.net.SocketException,
+                    is java.io.IOException -> retryCount < MAX_RETRIES
+                    else -> false
+                }
+
+                if (isRetryableNetworkError) {
+                    val delayMs = calculateRetryDelay(retryCount, 0)
+                    Log.w(TAG, "⏳ Network error. Retrying in ${delayMs}ms...")
+                    lastException = e
+                    delay(delayMs)
+                    retryCount++
+                    continue
+                }
+
+                // Provide user-friendly error message for non-retryable errors
+                when (e) {
+                    is javax.net.ssl.SSLHandshakeException -> {
+                        throw Exception("SSL connection failed. This may be due to emulator certificate issues. Error: ${e.message}")
+                    }
+                    is java.net.UnknownHostException -> {
+                        throw Exception("Cannot reach api.together.xyz. Please check your internet connection.")
+                    }
+                    else -> throw Exception("Network error: ${e.message}")
+                }
+            }
         }
 
-        Log.d(TAG, "✅ Together.ai API response received, streaming chunks...")
-        parseServerSentEvents(response.body()!!).collect { chunk ->
-            emit(chunk)
-        }
+        // Max retries exceeded
+        throw Exception("Together.ai service unavailable after $MAX_RETRIES retries. Please try again later.", lastException)
     }.flowOn(Dispatchers.IO)
+
+    /**
+     * Check if an HTTP error code is retryable
+     */
+    private fun isRetryableError(code: Int): Boolean {
+        return code == 503 || // Service Unavailable
+               code == 429 || // Too Many Requests
+               code == 408 || // Request Timeout
+               code >= 500    // Server errors
+    }
+
+    /**
+     * Calculate retry delay using exponential backoff
+     *
+     * @param retryCount Current retry attempt (0-based)
+     * @param retryAfterSeconds Server-provided retry-after value (0 if not provided)
+     * @return Delay in milliseconds
+     */
+    private fun calculateRetryDelay(retryCount: Int, retryAfterSeconds: Int): Long {
+        // If server provides retry-after, use it
+        if (retryAfterSeconds > 0) {
+            return (retryAfterSeconds * 1000L).coerceAtMost(MAX_RETRY_DELAY_MS)
+        }
+
+        // Otherwise use exponential backoff: 1s, 2s, 4s, 8s, ...
+        val exponentialDelay = INITIAL_RETRY_DELAY_MS * (1L shl retryCount)
+        return exponentialDelay.coerceAtMost(MAX_RETRY_DELAY_MS)
+    }
 
     /**
      * Stream response from OpenAI
@@ -171,6 +264,9 @@ class RealAIProviderService @Inject constructor(
 
     /**
      * Stream response from Anthropic
+     *
+     * NOTE: Claude 4.5+ models only accept temperature OR top_p, not both.
+     * We use temperature only (top_p is ignored for Anthropic).
      */
     private suspend fun streamAnthropic(
         apiKey: String,
@@ -178,9 +274,11 @@ class RealAIProviderService @Inject constructor(
         prompt: String,
         systemPrompt: String,
         temperature: Double,
-        topP: Double
+        topP: Double  // Ignored for Anthropic - Claude 4.5+ only accepts temperature
     ): Flow<String> = flow {
         Log.d(TAG, "📡 Calling Anthropic API...")
+        Log.d(TAG, "   Model: $model")
+        Log.d(TAG, "   Temperature: $temperature (top_p ignored for Claude 4.5+)")
 
         val messages = listOf(
             APIChatMessage(role = "user", content = prompt)
@@ -190,7 +288,7 @@ class RealAIProviderService @Inject constructor(
             model = model,
             messages = messages,
             temperature = temperature,
-            topP = topP,
+            topP = null,  // CRITICAL: Claude 4.5+ doesn't allow both temperature and top_p
             stream = true,
             maxTokens = 4096,
             system = systemPrompt.takeIf { it.isNotEmpty() }

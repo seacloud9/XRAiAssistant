@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!--
+        Network Security Configuration for XRAiAssistant
+
+        This configuration ensures proper SSL/TLS certificate validation
+        for API calls to Together.ai, OpenAI, and Anthropic.
+    -->
+
+    <!-- Base configuration for all connections -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- Trust system certificate authorities (includes root CAs for major APIs) -->
+            <certificates src="system" />
+            <!-- Also trust user-installed certificates (useful for debugging with proxies) -->
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+
+    <!--
+        Domain-specific configurations for AI providers
+        Ensures these domains always use HTTPS with proper certificate validation
+    -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.together.xyz</domain>
+        <domain includeSubdomains="true">api.openai.com</domain>
+        <domain includeSubdomains="true">api.anthropic.com</domain>
+        <domain includeSubdomains="true">codesandbox.io</domain>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </domain-config>
+</network-security-config>

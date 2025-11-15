@@ -103,11 +103,12 @@ class SettingsDataStore @Inject constructor(
     
     /**
      * Set API key for provider (encrypted storage)
+     * Uses commit() instead of apply() to ensure synchronous save
      */
     suspend fun setAPIKey(provider: String, key: String) {
         encryptedPrefs.edit()
             .putString("${API_KEY_PREFIX}${provider}", key)
-            .apply()
+            .commit()  // Synchronous save - ensures key is persisted before returning
     }
     
     /**

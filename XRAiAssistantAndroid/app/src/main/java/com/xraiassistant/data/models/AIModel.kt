@@ -102,10 +102,55 @@ object AIModels {
         )
     )
     
+    // ============= ANTHROPIC CLAUDE MODELS (2025) =============
+
+    val CLAUDE_SONNET_4_5 = AIModel(
+        id = "claude-sonnet-4-5-20250929",
+        displayName = "Claude Sonnet 4.5",
+        description = "Latest Anthropic model - 200K context, extended thinking",
+        provider = "Anthropic",
+        pricing = "$3/$15 per 1M tokens",
+        capabilities = setOf(
+            AICapability.TEXT_GENERATION,
+            AICapability.CODE_GENERATION,
+            AICapability.STREAMING,
+            AICapability.FUNCTION_CALLING
+        )
+    )
+
+    val CLAUDE_OPUS_4_1 = AIModel(
+        id = "claude-opus-4-1-20250805",
+        displayName = "Claude Opus 4.1",
+        description = "Most powerful Claude model - Complex reasoning & analysis",
+        provider = "Anthropic",
+        pricing = "$15/$75 per 1M tokens",
+        capabilities = setOf(
+            AICapability.TEXT_GENERATION,
+            AICapability.CODE_GENERATION,
+            AICapability.STREAMING,
+            AICapability.FUNCTION_CALLING
+        )
+    )
+
+    val CLAUDE_HAIKU_4_5 = AIModel(
+        id = "claude-haiku-4-5-20251001",
+        displayName = "Claude Haiku 4.5",
+        description = "Fast & cost-effective - Great for quick tasks",
+        provider = "Anthropic",
+        pricing = "$1/$5 per 1M tokens",
+        capabilities = setOf(
+            AICapability.TEXT_GENERATION,
+            AICapability.CODE_GENERATION,
+            AICapability.STREAMING
+        )
+    )
+
+    // Legacy model (kept for backward compatibility)
+    @Deprecated("Use CLAUDE_SONNET_4_5 instead", ReplaceWith("CLAUDE_SONNET_4_5"))
     val CLAUDE_3_5_SONNET = AIModel(
         id = "claude-3-5-sonnet-20241022",
-        displayName = "Claude 3.5 Sonnet",
-        description = "Anthropic's advanced model",
+        displayName = "Claude 3.5 Sonnet (Legacy)",
+        description = "Previous generation model",
         provider = "Anthropic",
         pricing = "$3.00/1M",
         capabilities = setOf(
@@ -114,7 +159,7 @@ object AIModels {
             AICapability.STREAMING
         )
     )
-    
+
     val ALL_MODELS = listOf(
         DEEPSEEK_R1_70B,
         LLAMA_3_3_70B,
@@ -122,7 +167,9 @@ object AIModels {
         QWEN_2_5_7B_TURBO,
         QWEN_2_5_CODER_32B,
         GPT_4O,
-        CLAUDE_3_5_SONNET
+        CLAUDE_SONNET_4_5,        // Latest Claude model (recommended)
+        CLAUDE_OPUS_4_1,          // Most powerful Claude
+        CLAUDE_HAIKU_4_5          // Fastest/cheapest Claude
     )
     
     val MODELS_BY_PROVIDER = ALL_MODELS.groupBy { it.provider }

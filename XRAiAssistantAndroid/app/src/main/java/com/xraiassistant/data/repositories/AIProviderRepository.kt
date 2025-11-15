@@ -115,6 +115,14 @@ class AIProviderRepository @Inject constructor(
             }
         }
     }
+
+    /**
+     * Get raw API key for provider (for editing in settings)
+     * Returns the full, unmasked API key
+     */
+    fun getRawAPIKey(provider: String): String {
+        return getAPIKeyForProvider(provider)
+    }
     
     /**
      * Get raw API key for provider (for API calls)
