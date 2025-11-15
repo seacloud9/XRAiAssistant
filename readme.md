@@ -15,7 +15,7 @@
 
 ---
 
-## 📍 **Project Status: January 2025**
+## 📍 **Project Status**
 - [Part 1: The Future of AI-Powered 3D Development on iOS](https://medium.com/@seacloud9/building-xraiassistant-the-future-of-ai-powered-3d-development-on-ios-part-1-ab3291b494d3)
 - [Part 2: Multi-Provider AI meets Multi-Framework XR on iOS](https://medium.com/@seacloud9/building-xraiassistant-part-2-multi-provider-ai-meets-multi-framework-xr-on-ios-8f0784070e9d)
 - [Part 3: Local Development Meets Universal Platform Vision](https://medium.com/@seacloud9/building-xraiassistant-part-3-local-development-meets-universal-platform-vision-15e2e5b9801b)
