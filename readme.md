@@ -16,6 +16,10 @@
 ---
 
 ## 📍 **Project Status: January 2025**
+- [Part 1: The Future of AI-Powered 3D Development on iOS](https://medium.com/@seacloud9/building-xraiassistant-the-future-of-ai-powered-3d-development-on-ios-part-1-ab3291b494d3)
+- [Part 2: Multi-Provider AI meets Multi-Framework XR on iOS](https://medium.com/@seacloud9/building-xraiassistant-part-2-multi-provider-ai-meets-multi-framework-xr-on-ios-8f0784070e9d)
+- [Part 3: Local Development Meets Universal Platform Vision](https://medium.com/@seacloud9/building-xraiassistant-part-3-local-development-meets-universal-platform-vision-15e2e5b9801b)
+- [Building XRAiAssistant, Part 4: From Multi-Platform Dreams to Production Reality](https://medium.com/@seacloud9/building-xraiassistant-part-4-from-multi-platform-dreams-to-production-reality-8268cbab5566?postPublishedType=repub)
 
 ### 🎉 **What We've Achieved**
 
@@ -27,6 +31,9 @@
 - ✅ **4 3D Frameworks**: Babylon.js, Three.js, React Three Fiber, A-Frame
 - ✅ **BuildKit**: Local JSX/TSX compilation using esbuild-wasm (iOS only, 2-3s builds)
 - ✅ **CodeSandbox Integration**: One-click R3F scene deployment to live URLs (iOS only)
+
+[![Watch the video](https://i.ytimg.com/vi/tMynHY2jsdc/maxres2.jpg)](https://www.youtube.com/watch?v=e-tMynHY2jsdc)
+
 
 ### 📊 **By the Numbers**
 
