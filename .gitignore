@@ -177,3 +177,54 @@ TYPE_CONFLICT_FIX.md
 
 # Build logs
 build.log
+
+# ============================================================================
+# Android / Gradle / Kotlin
+# ============================================================================
+
+# Gradle cache and build files
+.gradle/
+**/XRAiAssistantAndroid/.gradle/
+**/XRAiAssistantAndroid/local.properties
+**/XRAiAssistantAndroid/build/
+**/XRAiAssistantAndroid/app/build/
+**/XRAiAssistantAndroid/*/build/
+
+# Android Studio / IntelliJ IDEA
+**/XRAiAssistantAndroid/.idea/
+**/XRAiAssistantAndroid/.idea/*
+!**/XRAiAssistantAndroid/.idea/runConfigurations/
+**/XRAiAssistantAndroid/*.iml
+**/XRAiAssistantAndroid/.externalNativeBuild
+**/XRAiAssistantAndroid/.cxx
+
+# Captures directory for screenshots/video
+**/XRAiAssistantAndroid/captures/
+
+# Android profiler
+**/XRAiAssistantAndroid/*.hprof
+
+# NDK
+**/XRAiAssistantAndroid/obj/
+
+# APK and Bundle files (build outputs)
+**/XRAiAssistantAndroid/*.apk
+**/XRAiAssistantAndroid/*.aab
+**/XRAiAssistantAndroid/*.ap_
+**/XRAiAssistantAndroid/*.dex
+
+# Keystore files (CRITICAL: never commit signing keys!)
+**/XRAiAssistantAndroid/*.jks
+**/XRAiAssistantAndroid/*.keystore
+
+# Google Services (contains API keys - add if using Firebase)
+**/XRAiAssistantAndroid/app/google-services.json
+
+# Kotlin compiler cache
+**/XRAiAssistantAndroid/.kotlin/
+
+# Navigation Safe Args generated code
+**/XRAiAssistantAndroid/app/build/generated/
+
+# Room schema export (optional - some teams track this)
+# **/XRAiAssistantAndroid/app/schemas/
