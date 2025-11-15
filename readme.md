@@ -32,9 +32,6 @@
 - ✅ **BuildKit**: Local JSX/TSX compilation using esbuild-wasm (iOS only, 2-3s builds)
 - ✅ **CodeSandbox Integration**: One-click R3F scene deployment to live URLs (iOS only)
 
-[![Watch the video](https://i.ytimg.com/vi/tMynHY2jsdc/maxres2.jpg)](https://www.youtube.com/watch?v=e-tMynHY2jsdc)
-
-
 ### 📊 **By the Numbers**
 
 ```
