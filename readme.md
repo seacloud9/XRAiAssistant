@@ -1,4 +1,6 @@
-# 🚀 XRAiAssistant - AI-Powered Extended Reality Development
+# 🚀 [XRAiAssistant - NOW DEPRECATED PLEASE SEE m{ai}geXR](https://github.com/m-ai-geXR)
+
+
 
 > **The Ultimate Cross-Platform Mobile XR Development Environment**
 > Democratizing 3D and Extended Reality development through conversational AI, professional tools, and privacy-first architecture.
